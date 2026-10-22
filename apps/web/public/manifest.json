@@ -1,0 +1,16 @@
+{
+  "name": "ChMS",
+  "short_name": "ChMS",
+  "description": "Church Management System",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#1e3a5f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

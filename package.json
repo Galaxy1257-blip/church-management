@@ -1,0 +1,41 @@
+{
+  "name": "chms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ChMS - Church Management System (Ghana): members, services, giving, SMS, follow-up",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "build": "npm run build -w @chms/shared && npm run build -w @chms/db && npm run build -w @chms/api && npm run build -w @chms/worker && npm run build -w @chms/web",
+    "dev:api": "npm run dev -w @chms/api",
+    "dev:web": "npm run dev -w @chms/web",
+    "dev:worker": "npm run dev -w @chms/worker",
+    "typecheck": "npm run typecheck -w @chms/shared && npm run typecheck -w @chms/db && npm run typecheck -w @chms/api && npm run typecheck -w @chms/worker && npm run typecheck -w @chms/web",
+    "lint": "eslint .",
+    "test": "npm run test -w @chms/shared && npm run test -w @chms/api && npm run test -w @chms/worker",
+    "db:generate": "prisma generate --schema schema.prisma",
+    "db:migrate:dev": "prisma migrate dev --schema schema.prisma",
+    "db:migrate:deploy": "prisma migrate deploy --schema schema.prisma",
+    "db:extras": "node packages/db/dist/apply-extras.js",
+    "db:appuser": "node packages/db/dist/create-roles.js",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "db:verify": "node scripts/verify-stack.mjs",
+    "bible:fetch": "node scripts/fetch-bible.mjs",
+    "db:seed": "node packages/db/dist/seed.js",
+    "db:setup": "npm run db:migrate:deploy && npm run db:extras && npm run db:appuser && npm run db:seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.30.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@chms/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "seed": "node dist/seed.js",
+    "apply-extras": "node dist/apply-extras.js"
+  },
+  "dependencies": {
+    "@chms/shared": "*",
+    "@prisma/client": "^6.0.0",
+    "dotenv": "^16.5.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.0"
+  }
+}

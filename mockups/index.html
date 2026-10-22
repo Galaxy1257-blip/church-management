@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>ChMS — App Screens (mockups)</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#17212b;--muted:#5c6b7a;--line:#e2e6ea;--brand:#1e3a5f;--accent:#2f7d4f;--danger:#b3392f;--warn:#9a6b00}
+  *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#dfe4ea;color:var(--ink);font-size:14px}
+  h1.page{padding:18px 24px 4px;margin:0;font-size:20px}p.sub{padding:0 24px 10px;color:var(--muted);margin:0}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px;padding:16px 24px 48px;max-width:1700px;margin:0 auto}
+  .frame{background:#fff;border-radius:18px;box-shadow:0 8px 26px rgba(15,30,50,.16);overflow:hidden;border:1px solid #cfd6de}
+  .frame .cap{padding:8px 12px;font-weight:700;font-size:13px;background:#f0f3f6;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .frame .cap span{font-weight:400;color:var(--muted)}
+  .screen{height:640px;overflow:hidden;position:relative;background:var(--bg)}
+  .topbar{background:var(--brand);color:#fff;padding:9px 12px;display:flex;gap:12px;align-items:center;font-size:13px;flex-wrap:wrap}
+  .topbar .brand{font-weight:700;margin-right:auto}
+  .topbar a{color:#fff;opacity:.75;text-decoration:none}.topbar a.on{opacity:1;border-bottom:2px solid #fff}
+  .container{padding:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  h2{font-size:15px;margin:0 0 8px}h1{font-size:18px;margin:0 0 8px}
+  .muted{color:var(--muted);font-size:12.5px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .spread{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .stat{text-align:center}.stat .v{font-size:20px;font-weight:700}.stat .l{color:var(--muted);font-size:11px}
+  .badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .ok{background:#e2f2e8;color:var(--accent)}.warn{background:#faf0d9;color:var(--warn)}.err{background:#f9e3e0;color:var(--danger)}.mute{background:#eef1f4;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:10.5px;text-transform:uppercase}
+  button{border:none;border-radius:8px;background:var(--brand);color:#fff;font-weight:700;padding:8px 12px;font-size:13px}
+  button.sec{background:#e8edf2;color:var(--ink)}button.sm{padding:4px 8px;font-size:11.5px}button.dang{background:var(--danger)}
+  input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;width:100%;background:#fff}
+  label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:8px}label input,label select{margin-top:2px;color:var(--ink)}
+  .chip{padding:4px 10px;border-radius:999px;background:#e8edf2;font-size:12px;font-weight:600}.chip.on{background:var(--brand);color:#fff}
+  .counter{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .counter .name{flex:1;font-weight:600;font-size:15px}.counter .n{font-size:22px;font-weight:800;min-width:2.5ch;text-align:center}
+  .counter .pm{width:44px;height:44px;border-radius:10px;font-size:22px;padding:0}
+  .demo-bar{display:flex;height:24px;border-radius:8px;overflow:hidden;background:#e8edf2}
+  .demo-bar div{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:var(--muted)}
+  .media{background:#0d1520;color:#fff;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .media .big{font-size:100px;font-weight:800;line-height:1}
+  .media .cols{display:flex;gap:22px}.media .col{text-align:center}.media .col .n{font-size:30px;font-weight:800}.media .col .l{opacity:.65;font-size:11px;letter-spacing:.12em}
+  .toast{position:absolute;left:12px;right:12px;bottom:12px;background:var(--accent);color:#fff;padding:12px;border-radius:10px;font-weight:700;text-align:center}
+  .modal{position:absolute;inset:0;background:rgba(10,20,30,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal .box{background:#fff;border-radius:14px;padding:16px;width:100%}
+</style>
+</head>
+<body>
+<h1 class="page">ChMS — App screens <span style="font-weight:400;font-size:14px;color:#5c6b7a">(static mockups · real design system · Ghana demo data)</span></h1>
+<p class="sub">Live screens appear at localhost:3000 once the DB stack runs. These mirror the shipped UI exactly.</p>
+<div class="gallery">
+<!-- 1 LOGIN -->
+<div class="frame"><div class="cap">1 · Login <span>password or SMS code</span></div><div class="screen"><div class="container" style="padding-top:40px">
+  <div class="card" style="max-width:330px;margin:0 auto">
+    <h1>ChMS</h1><p class="muted">Sign in to your church workspace</p>
+    <div class="row" style="margin-bottom:10px"><span class="chip on">Password</span><span class="chip">SMS code</span></div>
+    <label>Church URL slug<input value="demo"/></label>
+    <label>Phone (e.g. 0241234567)<input value="0240000000"/></label>
+    <label>Password<input type="password" value="••••••••"/></label>
+    <button style="width:100%">Sign in</button>
+  </div>
+</div></div></div>
+
+<!-- 2 DASHBOARD -->
+<div class="frame"><div class="cap">2 · Dashboard <span>stats · demographics bar</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a class="on">Dashboard</a><a>Members</a><a>Services</a><a>Check-in</a><a>Visitors</a><a>Finance</a><a>SMS</a><a>Settings</a><a>Usher mode</a></div>
+  <div class="container">
+    <div class="grid3">
+      <div class="card stat"><div class="v">412</div><div class="l">Headcount (latest service)</div></div>
+      <div class="card stat"><div class="v">GHS 8,450.00</div><div class="l">Giving (all time)</div></div>
+      <div class="card stat"><div class="v">1,240</div><div class="l">SMS credits</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="spread"><h2>Sunday demographics</h2><span class="muted">Projection →</span></div>
+        <div class="demo-bar">
+          <div style="flex:44;background:#1e3a5f">44</div><div style="flex:38;background:#2f7d4f">38</div><div style="flex:96;background:#9a6b00">96</div><div style="flex:130;background:#b3392f">130</div><div style="flex:58;background:#5b2f8a">58</div><div style="flex:46;background:#0f766e">46</div>
+        </div>
+        <div class="legend"><span>■ Toddlers 44</span><span>■ Children 38</span><span>■ Teens Chapel 96</span><span>■ Adults (M) 130</span><span>■ Adults (W) 58</span><span>■ Seniors 46</span></div>
+      </div>
+      <div class="card">
+        <div class="spread"><h2>Latest service</h2><span class="muted">All services →</span></div>
+        <strong>Sunday Service</strong><div class="muted">Sun 18 Oct, 09:00</div>
+        <div class="row" style="margin-top:8px"><span class="badge ok">OPEN</span><button class="sm sec">Headcount</button><button class="sm sec">Check-in</button></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<!-- 3 MEMBERS -->
+<div class="frame"><div class="cap">3 · Members <span>bracket chips · graduation modal</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Dashboard</a><a class="on">Members</a><a>Services</a><a>Check-in</a><a>Visitors</a><a>Finance</a><a>SMS</a><a>Settings</a></div>
+  <div class="container">
+    <div class="spread"><h1>Members (328)</h1><div class="row"><button class="sm sec">🎉 Age promotions</button><button class="sm sec">+ Add</button><button class="sm sec">Import CSV</button></div></div>
+    <div class="row" style="margin:6px 0"><span class="chip on">All Ages (328)</span><span class="chip">Children (38)</span><span class="chip">Teens Chapel (52)</span><span class="chip">Young Adults (74)</span><span class="chip">Adults (128)</span><span class="chip">Seniors (36)</span></div>
+    <div class="card"><table><thead><tr><th>No.</th><th>Name</th><th>Phone</th><th>Bracket</th><th>Status</th></tr></thead><tbody>
+      <tr><td>M00142</td><td>Kwame Mensah</td><td>+233241234567</td><td>Main Adults</td><td><span class="badge ok">ACTIVE</span></td></tr>
+      <tr><td>M00143</td><td>Ama Serwaa</td><td>+233551234567</td><td>Adults (Women)</td><td><span class="badge ok">ACTIVE</span></td></tr>
+      <tr><td>M00144</td><td>Junior Mensah</td><td>+233271112223</td><td>Teens Chapel</td><td><span class="badge ok">ACTIVE</span></td></tr>
+      <tr><td>M00145</td><td>Efua Nyarko</td><td>+233209988776</td><td>Children Ministry</td><td><span class="badge ok">ACTIVE</span></td></tr>
+    </tbody></table></div>
+    <div class="modal"><div class="box">
+      <div class="spread"><h2>🎓 Graduations (2)</h2><button class="sm sec">Dismiss</button></div>
+      <ul style="padding-left:18px;margin:8px 0">
+        <li><b>Junior Mensah</b> (Age 13): Children Ministry → <b>Teens Chapel</b></li>
+        <li><b>Abena Frimpong</b> (Age 20): Teens Chapel → <b>Young Adults</b></li>
+      </ul>
+      <p class="muted">Each promotion writes a SHA-256 hash-chained audit event.</p>
+    </div></div>
+  </div>
+</div></div>
+
+<!-- 4 HEADCOUNT -->
+<div class="frame"><div class="cap">4 · Headcount <span>offline-first outbox</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Dashboard</a><a>Members</a><a class="on">Services</a><a>Check-in</a><a>Visitors</a><a>Finance</a><a>SMS</a><a>Settings</a></div>
+  <div class="container">
+    <div class="spread"><h1>Sunday Service</h1><span class="badge ok">OPEN</span></div>
+    <p class="muted">Sun 18 Oct, 09:00</p>
+    <div class="card">
+      <div class="spread"><h2>Headcount</h2><div class="row"><span class="badge ok">online</span><span class="badge mute">3 unsynced</span><button class="sm sec">Sync now</button></div></div>
+      <p class="muted">Each tap queues an event on this device; sync replays them. Airplane mode is safe.</p>
+      <div class="counter"><span class="name">Nursery &amp; Toddlers</span><button class="pm sec">−</button><span class="n">44</span><button class="pm">+</button></div>
+      <div class="counter"><span class="name">Children Ministry</span><button class="pm sec">−</button><span class="n">38</span><button class="pm">+</button></div>
+      <div class="counter"><span class="name">Teens Chapel</span><button class="pm sec">−</button><span class="n">96</span><button class="pm">+</button></div>
+      <div class="counter"><span class="name">Adults (Men)</span><button class="pm sec">−</button><span class="n">130</span><button class="pm">+</button></div>
+      <div class="counter" style="border:none"><span class="name">Adults (Women)</span><button class="pm sec">−</button><span class="n">58</span><button class="pm">+</button></div>
+      <div class="spread" style="margin-top:8px"><strong>Total</strong><strong style="font-size:22px">366</strong></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 5 CHECK-IN (usher) -->
+<div class="frame"><div class="cap">5 · Check-in <span>auto-sort feedback</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Today</a><a class="on">Check-in</a><a>Headcount</a><a>Visitors</a><a style="margin-left:auto">Full app</a></div>
+  <div class="container">
+    <h1>Check-in</h1>
+    <div class="card"><label>Service<select><option>Sunday Service (OPEN)</option></select></label></div>
+    <div class="card" style="background:#e2f2e8;border-color:#2f7d4f;text-align:center;font-size:17px;font-weight:700;color:#2f7d4f">Checked in ✓ — counted in Teens Chapel</div>
+    <div class="grid2">
+      <div class="card"><h2>Find by phone</h2><input value="0271112223" style="margin-bottom:8px"/><button style="width:100%">Check in</button></div>
+      <div class="card"><h2>Scan QR token</h2><input placeholder="paste scanned token" style="margin-bottom:8px"/><button style="width:100%">Check in</button></div>
+    </div>
+    <div class="card"><h2>This session (14)</h2><p class="muted">Junior Mensah · Ama Serwaa · Kofi Boateng · Abena Frimpong · …</p></div>
+  </div>
+</div></div>
+<!-- 6 FINANCE -->
+<div class="frame"><div class="cap">6 · Finance <span>two-counters → separate approver</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Dashboard</a><a>Members</a><a>Services</a><a>Check-in</a><a>Visitors</a><a class="on">Finance</a><a>SMS</a><a>Settings</a></div>
+  <div class="container">
+    <h1>Finance</h1>
+    <div class="grid2">
+      <div class="card"><h2>By fund</h2><table><tbody>
+        <tr><td>Tithe</td><td class="muted">86 gifts</td><td style="text-align:right"><b>GHS 5,200.00</b></td></tr>
+        <tr><td>Offering</td><td class="muted">212 gifts</td><td style="text-align:right"><b>GHS 2,410.00</b></td></tr>
+        <tr><td>Building</td><td class="muted">19 gifts</td><td style="text-align:right"><b>GHS 840.00</b></td></tr>
+        <tr><td><b>Total</b></td><td></td><td style="text-align:right"><b>GHS 8,450.00</b></td></tr>
+      </tbody></table></div>
+      <div class="card"><h2>New cash/cheque batch</h2><label>Service<select><option>Sunday Service</option></select></label><label>Label<input value="Sunday offering"/></label><button>Create batch</button></div>
+    </div>
+    <div class="card"><h2>Batches (two counters → separate approver)</h2><table><thead><tr><th>Label</th><th>Counted</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <tr><td>Sunday offering</td><td>GHS 1,240.00</td><td><span class="badge warn">COUNTED</span></td><td><span class="muted">2 counts in</span> <button class="sm">Approve</button></td></tr>
+      <tr><td>Midweek seed</td><td>GHS 310.00</td><td><span class="badge ok">APPROVED</span></td><td><button class="sm sec">Mark deposited</button></td></tr>
+      <tr><td>Youth convention</td><td>—</td><td><span class="badge mute">OPEN</span></td><td><button class="sm sec">Entries</button> <input style="width:80px" value="455.00"/> <button class="sm">Record count</button></td></tr>
+    </tbody></table></div>
+  </div>
+</div></div>
+
+<!-- 7 SMS -->
+<div class="frame"><div class="cap">7 · SMS <span>campaigns · wallet</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Dashboard</a><a>Members</a><a>Services</a><a>Check-in</a><a>Visitors</a><a>Finance</a><a class="on">SMS</a><a>Settings</a></div>
+  <div class="container">
+    <div class="spread"><h1>SMS</h1><div class="row"><span class="badge ok">1,240 credits</span><span class="badge mute">reserved 6</span></div></div>
+    <div class="card"><h2>New campaign</h2>
+      <div class="row"><label style="flex:1">Campaign name<input value="Sunday reminder"/></label><label style="align-self:end"><span class="row"><input type="checkbox" style="width:auto" checked/> Include visitors</span></label></div>
+      <label>Message (94 chars)<textarea style="min-height:60px">Hi {name}! Service starts 9:00am this Sunday at Grace Chapel. We can't wait to see you!</textarea></label>
+      <div class="row"><button class="sm sec">Preview cost</button><span class="badge warn">214 recipients × 1 segment = 214 units</span></div>
+      <button style="margin-top:8px">Send now (214 units)</button>
+    </div>
+    <div class="card"><h2>Recent messages</h2><table><thead><tr><th>To</th><th>Message</th><th>Source</th><th>Status</th></tr></thead><tbody>
+      <tr><td>+23324***4567</td><td>Thank you for your gift of GHS 100.00…</td><td>RECEIPT</td><td><span class="badge ok">DELIVERED</span></td></tr>
+      <tr><td>+23355***4567</td><td>Your login code is 483920…</td><td>OTP</td><td><span class="badge ok">SENT</span></td></tr>
+      <tr><td>+23327***2223</td><td>Hi Junior, we're praying for you this week…</td><td>DRIP</td><td><span class="badge mute">QUEUED</span></td></tr>
+    </tbody></table></div>
+  </div>
+</div></div>
+<!-- 8 SETTINGS -->
+<div class="frame"><div class="cap">8 · Settings <span>brackets · toggles · gateway</span></div><div class="screen">
+  <div class="topbar"><span class="brand">ChMS · Grace Chapel</span><a>Dashboard</a><a>Members</a><a>Services</a><a>Check-in</a><a>Visitors</a><a>Finance</a><a>SMS</a><a class="on">Settings</a></div>
+  <div class="container">
+    <h1>Settings</h1>
+    <div class="card"><h2>Age brackets (demographics)</h2>
+      <div class="row"><input style="flex:2" value="Teens Chapel"/><input style="width:90px" value="TEENS"/><input style="width:52px" value="13"/><span>to</span><input style="width:52px" value="19"/><label style="margin:0"><span class="row"><input type="checkbox" style="width:auto"/> M/W split</span></label></div>
+      <div class="row" style="margin-top:6px"><input style="flex:2" value="Main Sanctuary Adults"/><input style="width:90px" value="ADULTS"/><input style="width:52px" value="36"/><span>to</span><input style="width:52px" value="59"/><label style="margin:0"><span class="row"><input type="checkbox" style="width:auto" checked/> M/W split</span></label></div>
+      <button class="sm sec" style="margin-top:8px">+ Add bracket</button>
+      <h2 style="margin-top:12px">Toggles</h2>
+      <label><span class="row"><input type="checkbox" style="width:auto" checked/> Auto-sort check-ins into age-bracket sections</span></label>
+      <label><span class="row"><input type="checkbox" style="width:auto"/> Auto-promote age brackets nightly (audit-logged)</span></label>
+      <button>Save demographics</button>
+    </div>
+    <div class="card"><h2>SMS gateway (provider-agnostic)</h2>
+      <div class="row"><button class="sm sec">Mock (dev)</button><button class="sm">cSMS preset</button><button class="sm sec">Custom</button><span class="badge mute">token saved ✓</span></div>
+      <div class="row" style="margin-top:6px"><label style="flex:2">Send URL<input value="https://app.mycsms.com/api/v3/sms/send"/></label><label>Label<input value="cSMS"/></label></div>
+      <div class="row"><label>Auth header<input value="Authorization"/></label><label style="flex:1">API token / value<input type="password" value="••••••••••••••••"/></label></div>
+      <label>Body template (JSON)<textarea style="min-height:44px">{"sender":"GRACE","to":"{to}","message":"{message}"}</textarea></label>
+      <label><span class="row"><input type="checkbox" style="width:auto" checked/> I confirmed the field names match my provider's docs</span></label>
+      <button>Save gateway</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- 9 MEDIA SCREEN -->
+<div class="frame"><div class="cap">9 · Projection screen <span>SSE live · fullscreen</span></div><div class="screen">
+  <div class="media">
+    <div class="big">412</div>
+    <div style="opacity:.7;letter-spacing:.2em;font-size:12px">IN THE HOUSE</div>
+    <div class="cols">
+      <div class="col"><div class="n">44</div><div class="l">Toddlers</div></div>
+      <div class="col"><div class="n">38</div><div class="l">Children</div></div>
+      <div class="col"><div class="n">96</div><div class="l">Teens</div></div>
+      <div class="col"><div class="n">130</div><div class="l">Adults M</div></div>
+      <div class="col"><div class="n">58</div><div class="l">Adults W</div></div>
+      <div class="col"><div class="n">46</div><div class="l">Seniors</div></div>
+    </div>
+  </div>
+</div></div>
+<!-- 10 PUBLIC GIVE -->
+<div class="frame"><div class="cap">10 · Give page <span>public · MoMo/card via Paystack</span></div><div class="screen"><div class="container" style="padding-top:26px">
+  <div class="card" style="max-width:340px;margin:0 auto">
+    <h1>Give to Grace Chapel</h1>
+    <p class="muted">Mobile money &amp; card via Paystack. You'll get an SMS receipt.</p>
+    <label>Fund<select><option>Tithe</option><option>Offering</option><option>Building</option></select></label>
+    <label>Amount (GHS)<input value="100.00"/></label>
+    <label><span class="row"><input type="checkbox" style="width:auto" checked/> Cover the processing fee</span></label>
+    <label>Name (optional)<input value="Kwame Mensah"/></label>
+    <label>Phone for receipt (optional)<input value="0241234567"/></label>
+    <div class="card" style="background:#f5f6f8;margin-bottom:10px">
+      <div class="spread"><span>You pay</span><b>GHS 102.05</b></div>
+      <div class="spread muted"><span>Church receives</span><span>GHS 100.00</span></div>
+    </div>
+    <button style="width:100%">Give securely</button>
+  </div>
+</div></div></div>
+
+<!-- 11 PORTAL -->
+<div class="frame"><div class="cap">11 · Member portal <span>OTP · my giving · statement</span></div><div class="screen">
+  <div class="container" style="padding-top:20px">
+    <div class="card">
+      <h1>Grace Chapel</h1>
+      <p>Welcome, <b>Kwame Mensah</b> (M00142)</p>
+      <div class="spread"><h2 style="margin:0">My giving</h2><div class="row"><input style="width:70px" value="2026"/><button class="sm sec">Statement 2026</button><button class="sm sec">Print</button></div></div>
+      <table><thead><tr><th>Date</th><th>Fund</th><th>Amount</th><th>Ref</th></tr></thead><tbody>
+        <tr><td>12 Oct 2026</td><td>Tithe</td><td>GHS 250.00</td><td class="muted">chms_0193a4f2…</td></tr>
+        <tr><td>5 Oct 2026</td><td>Offering</td><td>GHS 50.00</td><td class="muted">chms_01939c81…</td></tr>
+        <tr><td>28 Sep 2026</td><td>Building</td><td>GHS 100.00</td><td class="muted">cash_Sunday…</td></tr>
+        <tr><td>21 Sep 2026</td><td>Tithe</td><td>GHS 250.00</td><td class="muted">chms_01937ab0…</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div></div>
+
+
+
+
+
+</div>
+</body>
+</html>

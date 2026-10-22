@@ -1,0 +1,1343 @@
+// =====================================================================
+// ChMS consolidated Prisma schema (merges blueprint Sections 2, 7, 8, 10, 11, 12)
+// Conventions:
+//  - UUIDv7 ids; money in integer pesewas (GHS minor units); phones in E.164
+//  - churchId on every tenant table; Postgres RLS enforces tenancy (see extras.sql)
+//  - Soft FKs: tables keep scalar *Id columns; add FK constraints in raw SQL where noted
+//  - audit_event (hash-chained audit log) lives in extras.sql, NOT in Prisma
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts (DATABASE_URL). On Prisma 6, add: url = env("DATABASE_URL")
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- enums
+enum RoleKey {
+  SUPER_ADMIN
+  FINANCE_ADMIN
+  USHER
+  FOLLOWUP_TEAM
+  LEADER
+  MEMBER
+  ELDER
+  SECRETARY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  DECEASED
+}
+
+enum VisitorStatus {
+  NEW
+  IN_FOLLOWUP
+  RETURNED
+  CONVERTED
+  OPTED_OUT
+  LOST
+}
+
+enum ServiceStatus {
+  SCHEDULED
+  OPEN
+  CLOSED
+}
+
+enum SegmentKind {
+  IN_PERSON
+  ONLINE
+}
+
+enum FundType {
+  TITHE
+  OFFERING
+  WELFARE
+  BUILDING
+  MISSIONS
+  SEED
+  EVENT
+  OTHER
+  FIRST_FRUIT
+  THANKSGIVING
+  HARVEST
+  ANNIVERSARY
+}
+
+enum TxStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  ABANDONED
+  REVERSED
+}
+
+enum PayChannel {
+  MOBILE_MONEY
+  CARD
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+}
+
+enum MomoProvider {
+  MTN
+  TELECEL
+  AT
+}
+
+enum FeeMode {
+  CHURCH_ABSORBS
+  GIVER_ABSORBS
+  GIVER_CHOICE
+}
+
+enum BatchStatus {
+  OPEN
+  COUNTED
+  APPROVED
+  DEPOSITED
+}
+
+enum MessageChannel {
+  SMS
+  WHATSAPP
+}
+
+// Opt-out trigger blocks CAMPAIGN, DRIP, ANNOUNCEMENT, EVENT, ROSTER. Transactional kinds are exempt by policy.
+enum SmsSource {
+  CAMPAIGN
+  DRIP
+  ANNOUNCEMENT
+  EVENT
+  ROSTER
+  RECEIPT
+  NUDGE
+  REPLY
+  OTP
+  ADHOC
+}
+
+enum SmsStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  REJECTED
+  EXPIRED
+  SUPPRESSED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  DONE
+  CANCELLED
+}
+
+enum FollowTrigger {
+  VISITOR_REGISTERED
+  MEMBER_ABSENT
+  NEW_MEMBER
+  MANUAL
+}
+
+enum StepType {
+  SMS
+  TASK
+  PROMPT
+}
+
+enum DelayFrom {
+  ENROLLMENT
+  PREVIOUS_STEP
+}
+
+enum ProgressState {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PAUSED
+  FAILED
+}
+
+enum PrayerVisibility {
+  PASTORAL_ONLY
+  FOLLOWUP_TEAM
+}
+
+enum LedgerReason {
+  PURCHASE
+  RESERVE
+  COMMIT
+  REFUND
+  ADJUST
+}
+
+enum PledgeFrequency {
+  ONE_TIME
+  WEEKLY
+  MONTHLY
+}
+
+enum PledgeStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum QrKind {
+  VISITOR_FORM
+  GIVE
+  MEMBER_APP
+}
+
+// ------------------------------------------- tenancy, users, access
+// User-configurable age brackets (demographics). Each bracket owns a
+// headcount section (segmentKey); genderSplit creates KEY_M/KEY_W sections.
+model AgeBracket {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  churchId     String   @db.Uuid
+  key          String // TODDLERS, CHILDREN, TEENS, YOUNG_ADULTS, ADULTS, SENIORS...
+  label        String // "Teens Chapel"
+  minAge       Int // inclusive
+  maxAge       Int? // inclusive; null = open-ended
+  genderSplit  Boolean  @default(false) // adults split into Men/Women sections
+  segmentKey   String // headcount section key (ADULTS -> ADULTS_M/ADULTS_W when genderSplit)
+  ministryNote String? // "Youth fellowship" — free-text affiliation shown on profiles
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([churchId, key])
+  @@index([churchId, isActive, sortOrder])
+}
+
+model Church {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  name               String
+  slug               String   @unique
+  timezone           String   @default("Africa/Accra")
+  currency           String   @default("GHS")
+  pastorDisplayName  String?
+  smsSenderId        String?
+  paystackSubaccount String?
+  intlGiving         Boolean  @default(false)
+  settings           Json     @default("{}")
+  createdAt          DateTime @default(now())
+
+  branches Branch[]
+  users    User[]
+  roles    Role[]
+}
+
+model Branch {
+  id                 String  @id @default(uuid(7)) @db.Uuid
+  churchId           String  @db.Uuid
+  name               String
+  code               String
+  address            String?
+  region             String? // R4.5 reports per region (denomination area)
+  isHq               Boolean @default(false)
+  smsSenderId        String?
+  paystackSubaccount String?
+  isActive           Boolean @default(true)
+
+  church      Church       @relation(fields: [churchId], references: [id])
+  users       UserBranch[]
+  remittances Remittance[]
+
+  @@unique([churchId, code])
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  churchId     String    @db.Uuid
+  name         String
+  phoneE164    String
+  email        String?
+  passwordHash String?
+  totpSecret   String?
+  memberId     String?   @db.Uuid
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  church   Church       @relation(fields: [churchId], references: [id])
+  roles    UserRole[]
+  branches UserBranch[]
+
+  @@unique([churchId, phoneE164])
+  @@index([churchId])
+}
+
+model Role {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  churchId    String   @db.Uuid
+  key         RoleKey
+  name        String
+  permissions String[]
+
+  church Church     @relation(fields: [churchId], references: [id])
+  users  UserRole[]
+
+  @@unique([churchId, key])
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// No UserBranch rows for a user = church-wide access.
+model UserBranch {
+  userId   String @db.Uuid
+  branchId String @db.Uuid
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([userId, branchId])
+}
+
+model ChurchGivingSettings {
+  churchId        String  @id @db.Uuid
+  feeMode         FeeMode @default(CHURCH_ABSORBS)
+  feeBps          Int     @default(195)
+  feeFlatMinor    Int     @default(10)
+  feeCapMinor     Int?
+  feeDefaultOptIn Boolean @default(true)
+}
+
+// Envelope encryption: wrappedKey is the per-church data key encrypted by the master key (KMS).
+model ChurchKey {
+  churchId   String
+  version    Int
+  wrappedKey Bytes
+  createdAt  DateTime @default(now())
+
+  @@id([churchId, version])
+}
+
+model OnboardingProgress {
+  churchId        String   @id @db.Uuid
+  accountCreated  Boolean  @default(false)
+  brandingDone    Boolean  @default(false)
+  paystackDone    Boolean  @default(false)
+  senderIdDone    Boolean  @default(false)
+  membersImported Boolean  @default(false)
+  defaultsCreated Boolean  @default(false)
+  testGiftDone    Boolean  @default(false)
+  wentLiveAt      DateTime?
+}
+
+model ImportJob {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  churchId     String   @db.Uuid
+  kind         String // MEMBERS
+  fileKey      String
+  mapping      Json
+  status       String   @default("UPLOADED") // UPLOADED|PREVIEW|RUNNING|DONE|FAILED
+  stats        Json?
+  errorFileKey String?
+  createdBy    String   @db.Uuid
+  createdAt    DateTime @default(now())
+}
+
+// ------------------------------------------------------- people
+model Member {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  churchId         String         @db.Uuid
+  branchId         String?        @db.Uuid
+  memberNo         String
+  firstName        String
+  lastName         String
+  phoneE164        String?
+  email            String?
+  gender           Gender?
+  dob              DateTime?      @db.Date
+  ageBracketId     String?        @db.Uuid // resolved from dob or set manually; soft FK -> AgeBracket
+  status           MemberStatus   @default(ACTIVE)
+  joinedAt         DateTime?      @db.Date
+  address          String?
+  smsConsent       Boolean        @default(true)
+  smsConsentAt     DateTime?
+  preferredChannel MessageChannel @default(SMS)
+  qrToken          String?        @unique // random 128-bit; NOT memberNo
+  qrIssuedAt       DateTime?
+  externalId       String?
+  photoKey         String?
+  // R4.8 spiritual milestones + R4.12 discipleship pathway
+  salvationDate    DateTime?      @db.Date
+  baptismDate      DateTime?      @db.Date
+  marriageDate     DateTime?      @db.Date
+  ordinationDate   DateTime?      @db.Date
+  discipleshipStage String? // VISITOR|NEW_BELIEVER|MEMBER|WORKER|LEADER
+  deletedAt        DateTime?
+  createdAt        DateTime       @default(now())
+
+  groups       GroupMember[]
+  attendance   Attendance[]
+  transactions Transaction[]
+  households   HouseholdMember[]
+  pledges      Pledge[]
+  guardianOf   MemberGuardian[] @relation("GuardianChild")
+  guardiansFor MemberGuardian[] @relation("GuardianAdult")
+
+  @@unique([churchId, memberNo])
+  @@index([churchId, phoneE164])
+  @@index([churchId, branchId, lastName, firstName])
+}
+
+model Household {
+  id       String  @id @default(uuid(7)) @db.Uuid
+  churchId String  @db.Uuid
+  name     String
+  address  String?
+
+  members HouseholdMember[]
+}
+
+model HouseholdMember {
+  householdId String @db.Uuid
+  memberId    String @db.Uuid
+  relation    String // HEAD|SPOUSE|CHILD|OTHER
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([householdId, memberId])
+}
+
+model MemberGuardian {
+  childId    String  @db.Uuid
+  guardianId String  @db.Uuid
+  relation   String
+  canPickup  Boolean @default(true)
+
+  child    Member @relation("GuardianChild", fields: [childId], references: [id], onDelete: Cascade)
+  guardian Member @relation("GuardianAdult", fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@id([childId, guardianId])
+}
+
+model MemberTransfer {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  churchId     String    @db.Uuid
+  memberId     String    @db.Uuid
+  fromBranchId String    @db.Uuid
+  toBranchId   String    @db.Uuid
+  requestedBy  String    @db.Uuid
+  approvedBy   String?   @db.Uuid
+  status       String    @default("PENDING") // PENDING|APPROVED|REJECTED
+  createdAt    DateTime  @default(now())
+
+  @@index([churchId, status])
+}
+
+model Visitor {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  churchId          String        @db.Uuid
+  branchId          String?       @db.Uuid
+  firstName         String
+  lastName          String?
+  phoneE164         String
+  ageBracketId      String?        @db.Uuid // resolved from dob when provided
+  firstServiceId    String?       @db.Uuid
+  invitedByMemberId String?       @db.Uuid
+  assignedToUserId  String?       @db.Uuid
+  qrCodeId          String?       @db.Uuid // source tracking
+  status            VisitorStatus @default(NEW)
+  visitCount        Int           @default(1)
+  consentSms        Boolean       @default(true)
+  convertedMemberId String?       @db.Uuid
+  notes             String?
+  createdAt         DateTime      @default(now())
+
+  progress FollowUpProgress[]
+
+  @@unique([churchId, phoneE164])
+  @@index([churchId, status, createdAt])
+}
+
+model Group {
+  id       String  @id @default(uuid(7)) @db.Uuid
+  churchId String  @db.Uuid
+  branchId String? @db.Uuid
+  type     String // DEPARTMENT | CELL | MINISTRY
+  name     String
+  leaderId String? @db.Uuid
+
+  members  GroupMember[]
+  meetings GroupMeeting[]
+
+  @@index([churchId, type])
+}
+
+model GroupMember {
+  groupId  String @db.Uuid
+  memberId String @db.Uuid
+  role     String @default("MEMBER")
+
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, memberId])
+}
+
+model GroupMeeting {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  churchId      String   @db.Uuid
+  groupId       String   @db.Uuid
+  heldAt        DateTime
+  topic         String?
+  offeringMinor Int?
+  reportedBy    String   @db.Uuid
+
+  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attendance GroupAttendance[]
+
+  @@index([groupId, heldAt])
+}
+
+// Surrogate id because memberId is nullable (guests).
+model GroupAttendance {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  meetingId String  @db.Uuid
+  memberId  String? @db.Uuid
+  guestName String?
+  present   Boolean @default(true)
+
+  meeting GroupMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, memberId])
+}
+
+model GroupNote {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  groupId    String   @db.Uuid
+  memberId   String   @db.Uuid
+  authorId   String   @db.Uuid
+  bodyCipher Bytes
+  nonce      Bytes
+  keyVersion Int
+  createdAt  DateTime @default(now())
+
+  @@index([groupId, memberId])
+}
+
+model RosterShift {
+  id        String @id @default(uuid(7)) @db.Uuid
+  churchId  String @db.Uuid
+  serviceId String @db.Uuid
+  groupId   String @db.Uuid
+  memberId  String @db.Uuid
+  duty      String
+  status    String @default("ASSIGNED") // ASSIGNED|CONFIRMED|DECLINED|SWAPPED
+
+  @@unique([serviceId, memberId, duty])
+  @@index([churchId, serviceId])
+}
+
+// ------------------------------------------- pastoral and welfare
+// bodyCipher is used when visibility = PASTORAL_ONLY (encrypt with ChurchKey helper); otherwise body is plain.
+model PrayerRequest {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  churchId    String           @db.Uuid
+  memberId    String?          @db.Uuid
+  visitorId   String?          @db.Uuid
+  submittedBy String?
+  body        String?
+  bodyCipher  Bytes?
+  nonce       Bytes?
+  keyVersion  Int?
+  visibility  PrayerVisibility @default(FOLLOWUP_TEAM)
+  isAnonymous Boolean          @default(false)
+  shareToWall Boolean          @default(false)
+  moderation  String           @default("PENDING") // PENDING|APPROVED|REJECTED
+  status      String           @default("OPEN") // OPEN|PRAYED|ANSWERED|ARCHIVED
+  assignedTo  String?          @db.Uuid
+  createdAt   DateTime         @default(now())
+
+  actions PrayerAction[]
+
+  @@index([churchId, status, createdAt])
+}
+
+model PrayerAction {
+  requestId String   @db.Uuid
+  memberId  String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  request PrayerRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, memberId])
+}
+
+model CounselingNote {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  subjectId  String   @db.Uuid
+  authorId   String   @db.Uuid
+  bodyCipher Bytes
+  nonce      Bytes
+  keyVersion Int
+  sharedWith String[] @db.Uuid
+  createdAt  DateTime @default(now())
+
+  @@index([churchId, subjectId])
+}
+
+model WelfareRequest {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  churchId             String   @db.Uuid
+  branchId             String?  @db.Uuid
+  memberId             String   @db.Uuid
+  category             String // MEDICAL|FUNERAL|SCHOOL_FEES|RENT|OTHER
+  descriptionCipher    Bytes
+  nonce                Bytes
+  keyVersion           Int
+  amountRequestedMinor Int?
+  status               String   @default("SUBMITTED") // SUBMITTED|UNDER_REVIEW|APPROVED|DECLINED|DISBURSED
+  reviewedBy           String?  @db.Uuid
+  approvedBy           String?  @db.Uuid
+  disbursedExpenseId   String?  @db.Uuid
+  createdAt            DateTime @default(now())
+
+  @@index([churchId, status])
+}
+
+// ------------------------------------ services, headcount, events
+model HeadcountSegment {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  churchId  String      @db.Uuid
+  key       String // MEN, TODDLERS, LIVESTREAM
+  label     String
+  kind      SegmentKind @default(IN_PERSON)
+  sortOrder Int         @default(0)
+  isActive  Boolean     @default(true)
+
+  headcounts Headcount[]
+
+  @@unique([churchId, key])
+}
+
+model ServiceTemplate {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  branchId   String?  @db.Uuid
+  name       String
+  rrule      String?
+  startTime  String // 'HH:MM' in church timezone
+  segmentIds String[] @db.Uuid
+
+  services Service[]
+}
+
+model Service {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  churchId     String        @db.Uuid
+  branchId     String?       @db.Uuid
+  templateId   String?       @db.Uuid
+  eventGroupId String?       @db.Uuid // joint services share one id
+  name         String
+  startsAt     DateTime
+  status       ServiceStatus @default(SCHEDULED)
+  closedAt     DateTime?
+
+  template   ServiceTemplate? @relation(fields: [templateId], references: [id])
+  headcounts Headcount[]
+  attendance Attendance[]
+
+  @@index([churchId, branchId, startsAt])
+}
+
+// Additive delta ledger. id is client-generated (idempotency key). Client sends segment key; server maps to segmentId.
+model Headcount {
+  id         String   @id @db.Uuid
+  churchId   String   @db.Uuid
+  serviceId  String   @db.Uuid
+  segmentId  String   @db.Uuid
+  delta      Int
+  deviceId   String
+  clientSeq  Int
+  recordedBy String   @db.Uuid
+  recordedAt DateTime
+  syncedAt   DateTime @default(now())
+
+  service Service          @relation(fields: [serviceId], references: [id])
+  segment HeadcountSegment @relation(fields: [segmentId], references: [id])
+
+  @@index([serviceId, segmentId])
+  @@index([churchId, serviceId])
+}
+
+model Attendance {
+  id          String   @id @db.Uuid // client-generated
+  churchId    String   @db.Uuid
+  serviceId   String   @db.Uuid
+  memberId    String?  @db.Uuid
+  visitorId   String?  @db.Uuid
+  checkedInAt DateTime
+  method      String   @default("MANUAL") // MANUAL|QR|PHONE_LOOKUP
+  deviceId    String?
+
+  service Service  @relation(fields: [serviceId], references: [id])
+  member  Member?  @relation(fields: [memberId], references: [id])
+
+  @@unique([serviceId, memberId])
+  @@unique([serviceId, visitorId])
+  @@index([churchId, serviceId])
+}
+
+model ChildCheckIn {
+  id             String    @id @db.Uuid // client-generated
+  churchId       String    @db.Uuid
+  serviceId      String    @db.Uuid
+  childId        String    @db.Uuid
+  guardianId     String    @db.Uuid
+  tagNo          String
+  pickupCodeHash String
+  codeAttempts   Int       @default(0)
+  checkedInAt    DateTime
+  checkedOutAt   DateTime?
+  checkedOutBy   String?   @db.Uuid
+
+  @@unique([serviceId, childId])
+}
+
+model Event {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  churchId     String    @db.Uuid
+  branchId     String?   @db.Uuid
+  title        String
+  description  String?
+  startsAt     DateTime
+  endsAt       DateTime?
+  venue        String?
+  capacity     Int?
+  rsvpOpensAt  DateTime?
+  rsvpClosesAt DateTime?
+  isPublic     Boolean   @default(true)
+  feeMinor     Int       @default(0)
+  fundId       String?   @db.Uuid
+  status       String    @default("PUBLISHED") // DRAFT|PUBLISHED|CANCELLED
+
+  rsvps EventRsvp[]
+
+  @@index([churchId, startsAt])
+}
+
+model EventRsvp {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  churchId       String   @db.Uuid
+  eventId        String   @db.Uuid
+  memberId       String?  @db.Uuid
+  guestName      String?
+  guestPhoneE164 String?
+  partySize      Int      @default(1)
+  status         String   @default("GOING") // GOING|WAITLIST|CANCELLED|ATTENDED
+  qrToken        String?  @unique
+  transactionId  String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, guestPhoneE164])
+  @@index([eventId, status])
+}
+
+model QrCode {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  churchId  String   @db.Uuid
+  branchId  String?  @db.Uuid
+  kind      QrKind   @default(VISITOR_FORM)
+  shortCode String   @unique
+  label     String
+  scanCount Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// --------------------------------------------- giving and finance
+model Fund {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  churchId String   @db.Uuid
+  name     String
+  type     FundType
+  isActive Boolean  @default(true)
+
+  transactions Transaction[]
+  campaigns    Campaign[]
+  pledges      Pledge[]
+
+  @@unique([churchId, name])
+}
+
+model Campaign {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  churchId  String    @db.Uuid
+  fundId    String    @db.Uuid
+  name      String
+  goalMinor Int
+  startsOn  DateTime  @db.Date
+  endsOn    DateTime? @db.Date
+  isPublic  Boolean   @default(true)
+
+  fund    Fund     @relation(fields: [fundId], references: [id])
+  pledges Pledge[]
+}
+
+// Pledges are intentions, never counted as money. Progress comes from Transaction.
+model Pledge {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  churchId    String          @db.Uuid
+  branchId    String?         @db.Uuid
+  memberId    String          @db.Uuid
+  fundId      String          @db.Uuid
+  campaignId  String?         @db.Uuid
+  amountMinor Int
+  frequency   PledgeFrequency @default(ONE_TIME)
+  startsOn    DateTime        @db.Date
+  endsOn      DateTime?       @db.Date
+  status      PledgeStatus    @default(ACTIVE)
+
+  member   Member    @relation(fields: [memberId], references: [id])
+  fund     Fund      @relation(fields: [fundId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([churchId, memberId])
+}
+
+model GivingBatch {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  churchId     String      @db.Uuid
+  branchId     String?     @db.Uuid
+  serviceId    String      @db.Uuid
+  label        String
+  status       BatchStatus @default(OPEN)
+  countedBy1   String?     @db.Uuid
+  countedBy2   String?     @db.Uuid
+  countedMinor Int?
+  approvedBy   String?     @db.Uuid
+  depositRef   String?
+  depositedAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  transactions Transaction[]
+}
+
+// Fund is credited giftMinor. chargedMinor = giftMinor + feeCoverMinor is what Paystack charges.
+// Settlement compares Paystack's verified amount with chargedMinor.
+model Transaction {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  churchId             String        @db.Uuid
+  branchId             String?       @db.Uuid
+  fundId               String        @db.Uuid
+  memberId             String?       @db.Uuid
+  giverName            String?
+  giverPhoneE164       String?
+  giftMinor            Int
+  feeCoverMinor        Int           @default(0)
+  chargedMinor         Int
+  feeEstimateMinor     Int           @default(0)
+  gatewayFeeMinor      Int?
+  netSettledMinor      Int?
+  settledMinor         Int? // GHS actually settled (source of truth for FX)
+  currency             String        @default("GHS")
+  presentmentCurrency  String?
+  presentmentMinor     Int?
+  fxRateLocked         Decimal?      @db.Decimal(18, 6)
+  channel              PayChannel?
+  momoProvider         MomoProvider?
+  status               TxStatus      @default(PENDING)
+  reference            String        @unique
+  paystackTxId         BigInt?
+  gatewayResponse      Json?
+  isAnonymous          Boolean       @default(false)
+  paidAt               DateTime?
+  recordedBy           String?       @db.Uuid
+  batchId              String?       @db.Uuid
+  bankRef              String?
+  attemptOf            String?       @db.Uuid
+  failureCode          String?
+  nudgeSentAt          DateTime?
+  receiptSent          Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+
+  fund   Fund         @relation(fields: [fundId], references: [id])
+  member Member?      @relation(fields: [memberId], references: [id])
+  batch  GivingBatch? @relation(fields: [batchId], references: [id])
+
+  @@unique([churchId, bankRef])
+  @@index([churchId, status, paidAt])
+  @@index([churchId, fundId, paidAt])
+  @@index([churchId, memberId, paidAt])
+  @@index([status, createdAt])
+}
+
+model ProcessedWebhookEvent {
+  provider   String
+  eventKey   String
+  receivedAt DateTime @default(now())
+
+  @@id([provider, eventKey])
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  base      String
+  quote     String   @default("GHS")
+  rate      Decimal  @db.Decimal(18, 6)
+  source    String
+  fetchedAt DateTime @default(now())
+
+  @@index([base, quote, fetchedAt])
+}
+
+model ReconciliationRun {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  churchId       String?   @db.Uuid
+  runAt          DateTime  @default(now())
+  windowFrom     DateTime
+  windowTo       DateTime
+  missingLocal   Json
+  missingRemote  Json
+  amountMismatch Json
+  resolvedBy     String?   @db.Uuid
+  resolvedAt     DateTime?
+}
+
+model ExpenseCategory {
+  id       String @id @default(uuid(7)) @db.Uuid
+  churchId String @db.Uuid
+  name     String
+
+  expenses Expense[]
+
+  @@unique([churchId, name])
+}
+
+model Expense {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  churchId    String        @db.Uuid
+  branchId    String?       @db.Uuid
+  categoryId  String        @db.Uuid
+  amountMinor Int
+  spentOn     DateTime      @db.Date
+  payee       String
+  note        String?
+  receiptKey  String?
+  status      ExpenseStatus @default(DRAFT)
+  submittedBy String        @db.Uuid
+  approvedBy  String?       @db.Uuid
+
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([churchId, spentOn])
+}
+
+// ------------------------------------------- messaging and alerts
+model SmsWallet {
+  churchId      String   @id @db.Uuid
+  balanceUnits  Int      @default(0)
+  reservedUnits Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+model SmsLedger {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  churchId       String       @db.Uuid
+  delta          Int
+  reason         LedgerReason
+  refType        String?
+  refId          String?
+  balanceAfter   Int
+  idempotencyKey String       @unique
+  createdAt      DateTime     @default(now())
+
+  @@index([churchId, createdAt])
+}
+
+model SmsPackage {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  name       String
+  units      Int
+  priceMinor Int
+  isActive   Boolean @default(true)
+
+  purchases SmsPurchase[]
+}
+
+model SmsPurchase {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  churchId   String    @db.Uuid
+  packageId  String    @db.Uuid
+  units      Int
+  priceMinor Int
+  reference  String    @unique
+  status     TxStatus  @default(PENDING)
+  paidAt     DateTime?
+
+  package SmsPackage @relation(fields: [packageId], references: [id])
+}
+
+model SmsCampaign {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  churchId        String         @db.Uuid
+  name            String
+  body            String
+  audience        Json
+  status          CampaignStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  totalRecipients Int            @default(0)
+  createdBy       String         @db.Uuid
+  createdAt       DateTime       @default(now())
+
+  logs SmsLog[]
+
+  @@index([churchId, status])
+}
+
+model SmsLog {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  churchId          String         @db.Uuid
+  channel           MessageChannel @default(SMS)
+  source            SmsSource
+  campaignId        String?        @db.Uuid
+  progressId        String?        @db.Uuid
+  toE164            String
+  body              String
+  segments          Int            @default(1)
+  status            SmsStatus      @default(QUEUED)
+  providerMessageId String?
+  errorCode         String?
+  attempts          Int            @default(0)
+  idempotencyKey    String         @unique
+  queuedAt          DateTime       @default(now())
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+
+  campaign SmsCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([churchId, status, queuedAt])
+  @@index([providerMessageId])
+  @@index([toE164, queuedAt])
+  @@index([campaignId])
+}
+
+model SmsOptOut {
+  churchId  String
+  phoneE164 String
+  scope     String   @default("CHURCH")
+  createdAt DateTime @default(now())
+
+  @@id([churchId, phoneE164])
+}
+
+model OptEvent {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  churchId     String   @db.Uuid
+  phoneE164    String
+  type         String // OPT_OUT | OPT_IN
+  keyword      String?
+  inboundSmsId String?
+  actorId      String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  @@index([churchId, phoneE164])
+}
+
+model InboundSms {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  churchId   String?   @db.Uuid
+  fromE164   String
+  body       String
+  receivedAt DateTime  @default(now())
+  providerId String?   @unique
+  handledAt  DateTime?
+
+  @@index([fromE164, receivedAt])
+}
+
+model WhatsAppTemplate {
+  id                 String @id @default(uuid(7)) @db.Uuid
+  churchId           String @db.Uuid
+  name               String
+  providerTemplateId String
+  status             String @default("PENDING")
+  bodyPreview        String
+
+  @@unique([churchId, name])
+}
+
+model PendingPrompt {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  phoneE164  String
+  kind       String // PASTOR_CALL | VOLUNTEER_CONFIRM
+  progressId String?  @db.Uuid
+  refId      String?  @db.Uuid
+  options    Json
+  status     String   @default("OPEN") // OPEN|ANSWERED|EXPIRED|CANCELLED
+  retries    Int      @default(0)
+  expiresAt  DateTime
+
+  @@index([phoneE164, status, expiresAt])
+}
+
+model CareTask {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  visitorId  String?  @db.Uuid
+  memberId   String?  @db.Uuid // R4.1 missing-member / R4.9 visit tasks link members
+  promptId   String?  @unique @db.Uuid
+  type       String // CALL_REQUESTED | REPLY_RECEIVED | TASK_STEP | MISSING_MEMBER | VISIT_HOSPITAL | VISIT_BEREAVEMENT | VISIT_HOME | FUNERAL_SUPPORT
+  assignedTo String?  @db.Uuid
+  status     String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  dueAt      DateTime
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([churchId, status, dueAt])
+  @@index([churchId, memberId])
+}
+
+model Announcement {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  churchId  String    @db.Uuid
+  branchId  String?   @db.Uuid
+  title     String
+  body      String
+  category  String    @default("GENERAL") // GENERAL|FUNERAL|OUTDOORING|EVENT|ALERT
+  audience  Json
+  channels  String[] // INAPP, PUSH, SMS, WHATSAPP
+  publishAt DateTime  @default(now())
+  expiresAt DateTime?
+  createdBy String    @db.Uuid
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  churchId  String   @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  churchId  String    @db.Uuid
+  userId    String?   @db.Uuid
+  kind      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([churchId, userId, readAt])
+}
+
+model AlertState {
+  churchId  String
+  key       String
+  level     Int
+  updatedAt DateTime @updatedAt
+
+  @@id([churchId, key])
+}
+
+model OtpChallenge {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  churchId   String    @db.Uuid
+  phoneE164  String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  @@index([phoneE164, expiresAt])
+}
+
+model MediaItem {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  churchId    String   @db.Uuid
+  type        String // SERMON_AUDIO|SERMON_VIDEO|NOTES_PDF|LIVESTREAM
+  title       String
+  speaker     String?
+  preachedOn  DateTime @db.Date
+  seriesId    String?  @db.Uuid
+  externalUrl String?
+  fileKey     String?
+  durationSec Int?
+  isPublished Boolean  @default(true)
+
+  @@index([churchId, preachedOn])
+}
+
+// ------------------------------------------- follow-up engine
+model FollowUpWorkflow {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  churchId    String        @db.Uuid
+  name        String
+  trigger     FollowTrigger
+  isActive    Boolean       @default(true)
+  stopOnReply Boolean       @default(true)
+  quietStart  Int           @default(20) // hour, church timezone
+  quietEnd    Int           @default(8)
+
+  versions FollowUpWorkflowVersion[]
+  progress FollowUpProgress[]
+
+  @@index([churchId, trigger, isActive])
+}
+
+// Published versions are immutable; enrolments pin the version they started on.
+model FollowUpWorkflowVersion {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workflowId  String   @db.Uuid
+  version     Int
+  isPublished Boolean  @default(false)
+  createdBy   String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  workflow FollowUpWorkflow   @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  steps    FollowUpStep[]
+  progress FollowUpProgress[]
+
+  @@unique([workflowId, version])
+}
+
+model FollowUpStep {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  versionId    String    @db.Uuid
+  position     Int
+  type         StepType  @default(SMS)
+  delayFrom    DelayFrom @default(ENROLLMENT)
+  delayMinutes Int // from enrolment: 0, 4320 (Day 3), 10080 (Day 7), 20160 (Day 14)
+  sendAtLocal  String? // 'HH:MM' in church timezone
+  template     String
+  taskTitle    String?
+  question     String?
+  onYesPosition Int?
+  onNoPosition  Int?
+
+  version FollowUpWorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, position])
+}
+
+model FollowUpProgress {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  churchId     String        @db.Uuid
+  workflowId   String        @db.Uuid
+  versionId    String        @db.Uuid
+  visitorId    String?       @db.Uuid
+  memberId     String?       @db.Uuid
+  state        ProgressState @default(ACTIVE)
+  nextPosition Int           @default(0)
+  nextRunAt    DateTime?
+  enrolledAt   DateTime      @default(now())
+  lastStepAt   DateTime?
+  cancelReason String? // REPLIED|OPT_OUT|CONVERTED|MANUAL|NO_BALANCE
+  version      Int           @default(0) // optimistic lock
+
+  workflow       FollowUpWorkflow        @relation(fields: [workflowId], references: [id])
+  workflowVersion FollowUpWorkflowVersion @relation(fields: [versionId], references: [id])
+  visitor        Visitor?                @relation(fields: [visitorId], references: [id])
+
+  @@unique([workflowId, visitorId])
+  @@unique([workflowId, memberId])
+  @@index([state, nextRunAt])
+  @@index([churchId, state])
+}
+
+// Added for Phase 0 "JWT + refresh rotation": the refresh JWT itself is stateless,
+// but its hash is tracked here so rotation is one-time-use and token reuse
+// revokes the whole family (BUILD_ORDER.md, Phase 0).
+model RefreshToken {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  churchId   String    @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   @unique @db.Uuid
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([churchId, expiresAt])
+}
+
+// Platform-scoped key/value settings (no churchId column => no RLS policy;
+// accessed only via the platform client). Holds operator-editable config such
+// as the SMS gateway credentials so they can be set from the admin UI.
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @db.Uuid
+  updatedAt DateTime @updatedAt
+}
+
+// R4.5 Branch → HQ remittance (denominations require branch reporting).
+model Remittance {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  churchId     String   @db.Uuid
+  fromBranchId String   @db.Uuid
+  amountMinor  Int
+  reference    String // bank/MoMo deposit reference
+  note         String?
+  status       String   @default("SUBMITTED") // SUBMITTED|APPROVED|REMITTED|REJECTED
+  submittedBy  String   @db.Uuid
+  approvedBy   String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  fromBranch Branch @relation(fields: [fromBranchId], references: [id])
+
+  @@index([churchId, status])
+  @@index([churchId, fromBranchId])
+}
+
+// R4.8 pastoral milestone log (weddings, dedications, ordinations, classes…)
+model PastoralAction {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  memberId   String?  @db.Uuid
+  type       String // SALVATION|BAPTISM|WEDDING|DEDICATION|ORDINATION|CLASS_COMPLETED|FUNERAL|OTHER
+  actionDate DateTime @db.Date
+  note       String?
+  performedBy String? // user id
+  createdAt  DateTime @default(now())
+
+  @@index([churchId, actionDate])
+  @@index([churchId, memberId])
+}

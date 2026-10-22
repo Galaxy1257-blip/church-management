@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build -w @chms/shared
+      - run: npm run build -w @chms/db
+      - run: npm run typecheck
+      - run: npx prisma generate --schema schema.prisma
+      - run: npm run test -w @chms/shared
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chms_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Tests MUST connect as app_user so FORCE RLS actually applies.
+      OWNER_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chms_test
+      DATABASE_URL: postgresql://app_user:app_dev_password@localhost:5432/chms_test
+      PLATFORM_DATABASE_URL: postgresql://platform_user:platform_dev_password@localhost:5432/chms_test
+      TEST_DATABASE_URL: postgresql://app_user:app_dev_password@localhost:5432/chms_test
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-secret-32-characters-min!!
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate --schema schema.prisma
+      # Schema + extras + roles run as the DB owner:
+      - run: npx prisma migrate deploy --schema schema.prisma
+        env:
+          DATABASE_URL: ${{ env.OWNER_DATABASE_URL }}
+      - run: npm run db:extras
+      - run: npm run db:appuser
+      - run: npm run build -w @chms/shared
+      - run: npm run build -w @chms/db
+      - run: npm run build -w @chms/api
+      - run: npm run test -w @chms/api
+
+  web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @chms/web
