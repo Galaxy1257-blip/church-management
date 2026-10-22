@@ -12,3 +12,4 @@ uploads/
 .DS_Store
 # fetched Bible bundle (public domain; regenerate with npm run bible:fetch)
 apps/api/data/
+scripts/*.exe

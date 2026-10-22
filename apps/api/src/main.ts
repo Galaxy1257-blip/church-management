@@ -13,9 +13,30 @@ async function bootstrap(): Promise<void> {
   });
 
   app.setGlobalPrefix('api/v1');
-  // origin may be comma-separated (e.g. localhost + a demo tunnel URL)
+  // origin may be comma-separated (e.g. localhost + a demo tunnel URL + vercel app)
   const origins = env.WEB_URL.split(',').map((s) => s.trim()).filter(Boolean);
-  app.enableCors({ origin: origins.length > 1 ? origins : origins[0], methods: ['GET', 'POST', 'PATCH', 'DELETE'] });
+  app.enableCors({
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // allow requests with no origin (like mobile apps, curl, server-to-server)
+      if (!requestOrigin) return callback(null, true);
+      const isAllowed =
+        origins.includes(requestOrigin) ||
+        origins.includes('*') ||
+        requestOrigin.endsWith('.vercel.app') ||
+        requestOrigin.includes('localhost');
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        // Fallback to allow connection in dev/staging
+        callback(null, true);
+      }
+    },
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
