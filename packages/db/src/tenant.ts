@@ -24,7 +24,7 @@ export async function withTenant<T>(
       await tx.$executeRaw`SELECT set_config('app.branch_ids', ${(opts.branchIds ?? []).join(',')}, true)`;
       return fn(tx);
     },
-    { timeout: 15_000, maxWait: 5_000 },
+    { timeout: 60_000, maxWait: 10_000 },
   );
 }
 
@@ -38,5 +38,5 @@ export async function withTenant<T>(
  * 42501-blocked. Caught by db:verify on 22 Oct (seed failed under RLS).
  */
 export async function withPlatform<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
-  return platformPrisma.$transaction(fn, { timeout: 15_000, maxWait: 5_000 });
+  return platformPrisma.$transaction(fn, { timeout: 60_000, maxWait: 10_000 });
 }
