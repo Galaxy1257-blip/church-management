@@ -10,7 +10,7 @@ import {
   SMS_LOCALE_LABELS,
   SMS_TEMPLATE_KEYS,
   SMS_TEMPLATE_VARS,
-} from '@chms/shared';
+} from '../../../lib/shared-constants';
 
 interface Bracket {
   key: string;
