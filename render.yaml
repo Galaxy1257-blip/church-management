@@ -119,3 +119,4 @@ services:
     region: oregon
     plan: free
     maxmemoryPolicy: noeviction
+    ipAllowList: []  # empty = only internal Render services can connect
