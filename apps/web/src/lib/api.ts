@@ -2,7 +2,26 @@
 // API client: bearer access token in memory, refresh token in localStorage,
 // single-flight refresh on 401. All calls hit /api/v1.
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+export function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const param = urlParams.get('apiUrl');
+    if (param) {
+      const clean = param.replace(/\/+$/, '');
+      localStorage.setItem('chms.api_url', clean);
+      return clean;
+    }
+    const saved = localStorage.getItem('chms.api_url');
+    if (saved) return saved;
+  }
+  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+}
+
+export function setCustomApiUrl(url: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('chms.api_url', url.replace(/\/+$/, ''));
+  }
+}
 
 interface Tokens {
   accessToken: string;
@@ -34,7 +53,7 @@ async function refreshSession(): Promise<boolean> {
     const rt = typeof window !== 'undefined' ? localStorage.getItem(REFRESH_KEY) : null;
     if (!rt) return false;
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await fetch(`${getApiBase()}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: rt }),
@@ -73,7 +92,7 @@ export async function api<T = unknown>(
     const headers: Record<string, string> = {};
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
-    return fetch(`${API_BASE}${path}`, {
+    return fetch(`${getApiBase()}${path}`, {
       method: opts.method ?? 'GET',
       headers,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -105,7 +124,7 @@ export async function api<T = unknown>(
 
 /** Raw POST that returns the Response (used by public give + webhooks). */
 export async function apiRaw(path: string, body: unknown): Promise<Response> {
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(`${getApiBase()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

@@ -1,7 +1,7 @@
 'use client';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, setTokens } from '../../lib/api';
+import { api, setTokens, getApiBase, setCustomApiUrl } from '../../lib/api';
 
 interface Tokens {
   accessToken: string;
@@ -19,10 +19,19 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [apiUrl, setApiUrl] = useState(() => (typeof window !== 'undefined' ? getApiBase() : ''));
+  const [showConfig, setShowConfig] = useState(false);
 
   async function finishLogin(tokens: Tokens): Promise<void> {
     setTokens(tokens);
     router.replace('/dashboard');
+  }
+
+  function onSaveApiUrl() {
+    if (!apiUrl) return;
+    setCustomApiUrl(apiUrl);
+    setError('');
+    alert('Server URL updated to: ' + apiUrl);
   }
 
   async function onSubmit(e: FormEvent): Promise<void> {
@@ -47,7 +56,13 @@ export default function LoginPage() {
         await finishLogin(tokens);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'login failed');
+      const msg = err instanceof Error ? err.message : 'login failed';
+      if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+        setError(`Cannot reach API server at: ${getApiBase()}. Verify your tunnel is running or update the URL below.`);
+        setShowConfig(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -91,6 +106,40 @@ export default function LoginPage() {
             {busy ? 'Working…' : mode === 'password' ? 'Sign in' : otpSent ? 'Verify code' : 'Send code'}
           </button>
         </form>
+
+        <div style={{ marginTop: '1.2rem', paddingTop: '0.8rem', borderTop: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="muted" style={{ maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              API: {apiUrl || 'Default'}
+            </span>
+            <button
+              type="button"
+              className="secondary"
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              {showConfig ? 'Hide' : 'Server Settings'}
+            </button>
+          </div>
+          {showConfig && (
+            <div className="stack" style={{ marginTop: '0.6rem' }}>
+              <input
+                placeholder="https://...trycloudflare.com/api/v1"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                style={{ fontSize: '0.82rem' }}
+              />
+              <button
+                type="button"
+                className="secondary"
+                style={{ fontSize: '0.82rem' }}
+                onClick={onSaveApiUrl}
+              >
+                Save Server URL
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
