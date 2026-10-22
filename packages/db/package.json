@@ -14,11 +14,11 @@
   "dependencies": {
     "@chms/shared": "*",
     "@prisma/client": "^6.0.0",
+    "@types/pg": "^8.11.0",
     "dotenv": "^16.5.0",
     "pg": "^8.16.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.0",
     "prisma": "^6.0.0",
     "typescript": "^5.9.2",
     "vitest": "^5.0.0"
