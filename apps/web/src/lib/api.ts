@@ -3,24 +3,17 @@
 // single-flight refresh on 401. All calls hit /api/v1.
 
 export function getApiBase(): string {
+  // Always use the env var baked in at build time — no localStorage override.
+  // Clear any stale URL saved by a previous dev/tunnel session.
   if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search);
-    const param = urlParams.get('apiUrl');
-    if (param) {
-      const clean = param.replace(/\/+$/, '');
-      localStorage.setItem('chms.api_url', clean);
-      return clean;
-    }
-    const saved = localStorage.getItem('chms.api_url');
-    if (saved) return saved;
+    localStorage.removeItem('chms.api_url');
   }
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+  return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/+$/, '');
 }
 
-export function setCustomApiUrl(url: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('chms.api_url', url.replace(/\/+$/, ''));
-  }
+/** @deprecated — URL is now fixed at build time via NEXT_PUBLIC_API_URL */
+export function setCustomApiUrl(_url: string): void {
+  // no-op — kept for import compatibility
 }
 
 interface Tokens {
