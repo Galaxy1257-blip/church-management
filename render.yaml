@@ -70,48 +70,7 @@ services:
       - key: CSMS_VERIFIED
         value: "false"
 
-  # ── BullMQ Worker ────────────────────────────────────────────────────────────
-  - type: worker
-    name: chms-worker
-    runtime: node
-    region: oregon
-    plan: free
-    rootDir: .
-    buildCommand: >-
-      npm install &&
-      npx prisma generate --schema schema.prisma &&
-      npm run build -w @chms/shared &&
-      npm run build -w @chms/db &&
-      npm run build -w @chms/worker
-    startCommand: node apps/worker/dist/main.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: OWNER_DATABASE_URL
-        sync: false
-      - key: PLATFORM_DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: chms-redis
-          property: connectionString
-      - key: PAYSTACK_MODE
-        value: mock
-      - key: PAYSTACK_SECRET_KEY
-        value: ""
-      - key: SMS_GATEWAY
-        value: mock
-      - key: CSMS_BASE_URL
-        value: https://app.mycsms.com/api
-      - key: CSMS_API_TOKEN
-        value: ""
-      - key: CSMS_SENDER_ID
-        value: ""
-      - key: SMS_WEBHOOK_SECRET
-        sync: false
+
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   - type: redis
