@@ -40,7 +40,12 @@ export class MockPaymentProvider extends PaymentProvider {
 
   async initialize(input: InitializeInput): Promise<InitializeResult> {
     this.logger.log(`mock initialize ref=${input.reference} amount=${input.amountMinor}`);
-    return { authorizationUrl: `${this.env.WEB_URL}/give/mock-pay?ref=${encodeURIComponent(input.reference)}` };
+    // WEB_URL is a comma-separated CORS allowlist (see main.ts), e.g.
+    // "https://chms-web.onrender.com,http://localhost:3000". Outbound links must
+    // target the canonical first origin - appending a path to the whole list would
+    // produce "https://a,http://b/give/mock-pay?ref=...".
+    const webUrl = (this.env.WEB_URL.split(',')[0] ?? '').trim().replace(/\/+$/, '');
+    return { authorizationUrl: `${webUrl}/give/mock-pay?ref=${encodeURIComponent(input.reference)}` };
   }
 
   async verify(reference: string): Promise<VerifyResult> {

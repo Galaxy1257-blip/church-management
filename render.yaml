@@ -72,6 +72,32 @@ services:
 
 
 
+  # ── Next.js staff app ────────────────────────────────────────────────────────
+  # SSR, not a static site: apps/web keeps dynamic segments ((app)/services/[id],
+  # give/[slug], flyers/[slug]). Static export would need every church slug at build
+  # time and would 404 the public giving links. `next start` honours Render's $PORT.
+  - type: web
+    name: chms-web
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: >-
+      npm install &&
+      npm run build -w @chms/web
+    startCommand: npm run start -w @chms/web
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      # Inlined into the client bundle at BUILD time, so it must be present before
+      # the build runs: https://<chms-api host>/api/v1  (the build fails loudly
+      # without it — see apps/web/next.config.mjs).
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+
   # ── Redis ────────────────────────────────────────────────────────────────────
   - type: redis
     name: chms-redis

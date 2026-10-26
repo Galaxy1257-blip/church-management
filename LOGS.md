@@ -599,3 +599,136 @@ itself on the next Render deploy (additive `ADD VALUE IF NOT EXISTS`, idempotent
 ---
 
 
+---
+
+## 2026-10-26 — Session M: audit fixes + nav consolidation
+
+**Owner request:** *"implement the changes you recommended for the supposed bloated features and fix
+issues you found when scanning the codebase"* — i.e. turn Session L's audit into code.
+Plan: `.ecc/artifacts/005-implementation-plan.md` (Gate 1, approved on request).
+
+### Correction to Session L's own audit (checked, not assumed)
+
+The audit said the Neon DSN was on `origin` and therefore possibly public. **That was wrong**, and it is
+corrected here because the wrong version had already been written down:
+
+| Check | Result |
+|---|---|
+| `git grep -l npg_ HEAD -- scripts/*` | nothing — HEAD was already clean |
+| `git merge-base --is-ancestor {e17e875,a74342a,6c74a45} origin/main` | exit **1** for all three → never pushed |
+| working tree | 6 files still carried the DSN |
+
+Severity: hygiene, not incident response. Rotation is still the right operator action (the password sat
+on disk and in three local-only commits), but nothing leaked publicly.
+
+### Security / correctness (Track A)
+
+1. **Secret scanner was blind to the thing that actually leaked.** It only knew Paystack/cSMS/AWS shapes.
+   Added patterns for a Postgres/MySQL/Redis/Mongo DSN **with an embedded password**, Neon's `npg_…`, and
+   generic `SECRET`/`PASSWORD`/`TOKEN` assignments — exempting the localhost dev DSN and doc placeholders
+   (`RECREATION_GUIDE.md` documents the shape with `<PASSWORD>`/`<HOST>`). Proven with a negative test: a
+   planted DSN fails the scan, then passes once deleted.
+2. **Credential removed from the tree.** Deleted the three Neon scratch scripts (`check-neon.mjs`,
+   `seed-neon.mjs`, `check-users.cjs`); the three demo seeders now read `process.env.DATABASE_URL`, abort
+   with a clear message when it is missing, and `.gitignore` keeps new scratch scripts out of history.
+3. **Production cannot boot with the public dev secrets.** `env.ts` gained a `superRefine`: in production
+   `JWT_SECRET` must be ≥ 32 chars and none of the three documented dev defaults may be used. (The dev
+   default was 37 chars, so the old ≥ 16 rule let it through.)
+4. **Rate limiting on the whole unauthenticated surface** (`common/rate-limit.ts`, no new dependency):
+   login 8/5 min per phone + 30/5 min per IP, signup 5/h, OTP request 3/h per phone + 10/h per IP (it bills
+   real SMS), OTP verify 10/10 min, refresh 60/5 min. `trust proxy` is set in production so the bucket keys
+   on the real client IP behind Render/Cloudflare.
+5. **`OTP_MAX_ATTEMPTS` was dead code.** The lookup filtered on `codeHash`, so a wrong guess matched no row
+   and `attempts` never moved: six digits were brute-forceable for the full 5 minutes. It now finds the
+   newest live challenge **by phone**, compares the hash in constant time, and burns the challenge after 5.
+
+6. **`memberNo = count + 1`** raced (P2002 on `@@unique([churchId, memberNo])` in front of a user typing a
+   form) and re-used numbers after a soft delete. New `common/member-no.ts` takes a per-church
+   `pg_advisory_xact_lock` and allocates from `MAX(M#####) + 1`; used by create, CSV import and signup.
+7. **CORS was a mirror** (the fallback branch allowed every origin, plus any `*.vercel.app`). It is now an
+   allowlist from `WEB_URL`, deny-by-default.
+8. **500s leaked internals** (`exception.message` on a 500 → SQL/paths in the browser), and unmatched
+   Prisma codes were reported as 500s. The filter now maps status → stable code (incl. `RATE_LIMITED`),
+   logs 5xx detail, and returns a generic body.
+9. **Logo upload was broken for 75–400 kB** (body-parser's 100 kB default vs the 400 k char ceiling).
+   `useBodyParser('json', {limit:'1mb'})` — verified in `@nestjs/platform-express` that `useBodyParser`
+   re-applies the `rawBody` verify hook, so the Paystack HMAC still works — and the two size errors became
+   `BadRequestException` instead of `Error` → 500.
+10. **Webhook secret compared with `!==`** → `timingSafeEqualStr` (`common/crypto.ts`), also used by OTP.
+
+### Feature consolidation (Track B)
+
+- **5 areas + Home + Settings** instead of ~18 top-level links: People, Worship, Money, Reach,
+  Organisation. `NAV_AREAS` is one source of truth; a single `<AreaTabs />` in the app layout renders the
+  in-area tabs from the pathname, so **no page file was rewritten and no route was deleted**.
+- **Per-church module switches** (`Church.settings.modules`, no migration): Settings → Modules has five
+  checkboxes; `/auth/me` returns `modules`; nav, tab strip, route guard and dashboard cards all honour it.
+  `/settings` is never module-gated (it is where you switch things back on), and the API still enforces
+  permissions — this is visibility, not authorisation.
+- **Dashboard** now shows 3 KPIs + a "Today" card with the three recording actions; the remaining cards are
+  module-gated. The cards that duplicated numbers already visible in their own area are gone.
+- **`/auth/me` de-duplicated**: the shell and the dashboard both called it on every page load. New
+  `lib/session.ts` caches the promise; `getSession()` is shared. `getApiBase()` no longer writes to
+  `localStorage` on every request (once per page load).
+
+### Gate evidence
+
+`npm run typecheck` (5 workspaces) · `npm run test` → shared **68**, api **50** (19 new: env production
+guards, rate-limit buckets, timing-safe compare), worker 0 · `npx eslint .` clean ·
+`npm run check:secrets` clean **and** proven to fail on a planted DSN · `npx tsx .ecc/access-smoke.mts`
+→ `ALL CHECKS PASSED` (18 new assertions for areas/tabs/modules).
+Logs: `.ecc/{tc-all,test2,lint,secrets,neg}.log`.
+
+### Not done (declared, not forgotten)
+
+Rotating the Neon password (needs the Neon console), rewriting git history (nothing on `origin`),
+`@nestjs/throttler` (single instance; swap `take()` for Redis INCR when scaled), a `/dashboard/summary`
+endpoint, branch-scope RLS on the seven non-`Transaction` tables (needs a migration + a per-request
+setting), CSP/headers, and any user-management UI.
+
+## 2026-10-26 — Session N: the missing web deploy target (`chms-web`)
+
+Pushing to `main` only ever updated `chms-api`; `render.yaml` declared no target for
+`apps/web`, so the role-aware shell never reached production. Plan `artifacts/007`.
+
+**Change set (5 code files):**
+
+- `render.yaml` — new `chms-web` service: `type: web`, `runtime: node`, `plan: free`,
+  `region: oregon`, build `npm install && npm run build -w @chms/web`, start
+  `npm run start -w @chms/web`, `healthCheckPath: /login`, env `NEXT_PUBLIC_API_URL`
+  (`sync: false`), `NEXT_TELEMETRY_DISABLED=1`, `NODE_ENV=production`.
+- `apps/web/package.json` — `start` is `next start` (was `next start -p 3000`). Render routes
+  traffic to `$PORT`; the hardcoded flag would have failed its port check.
+- `apps/web/next.config.mjs` — build fails when `RENDER` is set and `NEXT_PUBLIC_API_URL` is
+  missing. `NEXT_PUBLIC_*` is inlined at build time, so the alternative is a healthy-looking
+  deploy that calls `localhost:4000`.
+- `apps/api/src/platform/payment-provider.ts` — mock-pay link now uses the **first** entry of
+  `WEB_URL`. `main.ts` documents `WEB_URL` as a comma-separated CORS allowlist; appending a path
+  to the whole list produced `https://a,http://b/give/mock-pay?ref=…`.
+- `apps/api/src/platform/payment-provider.spec.ts` — 3 new vitest cases for that.
+
+**Rejected option (with evidence, not opinion):** a Render *static site* with
+`output: 'export'`. The build route table shows `ƒ (Dynamic)` on `/flyers/[slug]`,
+`/give/[slug]` and `/services/[id]`; static export needs `generateStaticParams`, and
+`give/[slug]` is the public giving link, so a static site would 404 it. SSR it is.
+
+**Gate evidence:** `render.yaml` parses (3 services, all chms-web keys asserted) ·
+`vitest payment-provider` 3/3 · full API suite 6 files / **53** tests · web typecheck 0 ·
+`next build` 0 (31 routes) · `PORT=3999 next start` → `/login` `/` `/dashboard` `/give/demo`
+all **200** · guard negative test exit 1 with the intended message ·
+`check:secrets` clean. Logs: `%TEMP%\{web-build,web-start,api-test,guard-neg2}.log`.
+
+### Follow-ups this session deliberately did not do
+
+1. **Session M's working tree is still uncommitted** (30 files: `access.ts`, `(app)/layout.tsx`,
+   `lib/session.ts`, `components/`, `settings`, `dashboard`, API audit fixes). This unit touches
+   none of it; because the web service builds from the pushed commit, `chms-web` will serve the
+   `HEAD` UI until that work is committed **and** pushed. `scripts/tmp-demo-accounts.js` still
+   carries the Neon DSN and must stay out of that commit.
+2. Dashboard steps for the owner: create/patch the service from the blueprint, set
+   `NEXT_PUBLIC_API_URL=https://<chms-api-host>/api/v1`, and set the API's `WEB_URL` to
+   `https://<chms-web-host>,http://localhost:3000` (comma list is fine for CORS now that links
+   use the first origin).
+3. Free plan: 750 instance-hours are shared by both web services; both spin down after 15 min.
+
+

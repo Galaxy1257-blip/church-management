@@ -3,6 +3,62 @@
 **Read first in a new session.** Repo-level context lives in `../STATE.md` and
 `../LOGS.md`; this file is the ECC gate journal.
 
+## Session N (latest) — the missing web deploy target, 26 Oct 2026
+
+**Task:** owner approved adding the frontend deploy target. Plan `artifacts/007`, validation
+`artifacts/008`.
+
+**Shipped (this unit only):** `render.yaml` gains `chms-web` (`type: web`, `runtime: node`,
+`plan: free`, `region: oregon`, build `npm install && npm run build -w @chms/web`, start
+`npm run start -w @chms/web`, `healthCheckPath: /login`, `NEXT_PUBLIC_API_URL` `sync: false`);
+`apps/web/package.json` `start` → `next start` (honours `$PORT`); `apps/web/next.config.mjs`
+fails the build on Render without `NEXT_PUBLIC_API_URL`; `payment-provider.ts` builds links from
+the **first** `WEB_URL` entry (+3 vitest cases in `payment-provider.spec.ts`).
+
+**Decision (evidence, not preference):** static export rejected — `next build` marks
+`/flyers/[slug]`, `/give/[slug]`, `/services/[id]` as `ƒ (Dynamic)`; export needs
+`generateStaticParams` and would 404 the public giving link. Node SSR chosen.
+
+**Gate results:** YAML parses (3 services) · vitest 3/3 · API suite 53/53 · web typecheck 0 ·
+`next build` 0 · `PORT=3999 next start` → `/login` `/` `/dashboard` `/give/demo` = 200 ·
+guard negative test exit 1 · `check:secrets` clean.
+
+**Carry-over (unchanged, blocking the UI from actually reaching prod):** Session M's 30-file
+working tree is still uncommitted (`access.ts`, `(app)/layout.tsx`, `lib/session.ts`,
+`components/`, settings, dashboard, API audit fixes). `scripts/tmp-demo-accounts.js` still holds
+the Neon DSN and must be excluded when that lands. Next session: commit + push Session M, then
+run the dashboard steps from `artifacts/007` §5.
+
+## Session M — audit fixes + nav consolidation, 26 Oct 2026
+
+**Task:** implement Session L's audit. Plan `artifacts/005-implementation-plan.md` (approved on request).
+
+**Shipped code (all gates green, not yet committed as of this line):**
+
+- `packages/shared/src/modules.ts` (+ tests): `MODULE_KEYS` = people · worship · money · reach · org,
+  `resolveModules(settings)` (absent key = enabled), `isModuleKey`.
+- API: `common/rate-limit.ts` (`@RateLimit` + `RateLimitGuard`, in-memory buckets, several buckets per
+  route), `common/member-no.ts` (advisory-lock allocator), `common/crypto.ts` (`timingSafeEqualStr`).
+  `env.ts` now refuses the documented dev secrets in production. `auth.service` fixes the OTP attempt
+  counter (lookup by phone, constant-time compare, burn after 5) and returns `modules` from `/auth/me`.
+  `main.ts` CORS allowlist + `useBodyParser('json', {limit:'1mb'})` (rawBody preserved — verified in
+  `@nestjs/platform-express`) + `trust proxy` in production. `http-exception.filter` no longer echoes
+  5xx messages. `churches.service` accepts `modules` and throws `BadRequestException` for bad input.
+- Web: `lib/access.ts` is now `NAV_AREAS` (5 areas, 18 items unchanged) with module-aware
+  `visibleNavGroups` / `canAccessPath` / `visibleAreaTabs`; `components/area-tabs.tsx` renders the tab
+  strip once from `(app)/layout.tsx`; `lib/session.ts` caches `/auth/me`; Settings has a **Modules** tab;
+  dashboard is 3 KPIs + a "Today" action card with module-gated detail cards.
+- Scripts: `check-secrets.mjs` now detects credentialed DSNs + `npg_` + generic secrets (negative test in
+  `.ecc/neg.log`); the three Neon scratch scripts are deleted; the three demo seeders read
+  `process.env.DATABASE_URL` and refuse to run without it.
+
+**Correction to Session L's audit (important):** the Neon credential was **never pushed** —
+`git grep -l npg_ HEAD` is empty and `git merge-base --is-ancestor` returns 1 for all three commits that
+contain it. It was a working-tree + local-commit exposure only. Rotation is still recommended; the panic
+framing in the previous audit was wrong.
+
+
+
 ## Pre-flight (Gate 0) — 2026-10-26
 
 - Working dir: `C:\Users\HP\Desktop\church` (npm workspaces monorepo).
@@ -54,20 +110,24 @@ integration, worker 0 `--passWithNoTests`) · `npx eslint .` · `npm run check:s
 
 ## Next step
 
-1. Manual browser pass (`npm run dev:web`): log in as USHER (usher mode should default on) and as
-   LEADER (no `/finance` link, denied panel if typed) — the only unverified layer.
-2. Operator: `npm run db:migrate:deploy` on every database (additive `ADD VALUE IF NOT EXISTS
-   'PASTOR'`; already applied locally to `chms`/`chms_test` via `.ecc/apply-migration.mjs`).
-3. Operator: rebuild `@chms/shared` + `@chms/db` before deploying api/worker (they read `dist`;
-   a stale build is what produced `TS2322 '"PASTOR"' is not assignable to 'RoleKey'`).
-4. Operator: re-seed existing churches to create the PASTOR role row, then grant it (no user
-   management UI yet — `INSERT INTO "UserRole"`).
-5. Optional hardening: wire `.ecc/access-smoke.mts` into CI so web/shared permission drift fails
-   a build instead of relying on a manual run.
-6. Watch CI on the newest push (`.github/workflows/ci.yml`: lint → shared/db builds → typecheck →
-   shared tests, then the integration job, which now applies `1_pastor_role` to a fresh Postgres).
-7. Optional: add a `pre-commit` hook to enforce ground rule 8 mechanically (no hooks exist today,
-   `core.hooksPath` unset) — deliberately not done, it would surprise contributors on this box.
+1. **Browser pass** (`npm run dev:web` + `npm run dev:api`): the only unverified layer.
+   - Log in as SUPER_ADMIN → top bar shows Home + 5 areas + Settings; `/finance` shows the Money tabs.
+   - Settings → Modules → untick **Money** → save → the page reloads, Money is gone from the nav and
+     `/finance` shows "Not available for your role"; Settings is still reachable; tick it back on.
+   - USHER: usher mode still defaults on and shows no tab strip.
+   - Upload a 150 kB PNG logo in Settings → Church: it must save (this was broken).
+   - Click login 9× with a wrong password: the 9th should return 429.
+2. **Operator — rotate the Neon password** (Neon console → reset). Nothing on `origin` needs rewriting;
+   optional: `git update-ref -d` the `refs/cline/checkpoints/*` refs that still contain it locally.
+3. **Operator — set production secrets** before the next deploy, or the API will refuse to boot by design:
+   `JWT_SECRET` (≥ 32 random chars), `SMS_WEBHOOK_SECRET`, `PLATFORM_SIGNUP_KEY`. See `.env.example`.
+4. Operator: `npm run db:migrate:deploy` on every database (`1_pastor_role`), and rebuild `@chms/shared` +
+   `@chms/db` before deploying api/worker.
+5. Optional hardening, in the order I would do it: (a) branch-scope RLS on the seven tables that only
+   filter by `churchId` (`extras.sql` has the TODO), (b) CSP + security headers on the Next app, (c) a
+   `/dashboard/summary` endpoint to replace the 9-call fan-out, (d) wire `.ecc/access-smoke.mts` into CI,
+   (e) user-management UI (still the biggest onboarding blocker: roles are still granted by SQL).
+
 
 ## Decisions worth keeping
 
@@ -110,3 +170,9 @@ disk only, never pushed; prune individually with `git update-ref -d <ref>` if wa
 Next for the owner: **rotate that Neon password**, rewrite those scripts to read `process.env.DATABASE_URL`
 (the repo already ignores `.env`), and only then decide whether the asset kits belong in the repo or in
 object storage / Git LFS.
+
+**RESOLVED in Session M (26 Oct):** the three Neon scratch scripts are deleted, the three demo seeders now
+read `process.env.DATABASE_URL` and refuse to run without it, `.gitignore` blocks new `scripts/tmp-demo-*` /
+`*neon*` / `check-users.cjs` files, and `check-secrets.mjs` finally detects credentialed DSNs (it could not
+see this one). Rotation is still the owner's action; **history does not need rewriting** — re-verified:
+`git grep -l npg_ HEAD` is empty and none of the three commits carrying it is an ancestor of `origin/main`.
