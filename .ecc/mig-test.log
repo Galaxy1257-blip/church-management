@@ -1,0 +1,2 @@
+Error: Either --stdin or --file must be provided.
+See `prisma db execute -h`
