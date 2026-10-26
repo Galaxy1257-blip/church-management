@@ -1,0 +1,16 @@
+
+> @chms/shared@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.5 C:/Users/HP/Desktop/church/packages/shared
+
+
+ Test Files  10 passed (10)
+      Tests  68 passed (68)
+   Start at  15:25:08
+   Duration  1.48s (import 40%, tests 27%, transform 16%, worker 16%, environment 1%)
+
+    Isolate  10 workers spawned · ~689ms startup each (spawn + environment, per file)
+             at least ~295ms faster with isolate: false — reuses workers across files instead of one per file
+

@@ -8,6 +8,7 @@ const CHURCH = 'demo';
 const PASSWORD = 'admin1234';
 // phone (E.164) -> { name, roleKey }
 const ACCOUNTS = [
+  ['+233240000000', { name: 'Dev Admin', roleKey: 'SUPER_ADMIN' }],
   ['+233550449840', { name: 'Pastor', roleKey: 'SUPER_ADMIN' }],
   ['+233550449841', { name: 'Secretary', roleKey: 'SECRETARY' }],
   ['+233550449842', { name: 'Finance Officer', roleKey: 'FINANCE_ADMIN' }],
@@ -17,8 +18,14 @@ const ACCOUNTS = [
   ['+233550449846', { name: 'Akosua Nyarko', roleKey: 'MEMBER', portalMember: true }],
 ];
 
+// Credentials come from the environment only — never hardcode a DSN.
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is required; run: node --env-file=.env ' + __filename);
+  process.exit(1);
+}
 (async () => {
-  const c = new Client({ connectionString: 'postgresql://postgres:postgres@localhost:5432/chms' });
+  const connectionString = process.env.DATABASE_URL;
+  const c = new Client({ connectionString });
   await c.connect();
   try {
     const churches = await c.query('SELECT id, slug FROM "Church"');

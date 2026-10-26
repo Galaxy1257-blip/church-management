@@ -11,8 +11,13 @@ const days = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const iso = (n) => new Date(Date.now() + n * 864e5).toISOString(); // n in DAYS
 const at = (ms) => new Date(Date.now() + ms).toISOString(); // n in MILLISECONDS
 
+// Credentials come from the environment only — never hardcode a DSN.
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is required; run: node --env-file=.env ' + __filename);
+  process.exit(1);
+}
 (async () => {
-  const c = new Client({ connectionString: 'postgresql://postgres:postgres@localhost:5432/chms' });
+  const c = new Client({ connectionString: process.env.DATABASE_URL });
   await c.connect();
   try {
     const cnt = async (t) => (await c.query(`SELECT count(*)::int AS n FROM "${t}" WHERE "churchId"=$1`, [churchId])).rows[0].n;

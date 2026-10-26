@@ -12,8 +12,13 @@ const LAST = ['Mensah','Osei','Boateng','Asante','Owusu','Nkrumah','Agyeman','Da
 const PREFIX = ['020','024','027','050','054','055','059'];
 const STAGES = ['MEMBER','MEMBER','MEMBER','NEW_BELIEVER','WORKER','WORKER','LEADER'];
 
+// Credentials come from the environment only — never hardcode a DSN.
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is required; run: node --env-file=.env ' + __filename);
+  process.exit(1);
+}
 (async () => {
-  const c = new Client({ connectionString: 'postgresql://postgres:postgres@localhost:5432/chms' });
+  const c = new Client({ connectionString: process.env.DATABASE_URL });
   await c.connect();
   try {
     const church = (await c.query('SELECT id FROM "Church" WHERE slug=$1', [CHURCH])).rows[0];

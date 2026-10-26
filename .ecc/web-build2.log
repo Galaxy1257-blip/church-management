@@ -1,0 +1,64 @@
+
+> @chms/web@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 5.9s
+   Linting and checking validity of types ...
+
+ ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
+(node:5788) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/HP/Desktop/church/eslint.config.js?mtime=1793028598041 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\HP\Desktop\church\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+   Collecting page data ...
+   Generating static pages (0/29) ...
+   Generating static pages (7/29) 
+   Generating static pages (14/29) 
+   Generating static pages (21/29) 
+ ✓ Generating static pages (29/29)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    1.19 kB         104 kB
+├ ○ /_not-found                            988 B         104 kB
+├ ○ /announcements                       2.25 kB         105 kB
+├ ○ /bible                               1.75 kB         105 kB
+├ ○ /branches                            3.31 kB         106 kB
+├ ○ /campaigns                           2.43 kB         105 kB
+├ ○ /care                                2.95 kB         106 kB
+├ ○ /checkin                             1.93 kB         105 kB
+├ ○ /children                            2.06 kB         105 kB
+├ ○ /dashboard                           5.33 kB         112 kB
+├ ○ /drip                                2.31 kB         105 kB
+├ ○ /events                              1.79 kB         105 kB
+├ ○ /expenses                            2.29 kB         105 kB
+├ ○ /finance                             3.25 kB         106 kB
+├ ƒ /flyers/[slug]                         711 B         104 kB
+├ ƒ /give/[slug]                         2.85 kB         106 kB
+├ ○ /give/mock-pay                       1.13 kB         104 kB
+├ ○ /give/thanks                           428 B         103 kB
+├ ○ /groups                              2.14 kB         105 kB
+├ ○ /login                               2.26 kB         105 kB
+├ ○ /media                               2.72 kB         106 kB
+├ ○ /members                             3.81 kB         107 kB
+├ ○ /org                                 1.92 kB         105 kB
+├ ○ /portal                              3.63 kB         106 kB
+├ ○ /roster                              1.86 kB         105 kB
+├ ○ /services                            2.08 kB         108 kB
+├ ƒ /services/[id]                        3.7 kB         107 kB
+├ ○ /settings                            9.93 kB         113 kB
+├ ○ /sms                                 2.76 kB         106 kB
+└ ○ /visitors                            2.36 kB         105 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/18-8a0e9dadb94224f5.js        46.6 kB
+  ├ chunks/87c73c54-24122e7b92478d00.js  54.2 kB
+  └ other shared chunks (total)          1.99 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

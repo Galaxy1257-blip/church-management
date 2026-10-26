@@ -1,0 +1,24 @@
+
+> chms@0.1.0 typecheck
+> npm run typecheck -w @chms/shared && npm run typecheck -w @chms/db && npm run typecheck -w @chms/api && npm run typecheck -w @chms/worker && npm run typecheck -w @chms/web
+
+
+> @chms/shared@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @chms/db@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @chms/api@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @chms/worker@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @chms/web@0.1.0 typecheck
+> tsc --noEmit
+

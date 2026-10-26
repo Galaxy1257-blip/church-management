@@ -12,8 +12,8 @@
 
  Test Files  9 passed (9)
       Tests  62 passed (62)
-   Start at  03:49:11
-   Duration  786ms (import 37%, tests 29%, transform 20%, worker 14%, environment 1%)
+   Start at  15:11:43
+   Duration  1.29s (import 34%, tests 28%, transform 20%, worker 17%, environment 1%)
 
 
 > @chms/api@0.1.0 test
@@ -22,14 +22,13 @@
 
  RUN  v5.0.5 C:/Users/HP/Desktop/church/apps/api
 
-[32m[Nest] 14132  - [39m26/10/2026, 03:49:15 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a17653-a4ad-700a-a04c-2703dbd61c34 amount=10000[39m
-[32m[Nest] 14132  - [39m26/10/2026, 03:49:15 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a17653-a4e3-7219-b8f6-1835edaa3d6c amount=5000[39m
-[31m[Nest] 14132  - [39m26/10/2026, 03:49:15 [31m  ERROR[39m [38;5;3m[Giving] [39m[31mgiving amount mismatch tx=01a17653-a4f1-7242-a913-19320dae3fc2: {"expected":5000,"got":5001}[39m
+[32m[Nest] 2964  - [39m26/10/2026, 15:11:52 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178c4-9a2a-75e6-8e85-3d33e1901008 amount=10000[39m
+[32m[Nest] 2964  - [39m26/10/2026, 15:11:52 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178c4-9a8b-771b-8d6a-f1fdff13ce26 amount=5000[39m
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  03:49:13
-   Duration  2.73s (import 60%, tests 35%, transform 4%, worker 1%)
+   Start at  15:11:46
+   Duration  6.88s (import 59%, tests 33%, transform 8%, worker 1%)
 
 
 > @chms/worker@0.1.0 test
@@ -39,7 +38,4 @@
  RUN  v5.0.5 C:/Users/HP/Desktop/church/apps/worker
 
 No test files found, exiting with code 0
-
-include: **/*.{test,spec}.?(c|m)[jt]s?(x)
-exclude:  **/node_modules/**, **/.git/**
 

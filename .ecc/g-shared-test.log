@@ -1,0 +1,13 @@
+
+> @chms/shared@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.5 C:/Users/HP/Desktop/church/packages/shared
+
+
+ Test Files  10 passed (10)
+      Tests  68 passed (68)
+   Start at  15:42:36
+   Duration  1.16s (import 38%, transform 25%, tests 24%, worker 13%, environment 1%)
+

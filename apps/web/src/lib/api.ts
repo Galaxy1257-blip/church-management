@@ -2,11 +2,16 @@
 // API client: bearer access token in memory, refresh token in localStorage,
 // single-flight refresh on 401. All calls hit /api/v1.
 
+const LEGACY_API_URL_KEY = 'chms.api_url';
+let legacyKeyCleared = false;
+
 export function getApiBase(): string {
-  // Always use the env var baked in at build time — no localStorage override.
-  // Clear any stale URL saved by a previous dev/tunnel session.
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('chms.api_url');
+  // Always the build-time env var. An older dev/tunnel build stored an override
+  // in localStorage; clear it once per page load instead of on every call (this
+  // runs for every request the app makes).
+  if (!legacyKeyCleared && typeof window !== 'undefined') {
+    localStorage.removeItem(LEGACY_API_URL_KEY);
+    legacyKeyCleared = true;
   }
   return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/+$/, '');
 }

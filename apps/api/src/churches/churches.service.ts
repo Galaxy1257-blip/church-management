@@ -1,11 +1,12 @@
 // Church onboarding: platform-key protected bootstrap that creates the church,
 // its first SUPER_ADMIN, and applies all Phase 0 seeds in one transaction.
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { prisma, withTenant, withPlatform, appendAudit } from '@chms/db';
 import { seedChurchDefaults } from '@chms/db';
-import { normalizeGhPhone, denominationPreset } from '@chms/shared';
+import { normalizeGhPhone, denominationPreset, isModuleKey, resolveModules, type ModuleKey } from '@chms/shared';
 import { uuidv7 } from '@chms/shared';
+import { timingSafeEqualStr } from '../common/crypto';
 import type { Env } from '../env';
 
 export interface CreateChurchInput {
@@ -22,7 +23,9 @@ export class ChurchesService {
   constructor(@Inject('ENV') private readonly env: Env) {}
 
   create(input: CreateChurchInput): Promise<{ churchId: string; slug: string }> {
-    if (input.platformKey !== this.env.PLATFORM_SIGNUP_KEY) {
+    // Constant-time compare: a plain !== leaks the matching prefix length of a
+    // platform-wide key through response timing.
+    if (!timingSafeEqualStr(input.platformKey, this.env.PLATFORM_SIGNUP_KEY)) {
       throw new ForbiddenException('invalid platform key');
     }
     const phone = normalizeGhPhone(input.admin.phoneE164);
@@ -124,6 +127,8 @@ export class ChurchesService {
       givingInstructions: s.givingInstructions ?? {},
       care: s.care ?? { enabled: true, missingSundays: 3, digestPhones: [] },
       smsLocales: s.smsLocales ?? { defaultLocale: 'en', templates: {} },
+      // Which areas of the app are switched on for this church (Settings → Modules).
+      modules: resolveModules(s),
       denomination: {
         key: s.denominationKey ?? 'DEFAULT',
         terms: s.terminology ?? denominationPreset(s.denominationKey).terms,
@@ -158,17 +163,21 @@ export class ChurchesService {
       smsLocales?: { defaultLocale?: string; templates?: Record<string, Record<string, string>> };
       denominationKey?: string;
       retention?: { memberDataYears?: number; transactionYears?: number };
+      /** Module switches: false hides an area of the app; true/absent shows it. */
+      modules?: Partial<Record<ModuleKey, boolean>>;
     },
     ip?: string,
   ) {
     return withTenant(user.churchId, user.userId, async (tx) => {
       const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId } });
       const prev = (church.settings ?? {}) as any;
+      // 300 kB of image ≈ 400 kB once base64-encoded; the JSON body limit is 1 MB,
+      // so this is the constraint the user actually hits (with a 400, not a 500).
       if (patch.branding?.logoDataUrl && patch.branding.logoDataUrl.length > 400_000) {
-        throw new Error('logo too large — upload an image under ~300KB (or link an image URL)');
+        throw new BadRequestException('logo too large — upload an image under ~300KB (or link an image URL)');
       }
       if (patch.branding?.primaryColor && !/^#[0-9a-fA-F]{3,8}$/.test(patch.branding.primaryColor)) {
-        throw new Error('primaryColor must be a hex color like #1e3a5f');
+        throw new BadRequestException('primaryColor must be a hex color like #1e3a5f');
       }
       const nextSettings = {
         ...prev,
@@ -184,6 +193,18 @@ export class ChurchesService {
             }
           : {}),
         ...(patch.retention !== undefined ? { retention: { ...(prev.retention ?? {}), ...patch.retention } } : {}),
+        // Module switches merge flag-by-flag; unknown keys and non-booleans are
+        // dropped so a malformed body cannot brick the shell.
+        ...(patch.modules !== undefined
+          ? {
+              modules: {
+                ...(prev.modules ?? {}),
+                ...Object.fromEntries(
+                  Object.entries(patch.modules).filter(([key, on]) => isModuleKey(key) && typeof on === 'boolean'),
+                ),
+              },
+            }
+          : {}),
       } as Record<string, unknown>;
       await tx.church.update({
         where: { id: user.churchId },

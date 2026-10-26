@@ -1,0 +1,19 @@
+
+> @chms/api@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.5 C:/Users/HP/Desktop/church/apps/api
+
+[32m[Nest] 12880  - [39m26/10/2026, 15:40:27 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_1 amount=1000[39m
+[32m[Nest] 12880  - [39m26/10/2026, 15:40:27 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_1 amount=1000[39m
+[32m[Nest] 12880  - [39m26/10/2026, 15:40:27 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms a/b amount=1000[39m
+[32m[Nest] 12668  - [39m26/10/2026, 15:40:30 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178de-cdbc-713f-b0ee-43737adedff3 amount=10000[39m
+[32m[Nest] 12668  - [39m26/10/2026, 15:40:30 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178de-ce0a-7166-a76f-a9bc7416c96c amount=5000[39m
+[31m[Nest] 12668  - [39m26/10/2026, 15:40:30 [31m  ERROR[39m [38;5;3m[Giving] [39m[31mgiving amount mismatch tx=01a178de-ce0f-7e63-be1e-6cbd294f1d1f: {"expected":5000,"got":5001}[39m
+
+ Test Files  6 passed (6)
+      Tests  53 passed (53)
+   Start at  15:40:25
+   Duration  4.40s (import 69%, tests 24%, transform 6%, worker 1%)
+

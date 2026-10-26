@@ -10,6 +10,7 @@ import {
   resolveBracket,
 } from '@chms/shared';
 import { TenantService } from '../common/tenant';
+import { allocateMemberNo } from '../common/member-no';
 import { AuthUser } from '../common/guards';
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -104,11 +105,9 @@ export class MembersService {
   async create(user: AuthUser, input: CreateMemberInput, ip?: string) {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : null;
     return this.tenant.run(user, async (tx) => {
-      let memberNo = input.memberNo?.trim();
-      if (!memberNo) {
-        const count = await tx.member.count({ where: { churchId: user.churchId } });
-        memberNo = `M${String(count + 1).padStart(5, '0')}`;
-      }
+      // Staff-typed numbers are kept; otherwise allocate under the per-church
+      // lock (see common/member-no.ts for why count()+1 was wrong).
+      const memberNo = input.memberNo?.trim() || (await allocateMemberNo(tx, user.churchId));
       const { ageBracketId } = await resolveMemberBracket(tx, user.churchId, input);
       const m = await tx.member.create({
         data: {

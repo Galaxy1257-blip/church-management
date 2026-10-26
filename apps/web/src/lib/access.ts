@@ -40,6 +40,8 @@ export interface SessionUser {
   roles: string[];
   permissions: string[];
   scope?: DataScope;
+  /** Which areas this church has switched on (settings.modules). */
+  modules?: ModuleFlags;
   church: { name: string; slug?: string; branding?: { logoDataUrl?: string | null; primaryColor?: string } | null };
 }
 
@@ -68,59 +70,91 @@ export interface NavGroup {
 }
 
 
-// Grouped nav: one clean topbar row (Dashboard · People · Worship · Finance ·
-// Outreach · Org · Settings). Every item declares the permission its data needs,
-// so a leader never sees a module the API would 403.
-export const NAV_GROUPS: NavGroup[] = [
+// One app, five areas. The top bar shows Home + the five areas + Settings, and
+// each area renders its own tab strip (components/area-tabs.tsx). That keeps all
+// ~18 screens reachable while the top-level nav stays 7 destinations instead of
+// 20 — the bloat complaint — and no route had to be deleted.
+//
+// Mirrors packages/shared/src/modules.ts (this app does not import the workspace
+// package; the access smoke test is what catches drift).
+export const MODULE_KEYS = ['people', 'worship', 'money', 'reach', 'org'] as const;
+export type ModuleKey = (typeof MODULE_KEYS)[number];
+export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
+
+export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
+  people: { label: 'People', hint: 'Members, visitors, children, groups, care and follow-up' },
+  worship: { label: 'Worship', hint: 'Services, check-in, serving roster, media and events' },
+  money: { label: 'Money', hint: 'Giving, funds, expenses and finance reports' },
+  reach: { label: 'Reach', hint: 'SMS campaigns and announcements' },
+  org: { label: 'Organisation', hint: 'Departments, branches and HQ remittances' },
+};
+
+export interface NavArea {
+  /** Which church-level switch hides this whole area (Settings → Modules). */
+  module: ModuleKey;
+  label: string;
+  hint: string;
+  items: NavItem[];
+}
+
+export const NAV_AREAS: NavArea[] = [
   {
+    module: 'people',
     label: 'People',
-    hint: 'Members, visitors, children, care queue and small groups',
+    hint: 'Members, visitors, children, groups, care and follow-up',
     items: [
       { href: '/members', label: 'Members', permission: 'members:read' },
       { href: '/visitors', label: 'Visitors', permission: 'visitors:read' },
       { href: '/children', label: 'Children', permission: 'members:read' },
-      { href: '/care', label: 'Care', permission: 'care:read' },
       { href: '/groups', label: 'Groups', permission: 'members:read' },
+      { href: '/care', label: 'Care', permission: 'care:read' },
+      { href: '/drip', label: 'Follow-up', permission: 'care:read' },
     ],
   },
   {
+    module: 'worship',
     label: 'Worship',
-    hint: 'Services, check-in, serving roster and media/projection',
+    hint: 'Services, check-in, serving roster, media and events',
     items: [
       { href: '/services', label: 'Services', permission: 'services:read' },
       { href: '/checkin', label: 'Check-in', permission: 'services:read' },
       { href: '/roster', label: 'Roster', permission: 'services:read' },
       { href: '/media', label: 'Media', permission: 'media:read' },
+      { href: '/events', label: 'Events', permission: 'services:read' },
     ],
   },
   {
-    label: 'Finance',
-    hint: 'Giving batches & reports, pledges, expenses',
+    module: 'money',
+    label: 'Money',
+    hint: 'Giving, pledges, expenses and finance reports',
     items: [
-      { href: '/finance', label: 'Finance', permission: 'finance:read' },
+      { href: '/finance', label: 'Giving', permission: 'finance:read' },
       { href: '/campaigns', label: 'Pledges', permission: 'giving:read' },
       { href: '/expenses', label: 'Expenses', permission: 'expenses:read' },
     ],
   },
   {
-    label: 'Outreach',
-    hint: 'Events & RSVPs, follow-up drip, SMS campaigns, announcements',
+    module: 'reach',
+    label: 'Reach',
+    hint: 'SMS campaigns and announcements',
     items: [
-      { href: '/events', label: 'Events', permission: 'services:read' },
-      { href: '/drip', label: 'Drip', permission: 'care:read' },
       { href: '/sms', label: 'SMS', permission: 'sms:read' },
       { href: '/announcements', label: 'News', permission: 'campaigns:read' },
     ],
   },
   {
-    label: 'Org',
-    hint: 'Structure, departments and branch → HQ remittances',
+    module: 'org',
+    label: 'Organisation',
+    hint: 'Departments, branches and HQ remittances',
     items: [
-      { href: '/org', label: 'Org', permission: 'church:read' },
+      { href: '/org', label: 'Departments', permission: 'church:read' },
       { href: '/branches', label: 'Branches', permission: 'church:read' },
     ],
   },
 ];
+
+/** Back-compat view for callers that only need label + hint + items. */
+export const NAV_GROUPS: NavGroup[] = NAV_AREAS.map(({ label, hint, items }) => ({ label, hint, items }));
 
 // Usher Mode: ONE app, role-scoped shell. Ushers get a mobile-first subset
 // (Today / Check-in / Visitors) with big touch targets; leaders toggle it off.
@@ -165,22 +199,73 @@ export function routeAccess(pathname: string): { prefix: string; permission: Per
   return match;
 }
 
-/** True when the permission set may open this route. */
-export function canAccessPath(granted: readonly string[], pathname: string): boolean {
-  const rule = routeAccess(pathname);
-  return !rule || hasPermission(granted, rule.permission);
+/** A church can switch an area off; absent flags mean "on" (the default today). */
+export function moduleEnabled(modules: ModuleFlags | undefined, key: ModuleKey | undefined): boolean {
+  if (!key) return true;
+  return modules?.[key] !== false;
 }
 
-/** Nav groups with every inaccessible item removed (empty groups dropped). */
-export function visibleNavGroups(granted: readonly string[]): NavGroup[] {
-  return NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => hasPermission(granted, item.permission)),
-  })).filter((group) => group.items.length > 0);
+/** The area a nav href belongs to (maps a route rule back to its module). */
+export function areaForItem(href: string): NavArea | null {
+  return NAV_AREAS.find((area) => area.items.some((item) => item.href === href)) ?? null;
+}
+
+/** The area the current pathname lives in, with its full item list. */
+export function areaForPath(pathname: string): { area: NavArea; items: NavItem[] } | null {
+  for (const area of NAV_AREAS) {
+    for (const item of area.items) {
+      if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+        return { area, items: area.items };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Tabs for the current page: permission- and module-filtered, and null when there
+ * is nothing to choose (a one-tab strip is noise).
+ */
+export function visibleAreaTabs(
+  pathname: string,
+  granted: readonly string[],
+  modules?: ModuleFlags,
+): { area: NavArea; items: NavItem[] } | null {
+  const hit = areaForPath(pathname);
+  if (!hit || !moduleEnabled(modules, hit.area.module)) return null;
+  const items = hit.items.filter((item) => hasPermission(granted, item.permission));
+  return items.length > 1 ? { area: hit.area, items } : null;
+}
+
+/**
+ * True when the permission set may open this route. `modules` is the church's
+ * switch set: a disabled area counts as unavailable, except /settings — that is
+ * where the switches live, so it must stay reachable to switch them back on.
+ */
+export function canAccessPath(
+  granted: readonly string[],
+  pathname: string,
+  modules?: ModuleFlags,
+): boolean {
+  const rule = routeAccess(pathname);
+  if (!rule) return true;
+  if (!hasPermission(granted, rule.permission)) return false;
+  if (rule.prefix === '/settings') return true;
+  return moduleEnabled(modules, areaForItem(rule.prefix)?.module);
+}
+
+/** Nav groups with inaccessible items and switched-off areas removed. */
+export function visibleNavGroups(granted: readonly string[], modules?: ModuleFlags): NavGroup[] {
+  return NAV_AREAS.filter((area) => moduleEnabled(modules, area.module))
+    .map((area) => ({
+      label: area.label,
+      hint: area.hint,
+      items: area.items.filter((item) => hasPermission(granted, item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 /** Usher-mode links this user may open. */
 export function visibleUsherNav(granted: readonly string[]): NavItem[] {
   return USHER_NAV.filter((item) => hasPermission(granted, item.permission));
 }
-

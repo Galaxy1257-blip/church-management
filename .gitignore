@@ -15,3 +15,14 @@ uploads/
 # fetched Bible bundle (public domain; regenerate with npm run bible:fetch)
 apps/api/data/
 scripts/*.exe
+# Scratch scripts that once carried a live database password — keep them local.
+# (Credentials belong in .env, which is ignored above; these files must read
+# DATABASE_URL from the environment, never hardcode it.)
+scripts/tmp-demo-*.js
+scripts/*neon*.mjs
+scripts/check-users.cjs
+# ECC run detritus — evidence stays in .ecc/*.log and .ecc/*.exit
+.ecc/*.pid
+.ecc/proc.ids
+.ecc/gates2.err
+

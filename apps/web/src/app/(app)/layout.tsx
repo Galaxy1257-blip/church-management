@@ -2,13 +2,17 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { api, clearTokens, hasSession } from '../../lib/api';
+import { clearTokens, hasSession } from '../../lib/api';
+import AreaTabs from '../../components/area-tabs';
+import { clearSession, getSession } from '../../lib/session';
 import {
   SCOPE_LABEL,
+  areaForItem,
   canAccessPath,
   describeRoles,
   hasPermission,
   hasStaffAccess,
+  moduleEnabled,
   routeAccess,
   visibleNavGroups,
   visibleUsherNav,
@@ -50,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     setReady(true);
-    api<SessionUser>('/auth/me')
+    getSession()
       .then((m) => {
         // Members hold no staff permission: the staff shell is not theirs.
         if (!hasStaffAccess(m.permissions)) {
@@ -66,6 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         clearTokens();
+        clearSession();
         router.replace('/login');
       });
   }, [router]);
@@ -100,12 +105,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Everything the shell shows is derived from the permission set the API
   // returned for this session — never from a hardcoded role name.
   const perms = me.permissions;
-  const groups = visibleNavGroups(perms);
+  const groups = visibleNavGroups(perms, me.modules);
   const usherNav = visibleUsherNav(perms);
   const canUsherMode = hasPermission(perms, 'headcount:write') && hasPermission(perms, 'services:read');
   const showUsher = usherMode && canUsherMode;
   const rule = routeAccess(pathname);
-  const denied = !canAccessPath(perms, pathname);
+  const denied = !canAccessPath(perms, pathname, me.modules);
+  // Which of the two possible reasons applies: a switched-off area or a missing
+  // permission. The copy below has to say the right one, or the operator will go
+  // hunting for a role that was never the problem.
+  const area = rule ? areaForItem(rule.prefix) : null;
+  const areaOff = area ? !moduleEnabled(me.modules, area.module) : false;
   const home = groups[0]?.items[0]?.href ?? '/dashboard';
   const isActive = (href: string) => (pathname.startsWith(href) ? 'active' : '');
 
@@ -193,6 +203,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onClick={(e) => {
             e.preventDefault();
             clearTokens();
+            clearSession();
             router.replace('/login');
           }}
         >
@@ -200,12 +211,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </a>
       </nav>
       <main className={showUsher ? 'container usher' : 'container'}>
+        {/* One tab strip for every area page: the top bar stays 7 destinations
+            wide while all ~18 screens remain one click away. */}
+        {showUsher || denied ? null : <AreaTabs permissions={perms} modules={me.modules} />}
         {denied ? (
           <div className="card">
-            <h1>Not available for your role</h1>
+            <h1>{areaOff ? 'Area switched off' : 'Not available for your role'}</h1>
             <p className="muted">
-              {rule ? `${rule.label} needs a permission your role does not have.` : 'This page needs a permission your role does not have.'}{' '}
-              Ask a church admin if you should have it.
+              {areaOff
+                ? `${area?.label ?? 'This area'} is switched off for ${me.church.name}. A church admin can turn it back on in Settings → Modules.`
+                : `${rule ? rule.label : 'This page'} needs a permission your role does not have. Ask a church admin if you should have it.`}
             </p>
             <Link href={home}>Go to an area you can use</Link>
           </div>

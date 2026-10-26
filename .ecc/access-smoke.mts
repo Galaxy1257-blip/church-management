@@ -3,11 +3,15 @@
 // Run: node_modules/.bin/tsx .ecc/access-smoke.mts
 import { PERMISSIONS, ROLE_PERMISSIONS, permissionsForRoles } from '@chms/shared';
 import {
-  NAV_GROUPS,
+  MODULE_KEYS,
+  NAV_AREAS,
   ROUTE_ACCESS,
+  areaForPath,
   canAccessPath,
   describeRoles,
   hasStaffAccess,
+  moduleEnabled,
+  visibleAreaTabs,
   visibleNavGroups,
   visibleUsherNav,
 } from '../apps/web/src/lib/access.ts';
@@ -20,18 +24,18 @@ function check(name: string, ok: boolean, detail = '') {
 
 // 1) Contract sync: every permission string the web layer names must exist in shared.
 const named = new Set<string>([
-  ...NAV_GROUPS.flatMap((g) => g.items.map((i) => i.permission)),
+  ...NAV_AREAS.flatMap((g) => g.items.map((i) => i.permission)),
   ...ROUTE_ACCESS.map((r) => r.permission),
 ]);
 const unknown = [...named].filter((p) => !(PERMISSIONS as readonly string[]).includes(p));
 check('web permission strings exist in shared PERMISSIONS', unknown.length === 0, unknown.join(', '));
 
 // 2) Every nav item must have a route rule, so nav and guard cannot disagree.
-const navHrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+const navHrefs = NAV_AREAS.flatMap((g) => g.items.map((i) => i.href));
 const unrouted = navHrefs.filter((href) => !ROUTE_ACCESS.some((r) => r.prefix === href));
 check('every nav href is covered by ROUTE_ACCESS', unrouted.length === 0, unrouted.join(', '));
 
-const allItems = NAV_GROUPS.reduce((n, g) => n + g.items.length, 0);
+const allItems = NAV_AREAS.reduce((n, g) => n + g.items.length, 0);
 
 // 3) Per-role visibility, using the presets the API actually ships.
 for (const role of Object.keys(ROLE_PERMISSIONS) as (keyof typeof ROLE_PERMISSIONS)[]) {
@@ -87,6 +91,38 @@ check('nested denied path is denied', !canAccessPath(noFinance, '/finance/batche
 
 // 5) Role chip label formatting.
 check('chip: multi-role join', describeRoles(['FINANCE_ADMIN', 'LEADER']) === 'Finance admin · Leader');
+
+// 6) Area consolidation + per-church module switches (the nav-bloat fix).
+check('nav is 5 areas + dashboard + settings, not 20 flat links', NAV_AREAS.length === 5 && allItems === 18);
+check('every module key has an area', MODULE_KEYS.every((k) => NAV_AREAS.some((a) => a.module === k)));
+check('no area is empty', NAV_AREAS.every((a) => a.items.length > 0));
+
+const tabsFinance = visibleAreaTabs('/finance', su);
+check('money area renders its 3 tabs', tabsFinance !== null && tabsFinance.items.length === 3);
+check('nested path keeps the area tabs', visibleAreaTabs('/members/abc-123', su) !== null);
+check('dashboard is not an area (no tab strip)', visibleAreaTabs('/dashboard', su) === null);
+check('settings is not an area (no tab strip)', visibleAreaTabs('/settings', su) === null);
+check('areaForPath resolves a module', areaForPath('/expenses')?.area.module === 'money');
+
+// A church switching an area off: hidden from nav, tabs, route guard and dashboard,
+// but Settings stays reachable so the switch can be undone.
+const noMoney = { money: false };
+check('module off hides the area from the nav', visibleNavGroups(su, noMoney).every((g) => g.label !== 'Money'));
+check('module off closes its routes', !canAccessPath(su, '/finance', noMoney) && !canAccessPath(su, '/expenses/x', noMoney));
+check('module off leaves other areas alone', canAccessPath(su, '/members', noMoney));
+check('module off still allows /settings', canAccessPath(su, '/settings', { org: false, money: false, people: false }));
+check('module off removes the tab strip', visibleAreaTabs('/finance', su, noMoney) === null);
+check('absent flag means enabled', moduleEnabled(undefined, 'money') && moduleEnabled({}, 'money'));
+check('explicit false means disabled', !moduleEnabled({ money: false }, 'money'));
+check('no module key means always on', moduleEnabled({ money: false }, undefined));
+check(
+  'all five off still leaves /settings and /dashboard',
+  canAccessPath(su, '/settings', { people: false, worship: false, money: false, reach: false, org: false }),
+);
+check(
+  'permission still wins over module',
+  !canAccessPath(noFinance, '/finance', { money: true }),
+);
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

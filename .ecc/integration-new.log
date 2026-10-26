@@ -1,0 +1,54 @@
+
+ RUN  v5.0.5 C:/Users/HP/Desktop/church/apps/api
+
+ ✓ test/integration.spec.ts > integration > creates a church with seeded defaults 584ms
+ ✓ test/integration.spec.ts > integration > TENANT ISOLATION: church A cannot read church B 502ms
+stdout | test/integration.spec.ts > integration > headcount sync is idempotent under replay (offline outbox)
+prisma:error 
+Invalid `tx.headcount.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/headcount/headcount.service.ts:82:30
+
+  79 // breaks replay idempotency — any offline outbox replay used to crash.
+  80 await tx.$executeRaw`SAVEPOINT hc_event`;
+  81 try {
+→ 82   await tx.headcount.create(
+Unique constraint failed on the (not available)
+
+stdout | test/integration.spec.ts > integration > headcount sync is idempotent under replay (offline outbox)
+prisma:error 
+Invalid `tx.headcount.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/headcount/headcount.service.ts:82:30
+
+  79 // breaks replay idempotency — any offline outbox replay used to crash.
+  80 await tx.$executeRaw`SAVEPOINT hc_event`;
+  81 try {
+→ 82   await tx.headcount.create(
+Unique constraint failed on the (not available)
+
+[32m[Nest] 3232  - [39m26/10/2026, 15:42:19 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178e0-7b40-7666-9fb2-8588a76688eb amount=10000[39m
+stdout | test/integration.spec.ts > integration > webhook: duplicate charge.success settles once (one SUCCESS, no double settle)
+prisma:error 
+Invalid `prisma.processedWebhookEvent.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/giving/giving.service.ts:152:42
+
+  149 const eventKey = String(event.id ?? `${eventName}:${reference}`);
+  150 // ProcessedWebhookEvent has no churchId (platform table, not RLS-scoped).
+  151 try {
+→ 152   await prisma.processedWebhookEvent.create(
+Unique constraint failed on the fields: (`provider`,`eventKey`)
+
+ ✓ test/integration.spec.ts > integration > headcount sync is idempotent under replay (offline outbox) 93ms
+ ✓ test/integration.spec.ts > integration > webhook: duplicate charge.success settles once (one SUCCESS, no double settle) 50ms
+[32m[Nest] 3232  - [39m26/10/2026, 15:42:20 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178e0-7b71-705e-8de6-8dd71d21fee7 amount=5000[39m
+[31m[Nest] 3232  - [39m26/10/2026, 15:42:20 [31m  ERROR[39m [38;5;3m[Giving] [39m[31mgiving amount mismatch tx=01a178e0-7b7d-76b3-abe9-7ba992b9f594: {"expected":5000,"got":5001}[39m
+ ✓ test/integration.spec.ts > integration > webhook: amount mismatch does not settle (held in PROCESSING) 26ms
+ ✓ test/integration.spec.ts > integration > opt-out keyword suppresses later campaign sends 118ms
+ ✓ test/integration.spec.ts > integration > finance batches enforce two counters and a separate approver 54ms
+ ✓ test/integration.spec.ts > integration > MEMBER NO: concurrent creates stay unique and a deleted number is never reused 438ms
+ ✓ test/integration.spec.ts > integration > OTP: a correct code works, and 5 misses burn the challenge even for the right code 390ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  15:42:17
+   Duration  3.37s (tests 72%, import 23%, transform 5%)
+

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { Authenticated, Public } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { AuthService } from './auth.service';
 
 class LoginDto {
@@ -32,11 +33,19 @@ class RefreshDto {
   @IsString() refreshToken!: string;
 }
 
+// Every unauthenticated route carries a bucket: without one, /auth/login is an
+// offline bcrypt-cracking oracle and /auth/otp/request is a way to spend the
+// church's SMS credits from a loop.
 @Controller('auth')
+@UseGuards(RateLimitGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @RateLimit([
+    { key: 'login:ip', limit: 30, windowMs: 5 * 60_000 },
+    { key: 'login:phone', limit: 8, windowMs: 5 * 60_000, byPhone: true },
+  ])
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
@@ -44,6 +53,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ key: 'signup:ip', limit: 5, windowMs: 60 * 60_000 })
   @Post('signup')
   @HttpCode(200)
   signup(@Body() dto: SignupDto) {
@@ -51,6 +61,10 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit([
+    { key: 'otp:request:phone', limit: 3, windowMs: 60 * 60_000, byPhone: true },
+    { key: 'otp:request:ip', limit: 10, windowMs: 60 * 60_000 },
+  ])
   @Post('otp/request')
   @HttpCode(202)
   async requestOtp(@Body() dto: OtpRequestDto) {
@@ -59,6 +73,12 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({
+    key: 'otp:verify',
+    limit: 10,
+    windowMs: 10 * 60_000,
+    byPhone: true,
+  })
   @Post('otp/verify')
   @HttpCode(200)
   verifyOtp(@Body() dto: OtpVerifyDto) {
@@ -66,6 +86,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ key: 'refresh:ip', limit: 60, windowMs: 5 * 60_000 })
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {

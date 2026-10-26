@@ -11,9 +11,11 @@ import { createHash, randomInt } from 'node:crypto';
 // concern, like webhooks: use platformPrisma (BYPASSRLS); tenant writes stay
 // in withTenant.
 import { platformPrisma as prisma, withPlatform, withTenant } from '@chms/db';
-import { normalizeGhPhone, permissionsForRoles, resolveDataScope, RoleKey, localizedSmsBody } from '@chms/shared';
+import { normalizeGhPhone, permissionsForRoles, resolveDataScope, resolveModules, RoleKey, localizedSmsBody } from '@chms/shared';
 import type { Env } from '../env';
 import { AuthUser } from '../common/guards';
+import { timingSafeEqualStr } from '../common/crypto';
+import { allocateMemberNo } from '../common/member-no';
 import { SmsDispatcher } from '../sms/sms-dispatcher';
 
 const OTP_TTL_MINUTES = 5;
@@ -176,13 +178,14 @@ export class AuthService {
       });
       await tx.userRole.create({ data: { userId: u.id, roleId: role.id } });
 
-      // Member record (same memberNo scheme as members.service: M00001â€¦)
-      const count = await tx.member.count({ where: { churchId: church.id } });
+      // Member record (same memberNo scheme as members.service). The number is
+      // allocated under the per-church advisory lock, so a signup racing a staff
+      // create cannot produce a duplicate key in front of the user.
       const parts = name.split(' ');
       const member = await tx.member.create({
         data: {
           churchId: church.id,
-          memberNo: `M${String(count + 1).padStart(5, '0')}`,
+          memberNo: await allocateMemberNo(tx, church.id),
           firstName: parts[0],
           lastName: parts.slice(1).join(' ') || parts[0],
           phoneE164: phone,
@@ -240,19 +243,37 @@ export class AuthService {
 
     const codeHash = hashCode(input.code, this.env.JWT_SECRET);
     const result = await withTenant(church.id, null, async (tx) => {
-      // OtpChallenge ids are uuidv7 (time ordered), so id desc = newest first.
-      const candidates = await tx.otpChallenge.findMany({
-        where: { churchId: church.id, phoneE164: phone, codeHash, consumedAt: null },
-        orderBy: { id: 'desc' },
+      // Look up the newest live challenge for this PHONE, not for this code hash.
+      // The old filter was `codeHash`, so a wrong code matched no row, `attempts`
+      // was never incremented and OTP_MAX_ATTEMPTS was unreachable — 6 digits were
+      // brute-forceable until the 5-minute expiry.
+      const open = await tx.otpChallenge.findMany({
+        where: {
+          churchId: church.id,
+          phoneE164: phone,
+          consumedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { id: 'desc' }, // uuidv7 ids are time-ordered
         take: 1,
       });
-      const latest = candidates[0];
+      const latest = open[0];
       if (!latest) return { ok: false as const };
-      if (latest.expiresAt < new Date()) return { ok: false as const };
+
       if (latest.attempts >= OTP_MAX_ATTEMPTS) {
+        // Burn it: the caller must request a fresh code.
         await tx.otpChallenge.update({ where: { id: latest.id }, data: { consumedAt: new Date() } });
         return { ok: false as const };
       }
+
+      if (!timingSafeEqualStr(latest.codeHash, codeHash)) {
+        await tx.otpChallenge.update({
+          where: { id: latest.id },
+          data: { attempts: { increment: 1 } },
+        });
+        return { ok: false as const };
+      }
+
       await tx.otpChallenge.update({
         where: { id: latest.id },
         data: { attempts: { increment: 1 }, consumedAt: new Date() },
@@ -326,14 +347,25 @@ export class AuthService {
     );
   }
 
-  async me(userId: string, churchId: string): Promise<AuthUser & { church: { name: string; slug: string; branding: unknown } }> {
+  async me(
+    userId: string,
+    churchId: string,
+  ): Promise<
+    AuthUser & {
+      church: { name: string; slug: string; branding: unknown };
+      modules: Record<string, boolean>;
+    }
+  > {
     const user = await this.loadUser(churchId, userId);
     const church = await prisma.church.findUniqueOrThrow({
       where: { id: churchId },
       select: { name: true, slug: true, settings: true },
     });
-    const branding = ((church.settings ?? {}) as any).branding ?? null;
-    return { ...user, church: { name: church.name, slug: church.slug, branding } };
+    const settings = (church.settings ?? {}) as Record<string, unknown>;
+    const branding = settings.branding ?? null;
+    // Which areas of the app this church has switched on (settings.modules).
+    // Sent with the session so the shell can hide whole areas without a round trip.
+    return { ...user, church: { name: church.name, slug: church.slug, branding }, modules: resolveModules(settings) };
   }
 }
 

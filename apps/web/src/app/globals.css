@@ -61,6 +61,29 @@ h2 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
 .nav-group.open .nav-group-btn { opacity: 1; font-weight: 600; }
 .nav-group .caret { font-size: 0.65em; transition: transform 0.15s ease; }
 .nav-group.open .caret { transform: rotate(180deg); }
+
+/* Area tab strip — the second level of the nav. Rendering it once from the app
+   layout is what let the top bar stay 7 destinations instead of ~20. */
+.area-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  margin: 0 0 0.9rem;
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+.area-tabs a {
+  padding: 0.3rem 0.7rem;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--muted);
+}
+.area-tabs a:hover { background: var(--bg); color: var(--ink); }
+.area-tabs a.on { background: var(--brand); color: var(--brand-ink); font-weight: 600; }
 .nav-panel {
   position: absolute;
   top: calc(100% + 8px);

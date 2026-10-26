@@ -48,6 +48,13 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
+    // Next's config runs in node before any bundle exists; `process` is real there.
+    files: ['**/next.config.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly' },
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],

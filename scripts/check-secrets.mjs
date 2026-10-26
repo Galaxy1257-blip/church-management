@@ -5,11 +5,36 @@ import { join } from 'node:path';
 
 const ROOT = process.cwd();
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.git', 'coverage', 'migrations']);
+// Each pattern carries the reason it exists, so a hit is actionable.
+// `ignore` is tested against the captured group for the generic pattern only:
+// dev/example/test values are documented defaults, not leaks.
 const PATTERNS = [
-  /csms_[A-Za-z0-9]{20,}/, // cSMS API tokens
-  /sk_live_[A-Za-z0-9]{10,}/, // Paystack live secret keys
-  /sk_test_[A-Za-z0-9]{20,}/, // Paystack test secret with real entropy
-  /AKIA[0-9A-Z]{16}/, // AWS access keys
+  { name: 'cSMS token', re: /csms_[A-Za-z0-9]{20,}/ }, // cSMS API tokens
+  { name: 'Paystack live key', re: /sk_live_[A-Za-z0-9]{10,}/ }, // live secret keys
+  { name: 'Paystack test key', re: /sk_test_[A-Za-z0-9]{20,}/ }, // test keys with real entropy
+  { name: 'AWS access key', re: /AKIA[0-9A-Z]{16}/ }, // AWS access keys
+  // Connection strings that embed a password. The localhost dev DSN in
+  // .env.example / docker-compose is allowed on purpose.
+  {
+    name: 'DSN with password',
+    re: /\b(?:postgres|postgresql|mysql|redis|rediss|mongodb|mongodb\+srv):\/\/[^\s"'`/:@]+:[^\s"'`/@]+@(?!localhost\b|127\.0\.0\.1\b)/,
+    // Docs describe the shape with placeholders (postgresql://USER:<PASSWORD>@<HOST>/db).
+    // Those are instructions, not credentials.
+    ignore: /[<>{}%$]|\buser\b|\bpass(word)?\b|example|placeholder|changeme/i,
+  },
+  // Neon (the provider this project uses) exposes generated passwords as npg_…
+  { name: 'Neon password', re: /npg_[A-Za-z0-9]{12,}/ },
+  // Generic hardcoded assignments. Unquoted .env lines do not match — those are
+  // read from the environment, not baked in. The key pattern allows a prefix
+  // (`SMS_PASSWORD`, `PAYSTACK_SECRET_KEY`): a plain `\bPASSWORD` misses them
+  // because `_` is a word character, so the most common real-world names slipped
+  // through until the negative test planted one.
+  {
+    name: 'hardcoded secret',
+    re: /[A-Za-z0-9_]*(?:SECRET|PASSWORD|PASSWD|API_KEY|APIKEY|PRIVATE_KEY|ACCESS_TOKEN|AUTH_TOKEN)\s*[:=]\s*['"`]([^'"`\s]{16,})['"`]/i,
+    ignore:
+      /dev|change|test|integration|example|sample|placeholder|dummy|local|fake|mock|fixture|stub|xxxx/i,
+  },
 ];
 
 const hits = [];
@@ -25,9 +50,11 @@ function scan(dir) {
     }
     if (!/\.(ts|tsx|js|mjs|cjs|json|md|yml|yaml|sql|prisma|example)$/.test(entry)) continue;
     const text = readFileSync(full, 'utf8');
-    for (const re of PATTERNS) {
+    for (const { name, re, ignore } of PATTERNS) {
       const m = re.exec(text);
-      if (m) hits.push(`${full.replace(ROOT + '\\', '')}: ${m[0].slice(0, 12)}…`);
+      if (!m) continue;
+      if (ignore && ignore.test(m[1] ?? m[0])) continue;
+      hits.push(`${full.replace(ROOT + '\\', '')}: [${name}] ${m[0].slice(0, 12)}…`);
     }
   }
 }
@@ -38,4 +65,4 @@ if (hits.length > 0) {
   for (const h of hits) console.error('  ' + h);
   process.exit(1);
 }
-console.log('check:secrets clean — no API keys found in the tree.');
+console.log('check:secrets clean — no API keys or credentialed DSNs found in the tree.');

@@ -1,0 +1,36 @@
+
+> @chms/web@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.1s
+   Linting and checking validity of types ...
+
+ ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
+(node:12380) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/HP/Desktop/church/eslint.config.js?mtime=1793028598041 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\HP\Desktop\church\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+   Collecting page data ...
+   Generating static pages (0/29) ...
+   Generating static pages (7/29) 
+   Generating static pages (14/29) 
+   Generating static pages (21/29) 
+ ✓ Generating static pages (29/29)
+   Finalizing page optimization ...
+   Collecting build traces ...
+[Error: ENOENT: no such file or directory, open 'C:\Users\HP\Desktop\church\apps\web\.next\server\app\_not-found\page.js.nft.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\HP\\Desktop\\church\\apps\\web\\.next\\server\\app\\_not-found\\page.js.nft.json'
+}
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path C:\Users\HP\Desktop\church\apps\web
+npm error workspace @chms/web@0.1.0
+npm error location C:\Users\HP\Desktop\church\apps\web
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c next build

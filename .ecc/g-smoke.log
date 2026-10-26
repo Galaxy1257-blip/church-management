@@ -1,0 +1,66 @@
+PASS  web permission strings exist in shared PERMISSIONS
+PASS  every nav href is covered by ROUTE_ACCESS
+
+SUPER_ADMIN    perms= 1 staff=true nav=18/18 groups=[People|Worship|Money|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=y /settings=y /org=y
+PASS  SUPER_ADMIN: sees every nav item
+PASS  SUPER_ADMIN: opens every gated route
+
+PASTOR         perms=32 staff=true nav=18/18 groups=[People|Worship|Money|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=y /settings=y /org=y
+PASS  PASTOR: sees every nav item
+PASS  PASTOR: opens every gated route
+
+FINANCE_ADMIN  perms=18 staff=true nav=14/18 groups=[People|Worship|Money|Reach|Organisation] usherLinks=3
+  routes: /dashboard=y /members=y /checkin=y /finance=y /settings=n /org=y
+PASS  FINANCE_ADMIN: finance reachable, settings blocked
+
+USHER          perms= 7 staff=true nav=10/18 groups=[People|Worship|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=n /settings=n /org=y
+PASS  USHER: check-in reachable
+PASS  USHER: finance + settings blocked
+PASS  USHER: usher-mode links present
+
+FOLLOWUP_TEAM  perms= 9 staff=true nav=13/18 groups=[People|Worship|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=n /settings=n /org=y
+
+LEADER         perms=14 staff=true nav=13/18 groups=[People|Worship|Money|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=n /settings=n /org=y
+PASS  LEADER: members reachable, finance/settings blocked
+
+MEMBER         perms= 0 staff=false nav=0/18 groups=[] usherLinks=0
+  routes: /dashboard=n /members=n /checkin=n /finance=n /settings=n /org=n
+PASS  MEMBER: no staff access
+PASS  MEMBER: empty nav
+PASS  MEMBER: blocked from every gated route
+PASS  MEMBER: role chip reads Member
+
+ELDER          perms=10 staff=true nav=14/18 groups=[People|Worship|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=n /settings=n /org=y
+
+SECRETARY      perms=11 staff=true nav=12/18 groups=[People|Worship|Reach|Organisation] usherLinks=4
+  routes: /dashboard=y /members=y /checkin=y /finance=n /settings=n /org=y
+PASS  nested path inherits its module rule
+PASS  unknown path stays ungated
+PASS  nested denied path is denied
+PASS  chip: multi-role join
+PASS  nav is 5 areas + dashboard + settings, not 20 flat links
+PASS  every module key has an area
+PASS  no area is empty
+PASS  money area renders its 3 tabs
+PASS  nested path keeps the area tabs
+PASS  dashboard is not an area (no tab strip)
+PASS  settings is not an area (no tab strip)
+PASS  areaForPath resolves a module
+PASS  module off hides the area from the nav
+PASS  module off closes its routes
+PASS  module off leaves other areas alone
+PASS  module off still allows /settings
+PASS  module off removes the tab strip
+PASS  absent flag means enabled
+PASS  explicit false means disabled
+PASS  no module key means always on
+PASS  all five off still leaves /settings and /dashboard
+PASS  permission still wins over module
+
+ALL CHECKS PASSED

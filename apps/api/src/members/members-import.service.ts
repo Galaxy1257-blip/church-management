@@ -5,9 +5,9 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { appendAudit } from '@chms/db';
 import { normalizeGhPhone, parseCsv, PhoneError, rowsToObjects, toCsv } from '@chms/shared';
 import { TenantService } from '../common/tenant';
+import { allocateMemberNo } from '../common/member-no';
 import { AuthUser } from '../common/guards';
 import { resolveMemberBracket } from './members.service';
-
 export interface ImportRowInput {
   firstName: string;
   lastName: string;
@@ -147,8 +147,6 @@ export class MembersImportService {
     return this.tenant.run(user, async (tx) => {
       let imported = 0;
       const failures: { index: number; reason: string }[] = [];
-      const count0 = await tx.member.count({ where: { churchId: user.churchId } });
-      let seq = count0;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         try {
@@ -164,12 +162,11 @@ export class MembersImportService {
             }
           }
           const { ageBracketId } = await resolveMemberBracket(tx, user.churchId, { dob: row.dob ?? null });
-          seq += 1;
           const g = row.gender?.trim().toUpperCase();
           await tx.member.create({
             data: {
               churchId: user.churchId,
-              memberNo: row.memberNo?.trim() || `M${String(seq).padStart(5, '0')}`,
+              memberNo: row.memberNo?.trim() || (await allocateMemberNo(tx, user.churchId)),
               firstName: row.firstName.trim(),
               lastName: row.lastName.trim(),
               phoneE164: phone,

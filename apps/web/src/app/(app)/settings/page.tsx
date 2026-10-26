@@ -3,6 +3,8 @@
 // R4 customisation: profile/branding, funds, fees, care alerts, SMS locales.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { clearSession } from '../../../lib/session';
+import { MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
 import {
   BUILTIN_SMS_TEMPLATES,
   DENOMINATION_PRESETS,
@@ -50,8 +52,16 @@ export default function SettingsPage() {
   const [gwForm, setGwForm] = useState({ mode: 'mock', label: '', url: '', authHeader: 'Authorization', authValue: '', bodyTemplate: '{"to":"{to}","message":"{message}"}', idPath: 'id', confirmed: false });
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  // grouped settings: church setup (identity/logo/policy) vs SMS vs giving
-  const [tab, setTab] = useState<'church' | 'sms' | 'giving'>('church');
+  // grouped settings: church setup (identity/logo/policy) vs SMS vs giving vs modules
+  const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'modules'>('church');
+  // Which areas of the app this church runs (settings.modules; absent = on).
+  const [modules, setModules] = useState<Record<string, boolean>>({
+    people: true,
+    worship: true,
+    money: true,
+    reach: true,
+    org: true,
+  });
 
   useEffect(() => {
     void api<(Bracket & { isActive?: boolean })[]>('/demographics/brackets').then((b) => b.length && setBrackets(b)).catch(() => undefined);
@@ -71,6 +81,7 @@ export default function SettingsPage() {
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
       if (p.smsLocales) setSmsLoc({ defaultLocale: p.smsLocales.defaultLocale ?? 'en', templates: p.smsLocales.templates ?? {} });
       if (p.denomination) { setDenomKey(p.denomination.key ?? 'DEFAULT'); setTerms(p.denomination.terms ?? null); }
+      if (p.modules) setModules(p.modules);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
     void api<any>('/giving/settings').then((s) => s && setFees(s)).catch(() => undefined);
@@ -86,6 +97,22 @@ export default function SettingsPage() {
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'profile save failed');
+    }
+  }
+
+  /**
+   * Save the module switches. The shell caches /auth/me (lib/session.ts), so the
+   * nav only changes after a reload — which is the visible feedback here.
+   */
+  async function saveModules(): Promise<void> {
+    try {
+      const p = await api<any>('/churches/me/profile', { method: 'POST', body: { modules } });
+      if (p.modules) setModules(p.modules);
+      setError('');
+      clearSession();
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'module save failed');
     }
   }
 
@@ -201,6 +228,7 @@ export default function SettingsPage() {
           ['church', 'Church setup', 'Logo, church identity & tagline, denomination, demographics, giving instructions, retention and alerts'],
           ['sms', 'SMS setup', 'SMS gateway & sender ID, verse-of-the-day, and Twi/Ga/Ewe/Fante message templates'],
           ['giving', 'Giving', 'Giving categories (funds) and the online-giving fee model'],
+          ['modules', 'Modules', 'Switch off the areas of the app this church does not use'],
         ] as const).map(([key, label, hint]) => (
           <button
             key={key}
@@ -220,7 +248,9 @@ export default function SettingsPage() {
           ? 'Logo, church identity, denomination, demographics, giving instructions, retention & alerts.'
           : tab === 'sms'
             ? 'Gateway, sender, verse-of-the-day and Twi/Ga/Ewe/Fante message templates.'
-            : 'Giving categories (funds) and the online-giving fee model.'}
+            : tab === 'giving'
+              ? 'Giving categories (funds) and the online-giving fee model.'
+              : 'Switch off the areas of the app this church does not run — hidden everywhere, data untouched.'}
       </p>
 
       <form className="card stack" onSubmit={saveAll} hidden={tab !== 'church'}>
@@ -572,6 +602,38 @@ export default function SettingsPage() {
           ) : null}
         </div>
         <button>Apply preset</button>
+      </form>
+
+      <form
+        className="card stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void saveModules();
+        }}
+        hidden={tab !== 'modules'}
+      >
+        <h2>Areas of the app</h2>
+        <p className="muted">
+          A church that does not run a ministry should not have to look at it. Switching an area off removes it from the
+          top bar, the tab strip, the dashboard and the route guard for everyone in this church. Nothing is deleted, and
+          Settings always stays reachable so you can switch it back on.
+        </p>
+        {MODULE_KEYS.map((key) => (
+          <label key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={modules[key] !== false}
+              onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
+            />
+            <span>
+              <strong>{MODULE_LABELS[key].label}</strong>{' '}
+              <span className="muted" style={{ fontSize: '0.85rem' }}>
+                {MODULE_LABELS[key].hint}
+              </span>
+            </span>
+          </label>
+        ))}
+        <button>Save modules</button>
       </form>
     </div>
   );

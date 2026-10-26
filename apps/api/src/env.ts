@@ -9,7 +9,15 @@ export function parseTtl(value: string): number {
   return n * mult;
 }
 
-const envSchema = z.object({
+/** Defaults shipped in .env.example so a fresh clone boots. Never valid in production. */
+const DEV_SECRET_DEFAULTS = new Set([
+  'dev-only-change-me-32chars-min-secret!!',
+  'dev-platform-signup-key',
+  'dev-sms-webhook-secret',
+]);
+
+const envSchema = z
+  .object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1),
@@ -25,7 +33,23 @@ const envSchema = z.object({
   SMS_WEBHOOK_SECRET: z.string().default('dev-sms-webhook-secret'),
   WEB_URL: z.string().default('http://localhost:3000'),
   API_URL: z.string().default('http://localhost:4000'),
-});
+})
+  // A production boot must never accept the development defaults: they are public
+  // (they are in .env.example) and would make every JWT forgeable.
+  .superRefine((value, ctx) => {
+    if (value.NODE_ENV !== 'production') return;
+    const fail = (path: 'JWT_SECRET' | 'SMS_WEBHOOK_SECRET' | 'PLATFORM_SIGNUP_KEY', message: string) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+    if (value.JWT_SECRET.length < 32) fail('JWT_SECRET', 'must be at least 32 chars in production');
+    if (DEV_SECRET_DEFAULTS.has(value.JWT_SECRET)) fail('JWT_SECRET', 'is the documented dev default — set a real secret');
+    if (DEV_SECRET_DEFAULTS.has(value.SMS_WEBHOOK_SECRET)) {
+      fail('SMS_WEBHOOK_SECRET', 'is the documented dev default — set a real secret');
+    }
+    if (DEV_SECRET_DEFAULTS.has(value.PLATFORM_SIGNUP_KEY)) {
+      fail('PLATFORM_SIGNUP_KEY', 'is the documented dev default — set a real secret');
+    }
+  });
 
 export type Env = z.infer<typeof envSchema> & {
   ACCESS_TOKEN_TTL_SEC: number;

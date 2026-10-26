@@ -5,6 +5,7 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { appendAudit, platformPrisma as prisma, withTenant } from '@chms/db';
 import { matchOptKeyword, normalizeGhPhone } from '@chms/shared';
 import { Env } from '../env';
+import { timingSafeEqualStr } from '../common/crypto';
 import { SmsDispatcher } from '../sms/sms-dispatcher';
 
 @Injectable()
@@ -15,7 +16,9 @@ export class WebhooksService {
   ) {}
 
   verifySecret(header: string | undefined): void {
-    if (!header || header !== this.env.SMS_WEBHOOK_SECRET) {
+    // Constant-time compare: a plain !== leaks the shared secret byte by byte
+    // through response timing to anyone who can reach the webhook.
+    if (!timingSafeEqualStr(header, this.env.SMS_WEBHOOK_SECRET)) {
       throw new UnauthorizedException('bad webhook secret');
     }
   }

@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { fmtDateTime, ghs } from '../../../lib/format';
-import { hasPermission, type SessionUser } from '../../../lib/access';
+import { hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
+import { getSession } from '../../../lib/session';
 
 interface DashboardData {
   wallet: { balanceUnits: number; reservedUnits: number } | null;
@@ -21,6 +22,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [perms, setPerms] = useState<string[]>([]);
+  const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
   const [error, setError] = useState('');
 
   // Only ask for what this role may read: one 403 anywhere used to blank the
@@ -28,9 +30,11 @@ export default function DashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const session = await api<SessionUser>('/auth/me');
+        // Shared, cached: the shell already fetched this on the same page load.
+        const session = await getSession();
         const granted = session.permissions;
         setPerms(granted);
+        setModules(session.modules);
         const can = (perm: string) => hasPermission(granted, perm);
         const [wallet, services, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
           can('sms:read') ? api<NonNullable<DashboardData['wallet']>>('/sms/wallet').catch(() => null) : Promise.resolve(null),
@@ -58,52 +62,57 @@ export default function DashboardPage() {
   if (!data) return <div>Loading dashboard…</div>;
 
   const has = (perm: string) => hasPermission(perms, perm);
-  const totalGiven = data.byFund.reduce((a, f) => a + f.totalMinor, 0);
+  // A module switched off in Settings must hide its cards here too, not just its
+  // nav entry — otherwise the dashboard becomes the back door to a hidden area.
+  const mod = (key: ModuleKey) => moduleEnabled(modules, key);
 
   return (
     <div>
       <h1>Dashboard</h1>
       <div className="grid cols-3">
-        {has('services:read') ? (
+        {has('services:read') && mod('worship') ? (
           <div className="card stat">
-            <div className="value">{data.totals?.netTotal ?? '—'}</div>
+            <div className="value">{data.totals?.netTotal ?? '-'}</div>
             <div className="label">Headcount (latest service)</div>
           </div>
         ) : null}
-        {has('reports:read') ? (
+        {has('reports:read') && mod('money') ? (
           <div className="card stat">
             <div className="value">{ghs(data.bySunday[0]?.totalMinor ?? 0)}</div>
             <div className="label">Giving last Sunday ({data.bySunday[0]?.count ?? 0} gifts)</div>
           </div>
         ) : null}
-        {has('reports:read') ? (
-          <div className="card stat">
-            <div className="value">{ghs(totalGiven)}</div>
-            <div className="label">Giving (all time)</div>
-          </div>
-        ) : null}
-        {has('visitors:read') ? (
-          <div className="card stat">
-            <div className="value">{data.visitors.length}</div>
-            <div className="label">Visitors on record</div>
-          </div>
-        ) : null}
-        {has('members:read') ? (
+        {has('members:read') && mod('people') ? (
           <div className="card stat">
             <div className="value">{data.churn.length}</div>
             <div className="label">At-risk members (60-day)</div>
           </div>
         ) : null}
-        {has('sms:read') && data.wallet ? (
-          <div className="card stat">
-            <div className="value">{data.wallet.balanceUnits}</div>
-            <div className="label">SMS credits (reserved {data.wallet.reservedUnits})</div>
-          </div>
-        ) : null}
+      </div>
+
+      {/*
+        Three ways to record what happened today: the reason anyone opens this
+        page. The numbers that used to fill the top row (all-time giving, SMS
+        credits, visitor count) already live in their own area one tab away, so
+        they no longer compete with the actions for the first screen.
+      */}
+      <div className="card">
+        <div className="spread">
+          <h2 style={{ margin: 0 }}>Today</h2>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>
+            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}
+          </span>
+        </div>
+        <div className="row" style={{ marginTop: '0.5rem' }}>
+          {has('services:read') && mod('worship') ? <Link href="/checkin">Check someone in</Link> : null}
+          {has('finance:read') && mod('money') ? <Link href="/finance">Record giving</Link> : null}
+          {has('visitors:read') && mod('people') ? <Link href="/visitors">Register a visitor</Link> : null}
+          {has('members:read') && mod('people') ? <Link href="/members">Add a member</Link> : null}
+        </div>
       </div>
 
       <div className="grid cols-2">
-        {has('services:read') ? (
+        {has('services:read') && mod('worship') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Sunday demographics</h2>
@@ -136,25 +145,27 @@ export default function DashboardPage() {
           )}
           </div>
         ) : null}
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Latest service</h2>
-            <Link href="/services">All services →</Link>
-          </div>
-          {data.services[0] ? (
-            <div style={{ marginTop: '0.5rem' }}>
-              <strong>{data.services[0].name}</strong>
-              <div className="muted">{fmtDateTime(data.services[0].startsAt)}</div>
-              <div className="row" style={{ marginTop: '0.5rem' }}>
-                <Link href={`/services/${data.services[0].id}`}>Headcount</Link>
-                <Link href="/checkin">Check-in</Link>
-              </div>
+        {has('services:read') && mod('worship') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Latest service</h2>
+              <Link href="/services">All services →</Link>
             </div>
-          ) : (
-            <p className="muted">No services scheduled yet.</p>
-          )}
-        </div>
-        {has('reports:read') ? (
+            {data.services[0] ? (
+              <div style={{ marginTop: '0.5rem' }}>
+                <strong>{data.services[0].name}</strong>
+                <div className="muted">{fmtDateTime(data.services[0].startsAt)}</div>
+                <div className="row" style={{ marginTop: '0.5rem' }}>
+                  <Link href={`/services/${data.services[0].id}`}>Headcount</Link>
+                  <Link href="/checkin">Check-in</Link>
+                </div>
+              </div>
+            ) : (
+              <p className="muted">No services scheduled yet.</p>
+            )}
+          </div>
+        ) : null}
+        {has('reports:read') && mod('money') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Giving by fund</h2>
@@ -173,7 +184,7 @@ export default function DashboardPage() {
         </div>
         ) : null}
 
-        {has('reports:read') ? (
+        {has('reports:read') && mod('money') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Giving trend (last 8 Sundays)</h2>
@@ -202,7 +213,7 @@ export default function DashboardPage() {
         </div>
         ) : null}
 
-        {has('care:read') ? (
+        {has('care:read') && mod('people') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Care queue</h2>
@@ -230,7 +241,7 @@ export default function DashboardPage() {
         </div>
         ) : null}
 
-        {has('services:read') ? (
+        {has('services:read') && mod('worship') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Upcoming events</h2>
@@ -258,7 +269,7 @@ export default function DashboardPage() {
         </div>
         ) : null}
 
-        {has('members:read') ? (
+        {has('members:read') && mod('people') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>At-risk members</h2>
@@ -287,7 +298,7 @@ export default function DashboardPage() {
         </div>
         ) : null}
 
-        {has('campaigns:read') ? (
+        {has('campaigns:read') && mod('reach') ? (
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Announcements</h2>

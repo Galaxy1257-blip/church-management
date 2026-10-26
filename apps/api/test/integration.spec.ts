@@ -4,6 +4,9 @@
 // Phase 1 release gates: tenant isolation, duplicate webhook concurrency,
 // headcount replay idempotency, opt-out suppression, two-counter rules.
 import { describe, expect, it, beforeAll } from 'vitest';
+import { createHash } from 'node:crypto';
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../src/auth/auth.service';
 import { ChurchesService } from '../src/churches/churches.service';
 import { TenantService } from '../src/common/tenant';
 import type { AuthUser } from '../src/common/guards';
@@ -29,6 +32,9 @@ const fakeEnv: any = {
   PAYSTACK_SECRET_KEY: '',
   WEB_URL: 'http://localhost:3000',
   SMS_WEBHOOK_SECRET: 'test-sms-secret',
+  // Only AuthService needs these; verifyOtp -> issueTokens signs with them.
+  ACCESS_TOKEN_TTL_SEC: 900,
+  REFRESH_TOKEN_TTL_SEC: 2_592_000,
 };
 
 const fakeQueues: any = {
@@ -255,6 +261,83 @@ d('integration', () => {
     await expect(finance.approve(ctx.user, batch.id)).rejects.toThrow(/other than the two counters/);
     const approved = await finance.approve(ctx.third, batch.id);
     expect(approved.status).toBe('APPROVED');
+  });
+
+  it('MEMBER NO: concurrent creates stay unique and a deleted number is never reused', async () => {
+    const members = new MembersService(tenant);
+    const church = await makeChurch(`itm-${Date.now()}`);
+
+    // Same tick on purpose: the old count()+1 read the same value for every
+    // caller and the second insert died with P2002 on @@unique([churchId, memberNo]).
+    const created = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        members.create(church.user, { firstName: `N${i}`, lastName: 'Race', ageSegment: 'MEN' }),
+      ),
+    );
+    const numbers = created.map((m) => m.memberNo);
+    expect(new Set(numbers).size).toBe(numbers.length); // no duplicates
+    for (const no of numbers) expect(no).toMatch(/^M\d{5}$/);
+
+    // Soft-delete lowers count() but must NOT hand the number out again.
+    const victim = created[created.length - 1];
+    if (!victim) throw new Error('no member created');
+    await platformPrisma.member.update({ where: { id: victim.id }, data: { deletedAt: new Date() } });
+    const after = await members.create(church.user, { firstName: 'After', lastName: 'Delete', ageSegment: 'MEN' });
+    expect(after.memberNo).not.toBe(victim.memberNo);
+    expect(numbers).not.toContain(after.memberNo);
+  });
+
+  it('OTP: a correct code works, and 5 misses burn the challenge even for the right code', async () => {
+    // AuthService(email/sms deps unused here): the SMS dispatcher is faked because
+    // this test drives verifyOtp directly and never needs to deliver a code.
+    const auth = new AuthService(new JwtService(), fakeEnv, {
+      dispatch: async () => ({ status: 'SKIPPED' }),
+      flush: () => undefined,
+    } as any);
+    const slug = `ito-${Date.now()}`;
+    const church = await makeChurch(slug);
+    const admin = await platformPrisma.user.findFirstOrThrow({
+      where: { churchId: church.user.churchId, name: 'Admin' },
+    });
+    // Same formula as AuthService#hashCode (sha256("<code>:<JWT_SECRET>")).
+    const hash = (code: string): string =>
+      createHash('sha256').update(`${code}:${fakeEnv.JWT_SECRET}`).digest('hex');
+    const issueChallenge = (code: string) =>
+      withTenant(church.user.churchId, null, (tx) =>
+        tx.otpChallenge.create({
+          data: {
+            churchId: church.user.churchId,
+            phoneE164: admin.phoneE164,
+            codeHash: hash(code),
+            expiresAt: new Date(Date.now() + 5 * 60_000),
+          },
+        }),
+      );
+
+    // Positive control: a live challenge + the correct code still signs in.
+    await issueChallenge('111111');
+    const tokens = await auth.verifyOtp({ churchSlug: slug, phoneE164: admin.phoneE164, code: '111111' });
+    expect(tokens.accessToken).toBeTruthy();
+    expect(tokens.refreshToken).toBeTruthy();
+
+    // Attempt cap: the pre-fix lookup filtered on codeHash, so a wrong code
+    // matched no row, `attempts` never moved and 6 digits were brute-forceable
+    // for the whole 5-minute TTL.
+    const challenge = await issueChallenge('222222');
+    for (let i = 1; i <= 5; i += 1) {
+      await expect(
+        auth.verifyOtp({ churchSlug: slug, phoneE164: admin.phoneE164, code: '000000' }),
+      ).rejects.toThrow(/invalid or expired code/);
+      const row = await platformPrisma.otpChallenge.findUniqueOrThrow({ where: { id: challenge.id } });
+      expect(row.attempts).toBe(i);
+    }
+
+    // The right code is refused too, and the row is burnt, not merely capped.
+    await expect(
+      auth.verifyOtp({ churchSlug: slug, phoneE164: admin.phoneE164, code: '222222' }),
+    ).rejects.toThrow(/invalid or expired code/);
+    const burnt = await platformPrisma.otpChallenge.findUniqueOrThrow({ where: { id: challenge.id } });
+    expect(burnt.consumedAt).not.toBeNull();
   });
 });
 
