@@ -28,6 +28,7 @@ export default function ServiceDetailPage() {
   const [pending, setPending] = useState(0);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState('');
+  const [draft, setDraft] = useState<Record<string, string>>({});
   const [capacity, setCapacity] = useState(0);
   const seqRef = useRef(0);
 
@@ -101,6 +102,46 @@ export default function ServiceDetailPage() {
     await tryFlush();
   }
 
+  /**
+   * Direct number entry: typing "40" sets the segment to 40 by queueing the
+   * same ±1 outbox events repeated taps would create (offline-safe, idempotent).
+   */
+  async function setCount(segmentKey: string, target: number): Promise<void> {
+    const current = segments.find((s) => s.segmentKey === segmentKey)?.net ?? 0;
+    const wanted = Math.max(0, Math.min(999, Math.floor(target)));
+    const diff = wanted - current;
+    if (!diff) return;
+    const step: 1 | -1 = diff > 0 ? 1 : -1;
+    const times = Math.abs(diff);
+    setSegments((prev) => prev.map((s) => (s.segmentKey === segmentKey ? { ...s, net: wanted } : s)));
+    setNetTotal((t) => t + diff);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12);
+    for (let i = 0; i < times; i++) {
+      seqRef.current += 1;
+      await outboxEnqueue({
+        id: clientUuid(),
+        serviceId,
+        segmentKey,
+        delta: step,
+        clientSeq: seqRef.current,
+        recordedAt: new Date().toISOString(),
+      });
+    }
+    void outboxPending().then((p) => setPending(p.length));
+    await tryFlush();
+  }
+
+  function commitDraft(segmentKey: string): void {
+    const raw = draft[segmentKey];
+    if (raw === undefined) return;
+    setDraft((d) => {
+      const n = { ...d };
+      delete n[segmentKey];
+      return n;
+    });
+    if (raw !== '') void setCount(segmentKey, Number(raw));
+  }
+
   if (!service) return <div>Loading service…</div>;
 
   return (
@@ -142,7 +183,8 @@ export default function ServiceDetailPage() {
           </div>
         </div>
         <p className="muted">
-          Each tap queues an event on this device; sync replays them. Airplane mode is safe — nothing is lost.
+          Tap +/− or <strong>type a number directly</strong> (then press Enter) — every change queues
+          events on this device; sync replays them. Airplane mode is safe — nothing is lost.
         </p>
         <div style={{ marginTop: '0.5rem' }}>
           {segments.map((s) => (
@@ -151,7 +193,21 @@ export default function ServiceDetailPage() {
               <button className="secondary" aria-label={`minus ${s.label}`} onClick={() => void tap(s.segmentKey, -1)}>
                 −
               </button>
-              <span className="count">{s.net}</span>
+              <input
+                className="count"
+                inputMode="numeric"
+                value={draft[s.segmentKey] ?? String(s.net)}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, [s.segmentKey]: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) }))
+                }
+                onBlur={() => commitDraft(s.segmentKey)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+                onFocus={(e) => e.currentTarget.select()}
+                aria-label={`${s.label} count — type a number and press Enter`}
+                title="Type a number and press Enter"
+              />
               <button aria-label={`plus ${s.label}`} onClick={() => void tap(s.segmentKey, 1)}>
                 +
               </button>

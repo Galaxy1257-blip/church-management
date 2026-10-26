@@ -151,6 +151,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .counter .name { flex: 1; font-weight: 600; }
 .counter .count { font-size: 1.3rem; font-weight: 700; min-width: 3ch; text-align: center; }
+/* typeable counter: looks like the old label until focused */
+.counter input.count {
+  width: 4.5ch;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+}
+.counter input.count:hover { border-color: var(--line); }
+.counter input.count:focus { outline: 2px solid var(--accent); border-color: transparent; }
 .counter button { width: 2.4rem; height: 2.4rem; font-size: 1.2rem; padding: 0; }
 
 .seg-toggle { display: flex; gap: 0.4rem; }
