@@ -554,3 +554,48 @@ nav + routes + dashboard:**
 
 ---
 
+## 2026-10-26 — Session L (blueprint rule: commit + push after every unit of work)
+
+**Owner:** "add to blueprint to update git everytime" → encoded as **ground rule 8** in
+`BUILD_ORDER.md`, **rule 9** in `STATE.md` §2, and a new **step 6** in the §10 handoff protocol, so every
+future session reads it before touching code.
+
+**The rule (as written in the blueprint):**
+1. Every unit of work ends in a commit — no dirty tree across a task or session boundary.
+2. Conventional subject (`feat(area):` …), one logical change per commit.
+3. **Explicit paths only — never `git add -A` / `git add .`**: this tree legitimately holds
+   `church-asset-kit/` (117 MB) and the Neon-credential scratch scripts (`scripts/*neon*`,
+   `scripts/tmp-demo-accounts.js`, `scripts/check-users.cjs`).
+4. `npm run check:secrets` before staging; a secret in a file means that file is not committed.
+5. Commit the evidence with the code: `LOGS.md`, blueprint ticks, `STATE.md`, `.ecc/` artifacts + journal.
+6. Push (`git push origin main`) and **prove** it: `git ls-remote origin refs/heads/main` must equal
+   `git rev-parse HEAD`. PowerShell reports a *false* exit 1 for `git push` (git writes progress to
+   stderr) — same class of trap as the `eslint` false failure.
+7. Anything genuinely uncommittable (mid-refactor, red tests) is declared in `STATE.md` §6.
+
+**Ship record (same day, immediately before this entry)** — `main` pushed to
+`github.com/Galaxy1257-blip/church-management`:
+`3c9b4d0` feat(rbac) role-aware staff app (21 files) · `664e746` feat(web) headcount direct entry ·
+`a43903f` fix(church) unique slug + public branding · `1defc0f` chore(ecc) gate artifacts + smoke test ·
+`1453b69` chore(ecc) push journal. Verified: `git diff origin/main HEAD` empty.
+
+**Kept out of git on purpose:** `scripts/tmp-demo-accounts.js` — **tracked file, uncommitted hunk**
+(its working copy swaps the localhost DSN for a pooled Neon DSN with the `neondb_owner` password;
+`git grep npg_ HEAD` shows the committed version is clean). Untracked and never added:
+`scripts/check-neon.mjs`, `scripts/seed-neon.mjs`, `scripts/check-users.cjs`. **Owner action: rotate that
+Neon password, then rewrite all four to `process.env.DATABASE_URL`.** Also untracked:
+`church-asset-kit/` (117 MB), `church-asset-pipeline/`, `CHURCH_UI_BRAINSTORM_GHANA.md`,
+`UI_IDEAS_GHANA.md`, `scripts/*.html`.
+
+**Leak radius checked:** the only remote ref is `refs/remotes/origin/main`, and the credential is not in
+it (`git grep npg_ HEAD` → nothing). It *is* inside the IDE's local snapshot refs
+(`refs/cline/checkpoints/*`, commits titled "untracked files on cline checkpoint") — local disk only,
+never pushed. Prune with `git update-ref -d` per checkpoint if the owner wants them gone.
+
+**Deploy note:** `render.yaml` runs `npx prisma migrate deploy` in the API start command;
+`prisma migrate status` shows 2 migrations with only `1_pastor_role` pending → the PASTOR enum applies
+itself on the next Render deploy (additive `ADD VALUE IF NOT EXISTS`, idempotent).
+
+---
+
+

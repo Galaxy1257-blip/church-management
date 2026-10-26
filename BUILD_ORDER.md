@@ -11,6 +11,13 @@ Where an older section contradicts a later one, the **precedence rules in Sectio
 5. Postgres is the source of truth; Redis/BullMQ is a timer. A reconciler must be able to rebuild every job from DB rows.
 6. Verify-before-build items (marked *verify* in the doc): Paystack Ghana MoMo/USD/subaccount details, CSMS API fields and reply support, WhatsApp pricing. Use sandbox keys; do not guess.
 7. Definition of done for each step: code + tests + audit log entries for sensitive actions + permission check on every route.
+8. **Commit and push after every unit of work (owner request, 26 Oct 2026).** A step ends in a commit — never carry a dirty tree into the next task or the next session.
+   1. Conventional subject (`feat(area):`, `fix(area):`, `chore(area):`, `docs(area):`), one logical change per commit.
+   2. **Stage explicit paths — never `git add -A` / `git add .`.** This working tree legitimately holds `church-asset-kit/` (117 MB of images) and credential-bearing scratch scripts: **untracked** `scripts/check-neon.mjs`, `scripts/seed-neon.mjs`, `scripts/check-users.cjs` (never `git add` these) and the **tracked** `scripts/tmp-demo-accounts.js`, whose working copy carries an uncommitted Neon connection string — never commit that hunk; rewrite it to `process.env.DATABASE_URL` instead.
+   3. Run `npm run check:secrets` before staging. If a secret is in a file, the file does not get committed — the owner rotates the credential.
+   4. Commit the evidence with the code: `LOGS.md`, the ticked `BUILD_ORDER.md` items, `STATE.md`, and the `.ecc/` gate artifacts + journal for that task.
+   5. Push (`git push origin main`) and **prove** it: `git ls-remote origin refs/heads/main` must equal `git rev-parse HEAD`. On Windows, PowerShell reports a *false* non-zero exit for `git push` and `eslint` because they write progress to stderr — trust the ref, not `$LASTEXITCODE`.
+   6. If work is genuinely uncommittable (mid-refactor, red tests), say so in `STATE.md` §6 instead of leaving silent uncommitted changes.
 
 ## Phase 0: Foundations (week 1-2)
 - [ ] Monorepo: Next.js PWA, NestJS API, worker entrypoint, shared types, Docker Compose (Postgres 16, Redis).

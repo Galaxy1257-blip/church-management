@@ -19,9 +19,12 @@
 
 ## Current task
 
-RBAC visibility: add PASTOR role + role tiers/data scope, surface them in JWT/`/auth/me`,
-and gate the staff web app (nav + routes + dashboard) on the user's permissions.
+**Git discipline (owner request, 26 Oct):** "add to blueprint to update git everytime" — encoded as
+`BUILD_ORDER.md` ground rule **8**, `STATE.md` §2 rule **9** + §10 handoff step **6**.
+Plan: `artifacts/004-implementation-plan.md`. Everything from the RBAC task below is **shipped** to
+`origin/main` (`1453b69`).
 
+### RBAC task (shipped 26 Oct, closed)
 **Status 2026-10-26 (end of session): implemented, typechecked, tested, linted, secret-scanned
 and behaviour-smoke-tested. Not yet seen in a browser.** Gates:
 `artifacts/001-implementation-plan.md` (approved) → `artifacts/002-test-validation.md` →
@@ -61,6 +64,10 @@ integration, worker 0 `--passWithNoTests`) · `npx eslint .` · `npm run check:s
    management UI yet — `INSERT INTO "UserRole"`).
 5. Optional hardening: wire `.ecc/access-smoke.mts` into CI so web/shared permission drift fails
    a build instead of relying on a manual run.
+6. Watch CI on the newest push (`.github/workflows/ci.yml`: lint → shared/db builds → typecheck →
+   shared tests, then the integration job, which now applies `1_pastor_role` to a fresh Postgres).
+7. Optional: add a `pre-commit` hook to enforce ground rule 8 mechanically (no hooks exist today,
+   `core.hooksPath` unset) — deliberately not done, it would surprise contributors on this box.
 
 ## Decisions worth keeping
 
@@ -71,24 +78,34 @@ integration, worker 0 `--passWithNoTests`) · `npx eslint .` · `npm run check:s
 - `scope=BRANCH` is displayed, not enforced, outside `Transaction` (`extras.sql`).
 - Test DB needs the enum before integration tests pass; that is why `.ecc/apply-migration.mjs`
   exists (Docker/psql were unavailable in this environment).
+- **Git is part of "done"** (owner rule, 26 Oct): blueprint ground rule 8 / `STATE.md` §2 rule 9.
+  Commits are made per unit of work with explicit paths, never `git add -A`, because this tree
+  permanently carries untracked 117 MB assets and credential-bearing scratch scripts.
 
 ## Shipped (26 Oct)
 
-`main` → pushed to `origin` (`github.com/Galaxy1257-blip/church-management`), 4 commits:
+`main` → pushed to `origin` (`github.com/Galaxy1257-blip/church-management`), 5 commits
+(remote `main` == local HEAD `1453b69`, `git diff origin/main HEAD` empty):
 
 - `3c9b4d0` feat(rbac): PASTOR role, tiers + data scope, permission-gated staff app (21 files)
 - `664e746` feat(web): type headcount numbers directly on the service detail page
 - `a43903f` fix(church): normalize + enforce a unique church id, branding on public lookup
 - `1defc0f` chore(ecc): gate artifacts, access smoke test, session journal
+- `1453b69` chore(ecc): journal the push, flag the uncommitted Neon credential
 
 ## ⚠️ Deliberately NOT committed — leaked credential in the working tree
 
-`scripts/tmp-demo-accounts.js` (modified), `scripts/check-neon.mjs`, `scripts/seed-neon.mjs` and
-`scripts/check-users.cjs` (untracked) all hardcode a **Neon production connection string with the
-`neondb_owner` password** (`npg_***@ep-damp-frog-…`, partial redaction — see the files themselves).
-They were excluded from the push on
-purpose. Also untracked and left alone: `church-asset-kit/` (117 MB of images), `church-asset-pipeline/`,
-`CHURCH_UI_BRAINSTORM_GHANA.md`, `UI_IDEAS_GHANA.md`, `scripts/*.html`.
+`scripts/tmp-demo-accounts.js` is **tracked**, and its uncommitted hunk replaces the localhost DSN with a
+**Neon production DSN containing the `neondb_owner` password** (`npg_***`, redacted here). That hunk was
+excluded from the push. `scripts/check-neon.mjs`, `scripts/seed-neon.mjs` and `scripts/check-users.cjs`
+are **untracked** and carry the same DSN; they were never added. Also untracked and left alone:
+`church-asset-kit/` (117 MB of images), `church-asset-pipeline/`, `CHURCH_UI_BRAINSTORM_GHANA.md`,
+`UI_IDEAS_GHANA.md`, `scripts/*.html`.
+
+**Leak radius (checked, not assumed):** `git grep npg_ HEAD` → nothing; the only remote ref is
+`refs/remotes/origin/main` and the credential is not an ancestor of it. The DSN *is* present in the IDE's
+local snapshot refs `refs/cline/checkpoints/*` ("untracked files on cline checkpoint" commits) — local
+disk only, never pushed; prune individually with `git update-ref -d <ref>` if wanted.
 
 Next for the owner: **rotate that Neon password**, rewrite those scripts to read `process.env.DATABASE_URL`
 (the repo already ignores `.env`), and only then decide whether the asset kits belong in the repo or in

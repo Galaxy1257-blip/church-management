@@ -43,6 +43,11 @@ C:\Users\HP\Desktop\church\
    PlatformSetting['sms_gateway'], masked on GET). Before every export: `npm run check:secrets`.
 8. **Logging protocol (owner, 21 Oct):** every session appends to LOGS.md, updates BUILD_ORDER checkboxes
    and this file (see §10).
+9. **Git protocol (owner, 26 Oct): commit + push after every unit of work** — blueprint ground rule 8.
+   Conventional subject, explicit paths (never `git add -A`), `npm run check:secrets` first, evidence
+   (`LOGS.md`/`BUILD_ORDER.md`/`STATE.md`/`.ecc/`) committed with the code, and the push proven with
+   `git ls-remote origin refs/heads/main` == `git rev-parse HEAD`. Never leave a dirty tree across a
+   task or session boundary; declare anything uncommittable in §6.
 
 ## 3. Settled architecture decisions (do not relitigate)
 - **Usher = ONE app, role-scoped**: staff PWA "Usher Mode" (auto-on for usher-only accounts) →
@@ -197,5 +202,10 @@ npm run bible:fetch                  # KJV+ASV re-download; scripts/fetch-web.mj
 3. Refresh **§4 Verification status** and **§6 Currently working on** in THIS file.
 4. Run: typecheck (api/worker/web) + lint + check:secrets — record results here.
 5. Never leave tokens/secrets in files; list pending operator actions for the owner.
+6. **Commit and push** (§2 rule 9): `git add <explicit paths>` → conventional commit → `git push origin main`
+   → prove it with `git ls-remote origin refs/heads/main` == `git rev-parse HEAD`. Put the commit hashes in
+   the LOGS.md entry and in §6. `scripts/tmp-demo-accounts.js` is tracked, so its credential-bearing
+   working copy must be reverted or rewritten before it is ever staged again; the untracked
+   `scripts/*neon*` / `check-users.cjs` helpers never get added (see §2 rules 7 & 9).
 
 

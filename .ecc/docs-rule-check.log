@@ -1,0 +1,42 @@
+﻿== BUILD_ORDER ground rules
+7: 1. Money is integer pesewas. The fund is credited `giftMinor
+8: 2. Every write that could be retried (webhook, sync event, S
+9: 3. All DB access goes through `withTenant(churchId, userId, 
+10: 4. All SMS goes through one dispatcher: normalise phone, che
+11: 5. Postgres is the source of truth; Redis/BullMQ is a timer.
+12: 6. Verify-before-build items (marked *verify* in the doc): P
+13: 7. Definition of done for each step: code + tests + audit lo
+14: 8. **Commit and push after every unit of work (owner request
+31: 1. [ ] Church onboarding + member CSV import (preview, dedup
+32: 2. [ ] Services + `ServiceTemplate` job; **offline-first ush
+33: 3. [ ] Member check-in (search + QR with hashed token cache)
+34: 4. [ ] SMS foundation: gateway adapter (against CSMS sandbox
+35: 5. [ ] Paystack giving: quote, initialize, give page, signed
+36: 6. [ ] Finance: cash/cheque batches (two counters, separate 
+37: 7. [ ] Bulk SMS campaigns (audience filter, segment counter,
+38: 8. [ ] Hardening: audit chain + nightly verification, backup
+== STATE.md rule 9 + handoff step 6
+46: 9. **Git protocol (owner, 26 Oct): commit + push after every unit of work** — blueprint ground rule 8.
+205: 6. **Commit and push** (§2 rule 9): `git add <explicit paths>` → conventional commit → `git push origin main`
+207: the LOGS.md entry and in §6. `scripts/tmp-demo-accounts.js` is tracked, so its credential-bearing
+== LOGS.md Session L
+557: ## 2026-10-26 — Session L (blueprint rule: commit + push after every unit of work)
+== tracked scripts
+scripts/.demo-ctx.json
+scripts/check-secrets.mjs
+scripts/extract-akuapem-sqlite.py
+scripts/extract-apk-bible.mjs
+scripts/fetch-bible.mjs
+scripts/fetch-web.mjs
+scripts/make-pdf.mjs
+scripts/make-proposal-pdf.mjs
+scripts/normalize-bible-bundle.mjs
+scripts/reset-test-db.mjs
+scripts/start-api.cmd
+scripts/start-app.cmd
+scripts/start-online.cmd
+scripts/start-tunnel.cmd
+scripts/tmp-demo-accounts.js
+scripts/tmp-demo-data.js
+scripts/tmp-demo-data2.js
+scripts/verify-stack.mjs
