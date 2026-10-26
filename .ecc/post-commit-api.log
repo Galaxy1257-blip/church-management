@@ -1,0 +1,49 @@
+
+ RUN  v5.0.5 C:/Users/HP/Desktop/church/apps/api
+
+·········[32m[Nest] 2268  - [39m26/10/2026, 15:48:48 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_1 amount=1000[39m
+[32m[Nest] 2268  - [39m26/10/2026, 15:48:48 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_1 amount=1000[39m
+[32m[Nest] 2268  - [39m26/10/2026, 15:48:48 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms a/b amount=1000[39m
+·······································stdout | test/integration.spec.ts > integration > headcount sync is idempotent under replay (offline outbox)
+prisma:error 
+Invalid `tx.headcount.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/headcount/headcount.service.ts:82:30
+
+  79 // breaks replay idempotency — any offline outbox replay used to crash.
+  80 await tx.$executeRaw`SAVEPOINT hc_event`;
+  81 try {
+→ 82   await tx.headcount.create(
+Unique constraint failed on the (not available)
+
+stdout | test/integration.spec.ts > integration > headcount sync is idempotent under replay (offline outbox)
+prisma:error 
+Invalid `tx.headcount.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/headcount/headcount.service.ts:82:30
+
+  79 // breaks replay idempotency — any offline outbox replay used to crash.
+  80 await tx.$executeRaw`SAVEPOINT hc_event`;
+  81 try {
+→ 82   await tx.headcount.create(
+Unique constraint failed on the (not available)
+
+[32m[Nest] 9272  - [39m26/10/2026, 15:48:50 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178e6-7188-75ab-b7c0-1c79a0060be8 amount=10000[39m
+·stdout | test/integration.spec.ts > integration > webhook: duplicate charge.success settles once (one SUCCESS, no double settle)
+prisma:error 
+Invalid `prisma.processedWebhookEvent.create()` invocation in
+C:/Users/HP/Desktop/church/apps/api/src/giving/giving.service.ts:152:42
+
+  149 const eventKey = String(event.id ?? `${eventName}:${reference}`);
+  150 // ProcessedWebhookEvent has no churchId (platform table, not RLS-scoped).
+  151 try {
+→ 152   await prisma.processedWebhookEvent.create(
+Unique constraint failed on the fields: (`provider`,`eventKey`)
+
+[32m[Nest] 9272  - [39m26/10/2026, 15:48:50 [32m    LOG[39m [38;5;3m[MockPaystack] [39m[32mmock initialize ref=chms_01a178e6-71ba-71da-bcf9-dbfac99d49d9 amount=5000[39m
+[31m[Nest] 9272  - [39m26/10/2026, 15:48:50 [31m  ERROR[39m [38;5;3m[Giving] [39m[31mgiving amount mismatch tx=01a178e6-71c1-7f10-87b3-5a95ba8403d1: {"expected":5000,"got":5001}[39m
+······
+
+ Test Files  6 passed (6)
+      Tests  55 passed (55)
+   Start at  15:48:47
+   Duration  3.82s (import 63%, tests 32%, transform 4%, worker 1%)
+
