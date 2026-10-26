@@ -732,3 +732,42 @@ all **200** Â· guard negative test exit 1 with the intended message Â·
 3. Free plan: 750 instance-hours are shared by both web services; both spin down after 15 min.
 
 
+
+## 2026-10-26 — Session M closed: audit fixes + 5-area nav (`38f8f9a`)
+
+**Request (owner):** *"implement the changes you recommended for the supposed bloated
+features and fix issues you found when scanning the codebase"* — audit fixes (track A) plus the
+nav/module consolidation (track B). Plan `.ecc/artifacts/005`, validation `010`, verification `011`.
+
+**Shipped** — one commit, pushed (`origin/main == 38f8f9a`):
+
+- **Secrets** — `check:secrets` now sees Postgres/Redis/Mongo DSNs with an embedded password, Neon
+  `npg_` values, cSMS `csms_` tokens and generic `*SECRET`/`*PASSWORD` assignments; the credential-
+  bearing scratch scripts are gone, the tracked demo scripts read `DATABASE_URL` from the env, and
+  the `tmp-*`/`*neon*`/`check-users` patterns are gitignored.
+- **API** — prod env validation rejects dev secrets and short `JWT_SECRET`s; token-bucket rate
+  limits on signup/login/otp/refresh; OTP attempts are counted and the challenge burns at 5
+  (the cap was unreachable before); `memberNo` allocated under an advisory lock + `MAX()` so
+  concurrent creates stop hitting P2002; CORS is an allowlist from `WEB_URL`; 5xx bodies no longer
+  echo `exception.message`; both shared secrets compare in constant time.
+- **Web** — nav collapsed to 5 areas (People, Worship, Money, Reach, Organisation) with one tab
+  strip rendered from the layout; a Modules tab in Settings turns areas off *and* closes their
+  routes; dashboard rebuilt as 3 KPIs + 3 actions with every card permission- and module-gated
+  (the ungated "Latest service" card was a back door); `/auth/me` is fetched once per session; the
+  API base URL is no longer written to localStorage on every request.
+
+**Gates (final run):** shared build 0 · shared 68/68 · api 55/55 (46 unit + 9 live-DB
+integration) · typecheck 0 · eslint 0 · check:secrets clean · access-smoke `ALL CHECKS PASSED` ·
+`next build` 29 routes (26 static, 3 dynamic).
+
+**Verification earned its keep** — three real defects surfaced while writing report 011: a planted
+`SMS_PASSWORD` was invisible to the scanner (`\b` never matches after `_`); `churches.service.ts`
+compared the platform signup key with `!==`; and the first attempt at the two new integration tests
+silently nested them inside another test (caught as 1 failed, fixed to 9/9). Both Session M gaps
+that had been *claimed* unverifiable — the OTP cap and the member-number allocator — are now covered
+by live-Postgres tests.
+
+**Still open:** no browser pass; A7/A8 untested; the integration suite skips silently without a
+`chms_test` database; the secrets scan is manual; the Render-like `next build` guard has never
+fired; **the owner must still rotate the Neon password** and set `NEXT_PUBLIC_API_URL` on
+`chms-web`.

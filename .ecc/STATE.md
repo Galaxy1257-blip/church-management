@@ -3,7 +3,50 @@
 **Read first in a new session.** Repo-level context lives in `../STATE.md` and
 `../LOGS.md`; this file is the ECC gate journal.
 
-## Session N (latest) — the missing web deploy target, 26 Oct 2026
+## Session M — CLOSED (26 Oct 2026, `38f8f9a`)
+
+**Task:** implement the Session L audit. Plan `artifacts/005-implementation-plan.md` (approved),
+validation `artifacts/010-test-validation.md`, verification `artifacts/011-verification-report.md`.
+
+**Shipped:** one commit `38f8f9a` (74 paths: 42 code/doc files + the gate logs the artifacts cite)
+carrying track A (A1–A10) and track B (B1–B9). Pushed — `git ls-remote origin refs/heads/main` =
+`38f8f9aa470…`, `git rev-list --count origin/main..HEAD` = 0. `chms-web` builds from this commit,
+so the consolidated 5-area nav is what Render serves once it redeploys.
+
+**Final gate run** (`.ecc/run-gates2.ps1` — one background script, one `*.exit` per gate, because
+`typecheck`/`eslint` exceed the 30 s foreground limit):
+
+| gate | exit | result |
+|---|---|---|
+| `npm run build -w @chms/shared` | 0 | `dist` rebuilt |
+| `npm run test -w @chms/shared` | 0 | 10 files, **68 tests** |
+| `npm run test -w @chms/api` | 0 | 6 files, **55 tests** (46 unit + 9 integration) |
+| `npm run typecheck` | 0 | 5 workspaces |
+| `npx eslint .` | 0 | 0 problems |
+| `node scripts/check-secrets.mjs` | 0 | clean; negative control 4/4 patterns, then clean again |
+| `npm run build -w @chms/web` | 0 | 29 routes (26 static, 3 dynamic) |
+| `npx tsx .ecc/access-smoke.mts` | 0 | `ALL CHECKS PASSED` |
+
+**Closing-out additions (beyond the first pass):**
+1. `integration.spec.ts` 7 → 9 tests — the OTP attempt cap (A5) and the member-number allocator (A6)
+   now have live-Postgres coverage; both gaps named in the first pass are closed by test.
+2. `churches.service.ts` platform-key compare `!==` → `timingSafeEqualStr` (timing oracle on a secret).
+3. `check-secrets.mjs`: `\b(?:SECRET|PASSWORD|…)` could never match `SMS_PASSWORD` (no `\b` after
+   `_`), so the commonest real-world names were invisible → prefix allowed; planted control now 4/4.
+4. Artifacts renumbered `006` → `010` plus a new `011` (two parallel work lines both claimed `006`).
+5. **Correction to an earlier claim in this session:** `TEST_DATABASE_URL` *is* set in the root
+   `.env` (line 11 → `chms_test`), so the integration file was never skipped — the earlier 50-test
+   run already contained its 7 cases. The "unverified A5/A6" note was wrong, not the code.
+
+**Known gaps (unchanged):** no browser pass; A7 (CORS) / A8 (error body) have no automated test; the
+integration suite skips silently on a machine without `chms_test`; the secrets scan is a manual step;
+the Render-like `next build` guard is unexercised; Neon rotation is operator work.
+
+**Next:** operator — rotate the Neon password, set `NEXT_PUBLIC_API_URL` on `chms-web`. Optional
+code follow-ups stay as listed in plan 005 "deliberately NOT done" (CSP/headers, branch-scope RLS,
+`@nestjs/throttler` if the API ever runs multi-instance).
+
+## Session N — the missing web deploy target, 26 Oct 2026 (previous)
 
 **Task:** owner approved adding the frontend deploy target. Plan `artifacts/007`, validation
 `artifacts/008`.
