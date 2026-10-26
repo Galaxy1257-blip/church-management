@@ -3,6 +3,7 @@ import { ROLE_PERMISSIONS, SUPER_ADMIN_PERMISSION, RoleKey } from '@chms/shared'
 
 export const DEFAULT_ROLES: { key: RoleKey; name: string }[] = [
   { key: 'SUPER_ADMIN', name: 'Super Admin' },
+  { key: 'PASTOR', name: 'Pastor' },
   { key: 'FINANCE_ADMIN', name: 'Finance Admin' },
   { key: 'USHER', name: 'Usher' },
   { key: 'FOLLOWUP_TEAM', name: 'Follow-up Team' },

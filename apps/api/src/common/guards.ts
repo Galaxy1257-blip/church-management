@@ -9,8 +9,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { hasPermission, Permission } from '@chms/shared';
-import { PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import { hasPermission, Permission, resolveDataScope, type DataScope, type RoleKey } from '@chms/shared';
+import { AUTHENTICATED_KEY, PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
 import type { Env } from '../env';
 
 export interface AuthUser {
@@ -21,6 +21,8 @@ export interface AuthUser {
   roles: string[];
   permissions: string[];
   branchIds: string[];
+  /** ALL (whole church) | BRANCH (assigned branches) | SELF | NONE. */
+  scope: DataScope;
 }
 
 export interface AuthedRequest extends Request {
@@ -36,6 +38,8 @@ interface AccessClaims {
   roles: string[];
   perms: string[];
   bid: string[];
+  /** Added with role tiers; older tokens omit it and are derived from roles. */
+  scp?: DataScope;
   aud: string;
 }
 
@@ -68,14 +72,19 @@ export class JwtAuthGuard implements CanActivate {
         secret: this.env.JWT_SECRET,
         audience: 'access',
       });
+      const roles = claims.roles ?? [];
+      const branchIds = claims.bid ?? [];
       req.user = {
         userId: claims.sub,
         churchId: claims.cid,
         name: claims.name,
         phoneE164: claims.phone,
-        roles: claims.roles ?? [],
+        roles,
         permissions: claims.perms ?? [],
-        branchIds: claims.bid ?? [],
+        branchIds,
+        // Tokens minted before role tiers existed have no `scp`; derive it so a
+        // deployment never mislabels a pastor as branch-scoped.
+        scope: claims.scp ?? resolveDataScope(roles as RoleKey[], branchIds),
       };
       return true;
     } catch {
@@ -93,19 +102,17 @@ export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const targets = [context.getHandler(), context.getClass()];
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets);
     if (isPublic) return true;
 
-    const required = this.reflector.getAllAndOverride<Permission[] | undefined>(PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!required || required.length === 0) {
+    const required = this.reflector.getAllAndOverride<Permission[] | undefined>(PERMISSIONS_KEY, targets);
+    const isAuthenticatedOnly = this.reflector.getAllAndOverride<boolean>(AUTHENTICATED_KEY, targets) === true;
+
+    // Default-deny: a handler must declare @RequirePermissions, @Authenticated() or @Public().
+    if (!isAuthenticatedOnly && (!required || required.length === 0)) {
       throw new InternalServerErrorException(
-        'route is missing @RequirePermissions (default-deny): add the decorator or @Public()',
+        'route is missing @RequirePermissions (default-deny): add the decorator, @Authenticated() or @Public()',
       );
     }
 
@@ -113,9 +120,16 @@ export class PermissionsGuard implements CanActivate {
     const user = req.user;
     if (!user) throw new UnauthorizedException('no user on request');
 
-    for (const perm of required) {
-      if (!hasPermission(user.permissions, perm)) return false;
+    // Explicit permissions always win over @Authenticated(), so accidentally
+    // stacking both decorators can never widen access.
+    if (required && required.length > 0) {
+      for (const perm of required) {
+        if (!hasPermission(user.permissions, perm)) return false;
+      }
+      return true;
     }
+
+    // @Authenticated(): any valid session, including a MEMBER with zero permissions.
     return true;
   }
 }

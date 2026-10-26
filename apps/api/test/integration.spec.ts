@@ -90,7 +90,7 @@ d('integration', () => {
     const roles = await platformPrisma.role.count({ where: { churchId: ctx.user.churchId } });
     expect(funds).toBeGreaterThanOrEqual(5);
     expect(segments).toBeGreaterThanOrEqual(5);
-    expect(roles).toBe(8); // R4 added ELDER + SECRETARY (6 → 8)
+    expect(roles).toBe(9); // R4 added ELDER + SECRETARY (6 → 8); role tiers added PASTOR (→ 9)
   });
 
   it('TENANT ISOLATION: church A cannot read church B', async () => {
@@ -158,7 +158,9 @@ d('integration', () => {
       giverPhoneE164: '0249998887',
     });
     const event = {
-      id: 'evt_dup_1',
+      // Per-run event id: processedWebhookEvent is unique on (provider, eventKey)
+      // globally, so a hardcoded id makes the second test run look like a replay.
+      id: `evt_dup_${Date.now()}`,
       event: 'charge.success',
       data: {
         reference: init.reference,
@@ -171,7 +173,7 @@ d('integration', () => {
     expect((await funds.handlePaystackEvent(event)).status).toBe('settled');
     expect((await funds.handlePaystackEvent(event)).status).toBe('duplicate'); // same event id
     // Different event id, same reference: compare-and-set rejects the flip.
-    expect((await funds.handlePaystackEvent({ ...event, id: 'evt_dup_2' })).status).toBe('already_settled');
+    expect((await funds.handlePaystackEvent({ ...event, id: `${event.id}_b` })).status).toBe('already_settled');
     const txRow = await platformPrisma.transaction.findUnique({ where: { reference: init.reference } });
     expect(txRow?.status).toBe('SUCCESS');
     expect(txRow?.receiptSent).toBe(false); // worker sends exactly one receipt later
@@ -182,7 +184,7 @@ d('integration', () => {
     const fund = await platformPrisma.fund.findFirst({ where: { churchId: ctx.user.churchId } });
     const init = await funds.initialize(ctx.user, { fundId: fund!.id, amountMinor: 5000 });
     const res = await funds.handlePaystackEvent({
-      id: 'evt_mismatch_1',
+      id: `evt_mismatch_${Date.now()}`,
       event: 'charge.success',
       data: { reference: init.reference, amount: init.quote.chargedMinor + 1, currency: 'GHS' },
     });
@@ -196,7 +198,9 @@ d('integration', () => {
     const dispatcher = new SmsDispatcher(fakeQueues);
     const smsSvc = new SmsService(tenant, dispatcher, fakeQueues);
     const hooks = new WebhooksService(fakeEnv, dispatcher);
-    const phone = '0245556677';
+    // Per-run number: SmsLog is unique on idempotencyKey, and the seeded seq helper
+    // restarts at 1 every run, so derive the last 7 digits from the clock instead.
+    const phone = `055${String(Date.now()).slice(-7)}`;
     await members.create(ctx.user, { firstName: 'Stop', lastName: 'Tester', phoneE164: phone, ageSegment: 'MEN' });
 
     // handleInbound resolves the church from the most recent OUTBOUND SmsLog to

@@ -20,6 +20,7 @@ datasource db {
 // ---------------------------------------------------------------- enums
 enum RoleKey {
   SUPER_ADMIN
+  PASTOR
   FINANCE_ADMIN
   USHER
   FOLLOWUP_TEAM

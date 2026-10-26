@@ -17,6 +17,7 @@ import {
 export interface SeedResult {
   churchId: string;
   createdRoles: number;
+  updatedRoles: number;
   createdFunds: number;
   createdSegments: number;
   workflowId: string | null;
@@ -25,13 +26,26 @@ export interface SeedResult {
 export async function seedChurchDefaults(churchId: string, actorId: string | null): Promise<SeedResult> {
   return withTenant(churchId, actorId, async (tx: Db) => {
     let createdRoles = 0;
+    let updatedRoles = 0;
     for (const role of DEFAULT_ROLES) {
+      const permissions = permissionsForRoleSeed(role.key);
       const existing = await tx.role.findUnique({ where: { churchId_key: { churchId, key: role.key } } });
       if (!existing) {
         await tx.role.create({
-          data: { churchId, key: role.key, name: role.name, permissions: permissionsForRoleSeed(role.key) },
+          data: { churchId, key: role.key, name: role.name, permissions },
         });
         createdRoles++;
+        continue;
+      }
+      // Keep default presets in sync: new roles (PASTOR) and widened presets must
+      // reach churches that were seeded before the preset changed. Custom roles
+      // are never touched — only the keys listed in DEFAULT_ROLES.
+      const drift =
+        existing.permissions.length !== permissions.length ||
+        permissions.some((p) => !existing.permissions.includes(p));
+      if (drift) {
+        await tx.role.update({ where: { id: existing.id }, data: { permissions } });
+        updatedRoles++;
       }
     }
 
@@ -184,10 +198,10 @@ export async function seedChurchDefaults(churchId: string, actorId: string | nul
         action: 'seed.defaults',
         entity: 'Church',
         entityId: churchId,
-        after: { createdRoles, createdFunds, createdSegments, workflowId },
+        after: { createdRoles, updatedRoles, createdFunds, createdSegments, workflowId },
       });
     }
 
-    return { churchId, createdRoles, createdFunds, createdSegments, workflowId };
+    return { churchId, createdRoles, updatedRoles, createdFunds, createdSegments, workflowId };
   });
 }

@@ -466,6 +466,39 @@ member-detail milestone UI, smoke-boot re-run, worker tests, GitHub CI).
 
 ---
 
+**Addendum 7 (later 22 Oct) — typeable headcount counters:**
+- Attendance counters accept **direct number entry**: the count is now an input (numeric keypad on
+  mobile) — type `40` + Enter (or tap away) to set that segment outright; +/− buttons still there
+  for small nudges. `setCount()` converts the typed value into the same ±1 outbox events taps
+  create (offline-safe, idempotent, server batch-safe ≤999), with optimistic local update +
+  haptic + auto-sync; Enter commits, focus pre-selects the old value, digits only (3 max).
+  CSS keeps the label look until hovered/focused. Lives in services/[id] headcount page
+  (ushers use the same screen). Verified: web typecheck 0, service page HTTP 200, login + services list OK.
+
+---
+
+**Addendum 6 (later 22 Oct) — Create account + unique church id + sign-in branding:**
+- **`POST /auth/signup` (public)** — "Create account" on the login page: church id + name + phone +
+  password → MEMBER-role User + linked Member record (`M00047`-style, same memberNo scheme) →
+  auto-login (tokens). Guards: GH phone normalization, 6-char password, unknown church → 400,
+  duplicate phone → 409 "sign in instead". Verified live: signup with uppercase `DEMO` → 200+token
+  (id normalized), dupe 409, unknown 400, created rows (MEMBER + memberNo) confirmed in DB.
+- **Church ids are now guaranteed unique (case-insensitive)**, three layers: normalize on create
+  (lowercase, URL-safe, ≥2 chars), friendly "id already taken" errors (pre-check + race catch),
+  and **DB index `idx_church_slug_ci` ON "Church" (lower(slug))** in extras.sql (applied to
+  chms + chms_test; verified: `duptest`+`DupTest` insert REJECTED by the index). All lookups
+  (auth login/OTP/signup, public controller, getPublicBySlug) normalize the slug too.
+- **Sign-in page shows the church identity**: logo + full church name (up to 3 lines, clamped) +
+  tagline, fetched live from `GET /public/:slug` as the church id is typed (350ms debounce;
+  falls back to generic heading when not found). `public.controller` now also returns `branding`
+  from church settings — ready for the later UI stage (multi-line names like "Church of
+  Pentecost, Nsuatre District, Hemang Assembly" render as-is).
+- Also this stretch: runtime refresh fix (stale dist/process divergence), tunnels relaunched
+  (localhost.run, HTTP-based): web `https://923adaaafc9632.lhr.life` · api
+  `https://ed22e6a71ae638.lhr.life`. typecheck api+web 0.
+
+---
+
 **Addendum (earlier 22 Oct) — Desktop launcher + root-.env fix:**
 - **`C:\Users\HP\Desktop\ChMS.lnk`** → `scripts/start-app.cmd`: starts postgresql-x64-16 if
   stopped, opens "ChMS API" + "ChMS Web" windows, auto-opens http://localhost:3000, starts the
@@ -480,3 +513,44 @@ member-detail milestone UI, smoke-boot re-run, worker tests, GitHub CI).
   unset keys); both main.ts entries import it first. Typecheck+build api/worker ✓, lint ✓.
 
 ---
+
+**Addendum (26 Oct) — Role-aware staff app: PASTOR role, role tiers/scope, permission-gated
+nav + routes + dashboard:**
+
+- **`PASTOR` is now a real role (9 roles total)** — `packages/shared/src/enums.ts`,
+  `schema.prisma`, `migrations/1_pastor_role/migration.sql` (`ADD VALUE IF NOT EXISTS`, additive),
+  seeded in `packages/db/src/seed-constants.ts`, and its preset is **all 32 permissions** (not `*`,
+  which stays platform-only). Seed also refreshes existing churches' default role sets.
+- **Three visibility tiers + data scope** in `packages/shared/src/permissions.ts`:
+  `PLATFORM` (SUPER_ADMIN) · `CHURCH` (PASTOR) · `DEPARTMENT` (finance/leader/elder/secretary/
+  follow-up/usher) · `SELF` (MEMBER); `DataScope` = ALL | BRANCH | SELF | NONE derived from roles ×
+  branch rows, shipped in the JWT and `/auth/me` so the UI states scope honestly.
+- **`@Authenticated()`** decorator + guard/boot-check branch: `/auth/me` is now reachable by a
+  MEMBER (zero permissions) so the shell can tell them to use `/portal`. Default-deny is intact —
+  the boot check still rejects any route with no declared policy.
+- **Web shell is permission-driven** (`apps/web/src/lib/access.ts`, new): nav model (5 groups /
+  18 items + 4 usher links), page→permission map (20 prefixes, longest-prefix match),
+  `canAccessPath` route guard, `role · scope` chip. MEMBER → `/portal`; a denied route renders
+  "Not available for your role" instead of a 403-blanked page; usher mode is offered only with
+  `headcount:write` + `services:read` and toggles a 4-link nav.
+- **Dashboard degrades instead of exploding**: it reads `/auth/me` first, then calls only the
+  endpoints the viewer may read (wallet/services/reports/visitors/churn/tasks/events/news) and
+  renders each card behind its own permission check. Previously one 403 (e.g. USHER on
+  `/sms/wallet`) rejected `Promise.all` and blanked the whole page.
+- **Verification**: `prisma generate`, `typecheck` (5 workspaces), `test` (shared 62, api 31 incl.
+  7 live-Postgres integration, worker `--passWithNoTests`), `eslint .`, `check:secrets` all green;
+  plus `.ecc/access-smoke.mts` running the real role presets through the web helpers →
+  SUPER_ADMIN/PASTOR see 18/18 items and every route, LEADER/FINANCE_ADMIN/USHER/SECRETARY/ELDER/
+  FOLLOWUP see only their modules, MEMBER sees none and is redirected. **Not verified in a browser.**
+- **Fixes made while getting the gates green** (all real, all listed in
+  `.ecc/artifacts/002-test-validation.md`): integration tests used hardcoded webhook
+  `eventKey`s and phone numbers, so a second run collided on global uniques → per-run ids;
+  role count 8→9; worker test script `--passWithNoTests`; eslint ignores `.ecc/**` and grants node
+  globals to `scripts/*.{js,cjs}`; removed an unused decorator import in `auth.controller.ts`.
+- **Operator steps**: `npm run db:migrate:deploy` everywhere (local `chms` + `chms_test` were
+  patched with `.ecc/apply-migration.mjs`), rebuild `@chms/shared` + `@chms/db` before deploying
+  api/worker (stale dist is what made `'PASTOR'` unassignable to `RoleKey`), re-seed churches to
+  create the PASTOR role, then grant it via `UserRole` (no user-management UI yet).
+
+---
+

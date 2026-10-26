@@ -3,76 +3,27 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { api, clearTokens, hasSession } from '../../lib/api';
+import {
+  SCOPE_LABEL,
+  canAccessPath,
+  describeRoles,
+  hasPermission,
+  hasStaffAccess,
+  routeAccess,
+  visibleNavGroups,
+  visibleUsherNav,
+  type SessionUser,
+} from '../../lib/access';
 
-// Grouped nav: 20 flat links cluttered the topbar — logical groups with
-// dropdowns keep one clean row (Dashboard · People · Worship · Finance ·
-// Outreach · Org · Settings · Usher mode · Logout).
-const NAV_GROUPS: { label: string; hint: string; items: { href: string; label: string }[] }[] = [
-  {
-    label: 'People',
-    hint: 'Members, visitors, children, care queue and small groups',
-    items: [
-      { href: '/members', label: 'Members' },
-      { href: '/visitors', label: 'Visitors' },
-      { href: '/children', label: 'Children' },
-      { href: '/care', label: 'Care' },
-      { href: '/groups', label: 'Groups' },
-    ],
-  },
-  {
-    label: 'Worship',
-    hint: 'Services, check-in, serving roster and media/projection',
-    items: [
-      { href: '/services', label: 'Services' },
-      { href: '/checkin', label: 'Check-in' },
-      { href: '/roster', label: 'Roster' },
-      { href: '/media', label: 'Media' },
-    ],
-  },
-  {
-    label: 'Finance',
-    hint: 'Giving batches & reports, pledges, expenses',
-    items: [
-      { href: '/finance', label: 'Finance' },
-      { href: '/campaigns', label: 'Pledges' },
-      { href: '/expenses', label: 'Expenses' },
-    ],
-  },
-  {
-    label: 'Outreach',
-    hint: 'Events & RSVPs, follow-up drip, SMS campaigns, announcements',
-    items: [
-      { href: '/events', label: 'Events' },
-      { href: '/drip', label: 'Drip' },
-      { href: '/sms', label: 'SMS' },
-      { href: '/announcements', label: 'News' },
-    ],
-  },
-  {
-    label: 'Org',
-    hint: 'Structure, departments and branch → HQ remittances',
-    items: [
-      { href: '/org', label: 'Org' },
-      { href: '/branches', label: 'Branches' },
-    ],
-  },
-];
 
-// Usher Mode: ONE app, role-scoped shell. Ushers get a mobile-first subset
-// (Today / Check-in / Visitors) with big touch targets; leaders toggle it off.
-const USHER_NAV = [
-  { href: '/dashboard', label: 'Today' },
-  { href: '/checkin', label: 'Check-in' },
-  { href: '/services', label: 'Headcount' },
-  { href: '/visitors', label: 'Visitors' },
-];
+// Grouped nav lives in lib/access.ts so the permission-gated nav, the route
+// guard and the dashboard cards all read ONE source of truth.
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  type Me = { name: string; church: { name: string; branding?: { logoDataUrl?: string | null; primaryColor?: string } | null }; permissions: string[] };
-  const [me, setMe] = useState<Me | null>(null);
+  const [me, setMe] = useState<SessionUser | null>(null);
   const [usherMode, setUsherMode] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
@@ -99,10 +50,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     setReady(true);
-    api<Me>('/auth/me')
+    api<SessionUser>('/auth/me')
       .then((m) => {
+        // Members hold no staff permission: the staff shell is not theirs.
+        if (!hasStaffAccess(m.permissions)) {
+          router.replace('/portal');
+          return;
+        }
         setMe(m);
         if (m.church.branding?.primaryColor) document.documentElement.style.setProperty('--brand', m.church.branding.primaryColor);
+        // Usher mode is only offered to people who can actually run a service.
         const isUsherOnly = m.permissions.includes('headcount:write') && !m.permissions.includes('members:write');
         const stored = typeof window !== 'undefined' ? localStorage.getItem('chms.usherMode') : null;
         setUsherMode(stored === '1' || (stored === null && isUsherOnly));
@@ -138,6 +95,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [openGroup]);
 
   if (!ready) return <div className="container">Loading…</div>;
+  if (!me) return <div className="container">Loading…</div>;
+
+  // Everything the shell shows is derived from the permission set the API
+  // returned for this session — never from a hardcoded role name.
+  const perms = me.permissions;
+  const groups = visibleNavGroups(perms);
+  const usherNav = visibleUsherNav(perms);
+  const canUsherMode = hasPermission(perms, 'headcount:write') && hasPermission(perms, 'services:read');
+  const showUsher = usherMode && canUsherMode;
+  const rule = routeAccess(pathname);
+  const denied = !canAccessPath(perms, pathname);
+  const home = groups[0]?.items[0]?.href ?? '/dashboard';
   const isActive = (href: string) => (pathname.startsWith(href) ? 'active' : '');
 
   return (
@@ -149,18 +118,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ) : null}
           ChMS{me ? ` · ${me.church.name}` : ''}
         </span>
-        {usherMode ? (
-          USHER_NAV.map((item) => (
+        {showUsher ? (
+          usherNav.map((item) => (
             <Link key={item.href} href={item.href} className={isActive(item.href)}>
               {item.label}
             </Link>
           ))
         ) : (
           <>
-            <Link href="/dashboard" className={isActive('/dashboard')}>
-              Dashboard
-            </Link>
-            {NAV_GROUPS.map((group) => {
+            {hasPermission(perms, 'church:read') ? (
+              <Link href="/dashboard" className={isActive('/dashboard')}>
+                Dashboard
+              </Link>
+            ) : null}
+            {groups.map((group) => {
               const sectionActive = group.items.some((i) => pathname.startsWith(i.href));
               const isOpen = openGroup === group.label;
               return (
@@ -202,14 +173,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               );
             })}
-            <Link href="/settings" className={isActive('/settings')}>
-              Settings
-            </Link>
+            {hasPermission(perms, 'settings:write') ? (
+              <Link href="/settings" className={isActive('/settings')}>
+                Settings
+              </Link>
+            ) : null}
           </>
         )}
-        <a href="#usher" onClick={(e) => { e.preventDefault(); toggleUsher(); }}>
-          {usherMode ? 'Full app' : 'Usher mode'}
-        </a>
+        <span className="badge mute" title={`Data scope: ${SCOPE_LABEL[me.scope ?? 'ALL']}`}>
+          {describeRoles(me.roles)} · {SCOPE_LABEL[me.scope ?? 'ALL']}
+        </span>
+        {canUsherMode ? (
+          <a href="#usher" onClick={(e) => { e.preventDefault(); toggleUsher(); }}>
+            {showUsher ? 'Full app' : 'Usher mode'}
+          </a>
+        ) : null}
         <a
           href="#logout"
           onClick={(e) => {
@@ -221,7 +199,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           Logout
         </a>
       </nav>
-      <main className={usherMode ? 'container usher' : 'container'}>{children}</main>
+      <main className={showUsher ? 'container usher' : 'container'}>
+        {denied ? (
+          <div className="card">
+            <h1>Not available for your role</h1>
+            <p className="muted">
+              {rule ? `${rule.label} needs a permission your role does not have.` : 'This page needs a permission your role does not have.'}{' '}
+              Ask a church admin if you should have it.
+            </p>
+            <Link href={home}>Go to an area you can use</Link>
+          </div>
+        ) : (
+          children
+        )}
+      </main>
     </div>
   );
 }

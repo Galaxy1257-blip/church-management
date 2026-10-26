@@ -9,6 +9,8 @@ migrations/**/*.sql.tmp
 coverage/
 uploads/
 *.log
+# keep the gate evidence that .ecc/artifacts/* reference
+!.ecc/*.log
 .DS_Store
 # fetched Bible bundle (public domain; regenerate with npm run bible:fetch)
 apps/api/data/

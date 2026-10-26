@@ -1,11 +1,18 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
-import { Public, RequirePermissions } from '../common/decorators';
+import { Authenticated, Public } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { AuthService } from './auth.service';
 
 class LoginDto {
   @IsString() churchSlug!: string;
+  @IsString() phoneE164!: string;
+  @IsString() @MinLength(6) password!: string;
+}
+
+class SignupDto {
+  @IsString() churchSlug!: string;
+  @IsString() @MinLength(2) name!: string;
   @IsString() phoneE164!: string;
   @IsString() @MinLength(6) password!: string;
 }
@@ -37,6 +44,13 @@ export class AuthController {
   }
 
   @Public()
+  @Post('signup')
+  @HttpCode(200)
+  signup(@Body() dto: SignupDto) {
+    return this.auth.signup(dto);
+  }
+
+  @Public()
   @Post('otp/request')
   @HttpCode(202)
   async requestOtp(@Body() dto: OtpRequestDto) {
@@ -65,7 +79,12 @@ export class AuthController {
     await this.auth.logout(dto.refreshToken);
   }
 
-  @RequirePermissions('church:read')
+  /**
+   * Identity of the signed-in user. @Authenticated (not @RequirePermissions):
+   * a MEMBER holds zero staff permissions but still needs to read who they are
+   * so the web shell can route them to the member portal instead of the modules.
+   */
+  @Authenticated()
   @Get('me')
   me(@Req() req: AuthedRequest) {
     return this.auth.me(req.user!.userId, req.user!.churchId);

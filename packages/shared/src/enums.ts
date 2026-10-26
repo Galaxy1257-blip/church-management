@@ -4,8 +4,27 @@
 // importing the generated Prisma client into the browser).
 // ============================================================
 
-export type RoleKey = 'SUPER_ADMIN' | 'FINANCE_ADMIN' | 'USHER' | 'FOLLOWUP_TEAM' | 'LEADER' | 'MEMBER' | 'ELDER' | 'SECRETARY';
-export const ROLE_KEYS: RoleKey[] = ['SUPER_ADMIN', 'FINANCE_ADMIN', 'USHER', 'FOLLOWUP_TEAM', 'LEADER', 'MEMBER', 'ELDER', 'SECRETARY'];
+export type RoleKey =
+  | 'SUPER_ADMIN'
+  | 'PASTOR'
+  | 'FINANCE_ADMIN'
+  | 'USHER'
+  | 'FOLLOWUP_TEAM'
+  | 'LEADER'
+  | 'MEMBER'
+  | 'ELDER'
+  | 'SECRETARY';
+export const ROLE_KEYS: RoleKey[] = [
+  'SUPER_ADMIN',
+  'PASTOR',
+  'FINANCE_ADMIN',
+  'USHER',
+  'FOLLOWUP_TEAM',
+  'LEADER',
+  'MEMBER',
+  'ELDER',
+  'SECRETARY',
+];
 
 export type Gender = 'MALE' | 'FEMALE';
 export type MemberStatus = 'ACTIVE' | 'INACTIVE' | 'TRANSFERRED' | 'DECEASED';

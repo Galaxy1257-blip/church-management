@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { fmtDateTime, ghs } from '../../../lib/format';
+import { hasPermission, type SessionUser } from '../../../lib/access';
 
 interface DashboardData {
-  wallet: { balanceUnits: number; reservedUnits: number };
+  wallet: { balanceUnits: number; reservedUnits: number } | null;
   services: { id: string; name: string; startsAt: string; status: string }[];
   totals: { totals: { segmentKey: string; label: string; net: number }[]; netTotal: number } | null;
   byFund: { fund: string; totalMinor: number; count: number }[];
@@ -19,22 +20,28 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [perms, setPerms] = useState<string[]>([]);
   const [error, setError] = useState('');
 
+  // Only ask for what this role may read: one 403 anywhere used to blank the
+  // whole dashboard because Promise.all rejects on the first failure.
   useEffect(() => {
     (async () => {
       try {
+        const session = await api<SessionUser>('/auth/me');
+        const granted = session.permissions;
+        setPerms(granted);
+        const can = (perm: string) => hasPermission(granted, perm);
         const [wallet, services, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
-          api<DashboardData['wallet']>('/sms/wallet'),
-          api<DashboardData['services']>('/services'),
-          api<DashboardData['byFund']>('/finance/reports/by-fund'),
-          api<DashboardData['visitors']>('/visitors'),
-          // extras degrade gracefully (a role without access still gets a dashboard)
-          api<DashboardData['bySunday']>('/finance/reports/by-sunday').catch(() => []),
-          api<DashboardData['churn']>('/members/meta/churn').catch(() => []),
-          api<DashboardData['tasks']>('/tasks').catch(() => []),
-          api<DashboardData['events']>('/events').catch(() => []),
-          api<DashboardData['announcements']>('/announcements').catch(() => []),
+          can('sms:read') ? api<NonNullable<DashboardData['wallet']>>('/sms/wallet').catch(() => null) : Promise.resolve(null),
+          can('services:read') ? api<DashboardData['services']>('/services').catch(() => []) : Promise.resolve([]),
+          can('reports:read') ? api<DashboardData['byFund']>('/finance/reports/by-fund').catch(() => []) : Promise.resolve([]),
+          can('visitors:read') ? api<DashboardData['visitors']>('/visitors').catch(() => []) : Promise.resolve([]),
+          can('reports:read') ? api<DashboardData['bySunday']>('/finance/reports/by-sunday').catch(() => []) : Promise.resolve([]),
+          can('members:read') ? api<DashboardData['churn']>('/members/meta/churn').catch(() => []) : Promise.resolve([]),
+          can('care:read') ? api<DashboardData['tasks']>('/tasks').catch(() => []) : Promise.resolve([]),
+          can('services:read') ? api<DashboardData['events']>('/events').catch(() => []) : Promise.resolve([]),
+          can('campaigns:read') ? api<DashboardData['announcements']>('/announcements').catch(() => []) : Promise.resolve([]),
         ]);
         const open = services.find((s) => s.status === 'OPEN') ?? services[0] ?? null;
         const totals = open
@@ -50,44 +57,58 @@ export default function DashboardPage() {
   if (error) return <div className="error">{error}</div>;
   if (!data) return <div>Loading dashboard…</div>;
 
+  const has = (perm: string) => hasPermission(perms, perm);
   const totalGiven = data.byFund.reduce((a, f) => a + f.totalMinor, 0);
 
   return (
     <div>
       <h1>Dashboard</h1>
       <div className="grid cols-3">
-        <div className="card stat">
-          <div className="value">{data.totals?.netTotal ?? '—'}</div>
-          <div className="label">Headcount (latest service)</div>
-        </div>
-        <div className="card stat">
-          <div className="value">{ghs(data.bySunday[0]?.totalMinor ?? 0)}</div>
-          <div className="label">Giving last Sunday ({data.bySunday[0]?.count ?? 0} gifts)</div>
-        </div>
-        <div className="card stat">
-          <div className="value">{ghs(totalGiven)}</div>
-          <div className="label">Giving (all time)</div>
-        </div>
-        <div className="card stat">
-          <div className="value">{data.visitors.length}</div>
-          <div className="label">Visitors on record</div>
-        </div>
-        <div className="card stat">
-          <div className="value">{data.churn.length}</div>
-          <div className="label">At-risk members (60-day)</div>
-        </div>
-        <div className="card stat">
-          <div className="value">{data.wallet.balanceUnits}</div>
-          <div className="label">SMS credits (reserved {data.wallet.reservedUnits})</div>
-        </div>
+        {has('services:read') ? (
+          <div className="card stat">
+            <div className="value">{data.totals?.netTotal ?? '—'}</div>
+            <div className="label">Headcount (latest service)</div>
+          </div>
+        ) : null}
+        {has('reports:read') ? (
+          <div className="card stat">
+            <div className="value">{ghs(data.bySunday[0]?.totalMinor ?? 0)}</div>
+            <div className="label">Giving last Sunday ({data.bySunday[0]?.count ?? 0} gifts)</div>
+          </div>
+        ) : null}
+        {has('reports:read') ? (
+          <div className="card stat">
+            <div className="value">{ghs(totalGiven)}</div>
+            <div className="label">Giving (all time)</div>
+          </div>
+        ) : null}
+        {has('visitors:read') ? (
+          <div className="card stat">
+            <div className="value">{data.visitors.length}</div>
+            <div className="label">Visitors on record</div>
+          </div>
+        ) : null}
+        {has('members:read') ? (
+          <div className="card stat">
+            <div className="value">{data.churn.length}</div>
+            <div className="label">At-risk members (60-day)</div>
+          </div>
+        ) : null}
+        {has('sms:read') && data.wallet ? (
+          <div className="card stat">
+            <div className="value">{data.wallet.balanceUnits}</div>
+            <div className="label">SMS credits (reserved {data.wallet.reservedUnits})</div>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid cols-2">
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Sunday demographics</h2>
-            <Link href="/media">Projection →</Link>
-          </div>
+        {has('services:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Sunday demographics</h2>
+              <Link href="/media">Projection →</Link>
+            </div>
           {data.totals && data.totals.totals.filter((t) => t.segmentKey !== 'LIVESTREAM').length > 0 ? (
             <>
               <div className="demo-bar">
@@ -113,7 +134,8 @@ export default function DashboardPage() {
           ) : (
             <p className="muted">No auto-sorted headcount yet — check members in and their bracket sections fill automatically.</p>
           )}
-        </div>
+          </div>
+        ) : null}
         <div className="card">
           <div className="spread">
             <h2 style={{ margin: 0 }}>Latest service</h2>
@@ -132,11 +154,12 @@ export default function DashboardPage() {
             <p className="muted">No services scheduled yet.</p>
           )}
         </div>
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Giving by fund</h2>
-            <Link href="/finance">Finance →</Link>
-          </div>
+        {has('reports:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Giving by fund</h2>
+              <Link href="/finance">Finance →</Link>
+            </div>
           <table>
             <tbody>
               {data.byFund.map((f) => (
@@ -148,12 +171,14 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+        ) : null}
 
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Giving trend (last 8 Sundays)</h2>
-            <Link href="/finance">Finance →</Link>
-          </div>
+        {has('reports:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Giving trend (last 8 Sundays)</h2>
+              <Link href="/finance">Finance →</Link>
+            </div>
           {data.bySunday.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: '0.5rem' }}>
               {data.bySunday.slice(0, 8).map((s) => {
@@ -175,12 +200,14 @@ export default function DashboardPage() {
             <p className="muted">No giving history yet.</p>
           )}
         </div>
+        ) : null}
 
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Care queue</h2>
-            <Link href="/care">Care →</Link>
-          </div>
+        {has('care:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Care queue</h2>
+              <Link href="/care">Care →</Link>
+            </div>
           {data.tasks.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length ? (
             <div style={{ marginTop: '0.4rem' }}>
               {data.tasks
@@ -201,12 +228,14 @@ export default function DashboardPage() {
             <p className="muted">Queue empty — every task closed.</p>
           )}
         </div>
+        ) : null}
 
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Upcoming events</h2>
-            <Link href="/events">Events →</Link>
-          </div>
+        {has('services:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Upcoming events</h2>
+              <Link href="/events">Events →</Link>
+            </div>
           {data.events.filter((e) => new Date(e.startsAt).getTime() >= Date.now() - 864e5).length ? (
             <div style={{ marginTop: '0.4rem' }}>
               {data.events
@@ -227,12 +256,14 @@ export default function DashboardPage() {
             <p className="muted">Nothing scheduled — create one on Events.</p>
           )}
         </div>
+        ) : null}
 
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>At-risk members</h2>
-            <Link href="/members">Members →</Link>
-          </div>
+        {has('members:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>At-risk members</h2>
+              <Link href="/members">Members →</Link>
+            </div>
           {data.churn.length ? (
             <div style={{ marginTop: '0.4rem' }}>
               {data.churn.slice(0, 5).map((m) => (
@@ -254,12 +285,14 @@ export default function DashboardPage() {
             <p className="muted">Everyone has checked in recently.</p>
           )}
         </div>
+        ) : null}
 
-        <div className="card">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Announcements</h2>
-            <Link href="/announcements">News →</Link>
-          </div>
+        {has('campaigns:read') ? (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Announcements</h2>
+              <Link href="/announcements">News →</Link>
+            </div>
           {data.announcements.length ? (
             <div style={{ marginTop: '0.4rem' }}>
               {data.announcements
@@ -284,6 +317,7 @@ export default function DashboardPage() {
             <p className="muted">No announcements yet.</p>
           )}
         </div>
+        ) : null}
       </div>
     </div>
   );

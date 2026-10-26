@@ -4,7 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { hasPermission } from '@chms/shared';
 import { JwtAuthGuard, PermissionsGuard, AuthUser } from './guards';
-import { PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
+import { AUTHENTICATED_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
 
 function makeContext(handlerMeta: Record<string | symbol, unknown> = {}): ExecutionContext {
   const handler = () => undefined;
@@ -26,6 +26,20 @@ function attachUser(ctx: ExecutionContext, user: AuthUser): void {
   (ctx.switchToHttp().getRequest() as { user: AuthUser }).user = user;
 }
 
+function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    userId: 'u1',
+    churchId: 'c1',
+    name: 'Usher',
+    phoneE164: '+233240000000',
+    roles: ['USHER'],
+    permissions: ['headcount:write'],
+    branchIds: [],
+    scope: 'ALL',
+    ...overrides,
+  };
+}
+
 describe('PermissionsGuard (default-deny)', () => {
   const guard = new PermissionsGuard(new Reflector());
 
@@ -43,65 +57,75 @@ describe('PermissionsGuard (default-deny)', () => {
 
   it('allows when the user grants every required permission', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['headcount:write'] });
-    attachUser(ctx, {
-      userId: 'u1',
-      churchId: 'c1',
-      name: 'Usher',
-      phoneE164: '+233240000000',
-      roles: ['USHER'],
-      permissions: ['headcount:write', 'services:read'],
-      branchIds: [],
-    });
+    attachUser(ctx, makeUser({ permissions: ['headcount:write', 'services:read'] }));
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('denies when a required permission is missing', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['finance:approve'] });
-    attachUser(ctx, {
-      userId: 'u1',
-      churchId: 'c1',
-      name: 'Usher',
-      phoneE164: '+233240000000',
-      roles: ['USHER'],
-      permissions: ['headcount:write'],
-      branchIds: [],
-    });
+    attachUser(ctx, makeUser());
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('requires ALL listed permissions', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['finance:approve', 'finance:read'] });
-    attachUser(ctx, {
-      userId: 'u1',
-      churchId: 'c1',
-      name: 'partial',
-      phoneE164: '+233240000000',
-      roles: ['FINANCE_ADMIN'],
-      permissions: ['finance:read'], // missing approve
-      branchIds: [],
-    });
+    attachUser(ctx, makeUser({ name: 'partial', roles: ['FINANCE_ADMIN'], permissions: ['finance:read'] })); // missing approve
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('wildcard * grants everything', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['audit:read'] });
-    attachUser(ctx, {
-      userId: 'u1',
-      churchId: 'c1',
-      name: 'Admin',
-      phoneE164: '+233240000000',
-      roles: ['SUPER_ADMIN'],
-      permissions: ['*'],
-      branchIds: [],
-    });
+    attachUser(ctx, makeUser({ name: 'Admin', roles: ['SUPER_ADMIN'], permissions: ['*'] }));
     expect(guard.canActivate(ctx)).toBe(true);
     expect(hasPermission(['*'], 'anything:here')).toBe(true);
+  });
+
+  it('@Authenticated allows a member with zero permissions', () => {
+    const ctx = makeContext({ [AUTHENTICATED_KEY]: true });
+    attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('@Authenticated still refuses an anonymous request', () => {
+    const ctx = makeContext({ [AUTHENTICATED_KEY]: true });
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+  });
+
+  it('@Authenticated never overrides an explicit permission list', () => {
+    const ctx = makeContext({ [AUTHENTICATED_KEY]: true, [PERMISSIONS_KEY]: ['finance:approve'] });
+    attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
+    // The permission list wins whenever it is present on the handler.
+    expect(guard.canActivate(ctx)).toBe(false);
   });
 });
 
 describe('JwtAuthGuard', () => {
   const jwt = new JwtService({});
   const env = { JWT_SECRET: 'test-secret-32-characters-min!!' } as any;
+
+  async function signAccess(extra: Record<string, unknown> = {}): Promise<string> {
+    return jwt.signAsync(
+      {
+        sub: 'u1',
+        cid: 'c1',
+        name: 'Admin',
+        phone: '+233240000000',
+        roles: ['SUPER_ADMIN'],
+        perms: ['*'],
+        bid: [],
+        aud: 'access',
+        ...extra,
+      },
+      { secret: env.JWT_SECRET, expiresIn: 60 },
+    );
+  }
+
+  function authedRequest(token: string) {
+    const ctx = makeContext({ [PERMISSIONS_KEY]: ['members:read'] });
+    const req = ctx.switchToHttp().getRequest() as { headers: Record<string, string>; user?: AuthUser };
+    req.headers.authorization = `Bearer ${token}`;
+    return { ctx, req };
+  }
 
   it('lets @Public routes through without a token', async () => {
     const guard = new JwtAuthGuard(jwt, new Reflector(), env);
@@ -117,25 +141,27 @@ describe('JwtAuthGuard', () => {
 
   it('accepts a valid access token and attaches the user', async () => {
     const guard = new JwtAuthGuard(jwt, new Reflector(), env);
-    const token = await jwt.signAsync(
-      {
-        sub: 'u1',
-        cid: 'c1',
-        name: 'Admin',
-        phone: '+233240000000',
-        roles: ['SUPER_ADMIN'],
-        perms: ['*'],
-        bid: [],
-        aud: 'access',
-      },
-      { secret: env.JWT_SECRET, expiresIn: 60 },
-    );
-    const ctx = makeContext({ [PERMISSIONS_KEY]: ['members:read'] });
-    const req = ctx.switchToHttp().getRequest() as { headers: Record<string, string>; user?: AuthUser };
-    req.headers.authorization = `Bearer ${token}`;
+    const { ctx, req } = authedRequest(await signAccess({ scp: 'ALL' }));
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
     expect(req.user?.userId).toBe('u1');
     expect(req.user?.churchId).toBe('c1');
+    expect(req.user?.scope).toBe('ALL');
+  });
+
+  it('derives scope for legacy tokens that predate the scp claim', async () => {
+    const guard = new JwtAuthGuard(jwt, new Reflector(), env);
+    const { ctx, req } = authedRequest(
+      await signAccess({ roles: ['LEADER'], perms: ['members:read'], bid: ['b1'] }),
+    );
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(req.user?.scope).toBe('BRANCH');
+  });
+
+  it('gives a pastor church-wide scope', async () => {
+    const guard = new JwtAuthGuard(jwt, new Reflector(), env);
+    const { ctx, req } = authedRequest(await signAccess({ roles: ['PASTOR'], perms: ['finance:read'] }));
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(req.user?.scope).toBe('ALL');
   });
 
   it('rejects refresh-audience tokens used as access tokens', async () => {

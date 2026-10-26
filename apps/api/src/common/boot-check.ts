@@ -6,7 +6,7 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 import { MetadataScanner } from '@nestjs/core/metadata-scanner';
 import { ModulesContainer } from '@nestjs/core';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
-import { PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import { PUBLIC_KEY, PERMISSIONS_KEY, AUTHENTICATED_KEY } from './decorators';
 
 interface RouteViolation {
   controller: string;
@@ -27,7 +27,7 @@ export class BootCheckService implements OnApplicationBootstrap {
         this.logger.error(`MISSING PERMISSION DECORATOR: ${v.controller}.${v.method}`);
       }
       this.logger.error(
-        `Default-deny boot check failed: ${violations.length} route(s) lack @RequirePermissions or @Public(). Refusing to start.`,
+        `Default-deny boot check failed: ${violations.length} route(s) lack @RequirePermissions, @Authenticated() or @Public(). Refusing to start.`,
       );
       process.exit(1);
     }
@@ -51,8 +51,9 @@ export class BootCheckService implements OnApplicationBootstrap {
           const method = Reflect.getMetadata(METHOD_METADATA, handler);
           if (path === undefined || method === undefined) continue; // not an HTTP handler
           const isPublic = Reflect.getMetadata(PUBLIC_KEY, handler) === true;
+          const isAuthenticatedOnly = Reflect.getMetadata(AUTHENTICATED_KEY, handler) === true;
           const perms = Reflect.getMetadata(PERMISSIONS_KEY, handler);
-          if (!isPublic && (!perms || (perms as unknown[]).length === 0)) {
+          if (!isPublic && !isAuthenticatedOnly && (!perms || (perms as unknown[]).length === 0)) {
             violations.push({ controller: metatype.name, method: methodName });
           }
         }
