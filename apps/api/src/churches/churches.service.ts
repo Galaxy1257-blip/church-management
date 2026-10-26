@@ -26,19 +26,37 @@ export class ChurchesService {
       throw new ForbiddenException('invalid platform key');
     }
     const phone = normalizeGhPhone(input.admin.phoneE164);
+    // Church id: normalized (lowercase, URL-safe) and guaranteed unique —
+    // "Demo", "demo " and "demo!" all collapse to the same id.
+    const slug = input.slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (slug.length < 2) throw new ForbiddenException('church id must be at least 2 characters (letters, digits, dashes)');
     const churchId = uuidv7();
     const userId = uuidv7();
 
     return withPlatform(async (tx) => {
-      await tx.church.create({
-        data: {
-          id: churchId,
-          name: input.name,
-          slug: input.slug,
-          pastorDisplayName: input.pastorDisplayName ?? null,
-          timezone: input.timezone ?? 'Africa/Accra',
-        },
-      });
+      const taken = await tx.church.findFirst({ where: { slug } });
+      if (taken) throw new ForbiddenException(`church id "${slug}" is already taken`);
+      try {
+        await tx.church.create({
+          data: {
+            id: churchId,
+            name: input.name,
+            slug,
+            pastorDisplayName: input.pastorDisplayName ?? null,
+            timezone: input.timezone ?? 'Africa/Accra',
+          },
+        });
+      } catch (e) {
+        // lower(slug) unique index (extras.sql) can still catch races/case tricks
+        if ((e as { code?: string }).code === 'P2003' || (e as { code?: string }).code === '23505' || String(e).includes('unique')) {
+          throw new ForbiddenException(`church id "${slug}" is already taken`);
+        }
+        throw e;
+      }
       // Church has no churchId column (no RLS); everything below does — set
       // the tenant context BEFORE the first tenant-scoped write.
       await tx.$executeRaw`SELECT set_config('app.church_id', ${churchId}, true)`;
@@ -70,7 +88,7 @@ export class ChurchesService {
 
   async getPublicBySlug(slug: string) {
     const church = await prisma.church.findUnique({
-      where: { slug },
+      where: { slug: slug.trim().toLowerCase() },
       select: { id: true, name: true, slug: true, timezone: true, currency: true, pastorDisplayName: true, settings: true, smsSenderId: true },
     });
     if (!church) return null;

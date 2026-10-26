@@ -1,4 +1,4 @@
-// Public endpoints (no auth): visitor registration landing form (rate
+﻿// Public endpoints (no auth): visitor registration landing form (rate
 // limited per-IP in-memory), church lookup. Turnstile hook is env-gated.
 import { Body, Controller, Get, HttpCode, Module, Param, Post, Req } from '@nestjs/common';
 import { IsOptional, IsString, MinLength } from 'class-validator';
@@ -32,12 +32,14 @@ export class PublicController {
   @Public()
   @Get(':slug')
   async church(@Param('slug') slug: string) {
+    // case-insensitive church id; returns branding (logo/name/tagline) for the sign-in page
     const c = await prisma.church.findUnique({
-      where: { slug },
-      select: { id: true, name: true, slug: true, pastorDisplayName: true },
+      where: { slug: slug.trim().toLowerCase() },
+      select: { id: true, name: true, slug: true, pastorDisplayName: true, settings: true },
     });
     if (!c) return null;
-    return { ...c, id: undefined };
+    const branding = ((c.settings ?? {}) as { branding?: unknown }).branding ?? null;
+    return { ...c, id: undefined, settings: undefined, branding };
   }
 
   /** Offline-friendly guest slip: idempotent by (church, phone). */
@@ -58,7 +60,7 @@ export class PublicController {
       const result = (await verify.json()) as { success?: boolean };
       if (!result.success) return { ok: false, error: 'turnstile failed' };
     }
-    const church = await prisma.church.findUnique({ where: { slug } });
+    const church = await prisma.church.findUnique({ where: { slug: slug.trim().toLowerCase() } });
     if (!church) return { ok: false, error: 'unknown church' };
     const phone = normalizeGhPhone(dto.phoneE164);
     return withTenant(church.id, null, async (tx) => {

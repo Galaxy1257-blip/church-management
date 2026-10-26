@@ -18,7 +18,7 @@ const STAGES = ['MEMBER','MEMBER','MEMBER','NEW_BELIEVER','WORKER','WORKER','LEA
   try {
     const church = (await c.query('SELECT id FROM "Church" WHERE slug=$1', [CHURCH])).rows[0];
     if (!church) throw new Error('demo church missing — run seed first');
-    const n = (await c.query('SELECT count(*)::int AS n FROM "Member" WHERE "churchId"=$1', [church.id])).rows[0].n;
+    const _n = (await c.query('SELECT count(*)::int AS n FROM "Member" WHERE "churchId"=$1', [church.id])).rows[0].n;
     const uq = async (p) => (await c.query('SELECT id FROM "User" WHERE "churchId"=$1 AND "phoneE164"=$2', [church.id, p])).rows[0].id;
     const users = { pastor: await uq('+233550449840'), secretary: await uq('+233550449841'), finance: await uq('+233550449842'), usher: await uq('+233550449843'), elder: await uq('+233550449844'), teacher: await uq('+233550449845') };
     const brackets = (await c.query('SELECT id, "segmentKey", "minAge", "maxAge" FROM "AgeBracket" WHERE "churchId"=$1 ORDER BY "minAge"', [church.id])).rows;

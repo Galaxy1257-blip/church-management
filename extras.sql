@@ -7,6 +7,10 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- Church ids ("slugs") are case-insensitively unique: "Demo" and "demo" must collide.
+-- App-level normalization + this index guarantee there is never 2 churches with the same id.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_church_slug_ci ON "Church" (lower(slug));
+
 -- App role: no BYPASSRLS, not the table owner
 -- CREATE ROLE app_user LOGIN PASSWORD '...' NOBYPASSRLS;
 -- GRANT USAGE ON SCHEMA public TO app_user;
