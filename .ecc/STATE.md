@@ -71,3 +71,25 @@ integration, worker 0 `--passWithNoTests`) · `npx eslint .` · `npm run check:s
 - `scope=BRANCH` is displayed, not enforced, outside `Transaction` (`extras.sql`).
 - Test DB needs the enum before integration tests pass; that is why `.ecc/apply-migration.mjs`
   exists (Docker/psql were unavailable in this environment).
+
+## Shipped (26 Oct)
+
+`main` → pushed to `origin` (`github.com/Galaxy1257-blip/church-management`), 4 commits:
+
+- `3c9b4d0` feat(rbac): PASTOR role, tiers + data scope, permission-gated staff app (21 files)
+- `664e746` feat(web): type headcount numbers directly on the service detail page
+- `a43903f` fix(church): normalize + enforce a unique church id, branding on public lookup
+- `1defc0f` chore(ecc): gate artifacts, access smoke test, session journal
+
+## ⚠️ Deliberately NOT committed — leaked credential in the working tree
+
+`scripts/tmp-demo-accounts.js` (modified), `scripts/check-neon.mjs`, `scripts/seed-neon.mjs` and
+`scripts/check-users.cjs` (untracked) all hardcode a **Neon production connection string with the
+`neondb_owner` password** (`npg_***@ep-damp-frog-…`, partial redaction — see the files themselves).
+They were excluded from the push on
+purpose. Also untracked and left alone: `church-asset-kit/` (117 MB of images), `church-asset-pipeline/`,
+`CHURCH_UI_BRAINSTORM_GHANA.md`, `UI_IDEAS_GHANA.md`, `scripts/*.html`.
+
+Next for the owner: **rotate that Neon password**, rewrite those scripts to read `process.env.DATABASE_URL`
+(the repo already ignores `.env`), and only then decide whether the asset kits belong in the repo or in
+object storage / Git LFS.
