@@ -814,3 +814,48 @@ page, member portal); a church that explicitly saved worship: true keeps Worship
 resolveModules only applies the new default when the key is absent); role visibility for custom
 roles follows the stored permission preset, so a hand-widened custom role still sees what its
 permissions allow.
+
+## 2026-10-30 — Session O: subscriptions, public site and the onboarder console
+
+**Request (owner, in three parts):** (1) monthly subscription billing with a lock when a church
+falls behind, with cash payments recordable by the office; (2) a developer office to manage every
+church and user, act on a church's behalf, add churches and users and reset passwords; (3) a home
+screen with real sign-in, sign-up and forgot-password. Then: **"create a section for onboarders
+that's almost similar to the dev console, determine appropriate actions they can take there by
+brainstorming and implement. let them have their own logins. the main dev admin will be the one to
+create account for onboarders. i want the app such that if one church specifically ask for features
+specific to them we can create it for them at their side."**
+
+**Shipped (4 commits, pushed to `origin/main`):**
+- `962aef4` **feat(api)** — `PlatformRole` gains `ONBOARDER`; the platform guard re-reads role and
+  `isActive` from the DB on every request; owner-only staff CRUD with bcrypt-12 passwords and
+  self-disable/self-demotion/last-owner guards; church member CSV preview + confirm (checking
+  duplicates and errors before writing); `settings.customFeatures` parsed by a new shared helper
+  (`parseCustomFeatures`/`resolveCustomFeatures`, max 20, safe keys and links); `/auth` is
+  `@BillingExempt` so a paused church can still sign in and pay; password-reset OTPs carry
+  `purpose` so a login code cannot be redeemed as a reset (migration `6_password_reset`); `me()`
+  now reports `billingLocked` so the support lock actually reaches the workspace; `resetPassword`
+  transaction fixed for `TransactionClient`.
+- `cbf4934` **feat(web)** — public home, sign-in (password or SMS code), sign-up (new church with
+  14-day trial **or** join an existing church by id) and the three-step forgot-password flow, all
+  plain English and phone-first.
+- `9efd7e6` **feat(web)** — `/billing` (state, fee, covered-until, history, Paystack/MoMo mock pay,
+  cash instructions) and a full-screen lock that replaces every area when the workspace is paused,
+  except `/billing`; per-church **Extras** nav group and page.
+- `3d4049f` **feat(web)** — platform office console: overview, churches list/detail, payments to
+  confirm, **Team** page (owner only), app-section switches, extras editor, member CSV import and
+  "Open as" handoff (90-second single-use link).
+
+**Verification:** API role boundaries retested (onboarder 403 on staff list and fee changes, 200 on
+extras and import preview; owner 200); extra tool saved on one church and rendered in that church's
+nav only; CSV import previewed and confirmed (1 member, test data removed after); paused workspace
+showed the lock screen at 390 px and `/billing` opened without a 402; support lock cleared
+afterwards. New shared tests for the extras validator. Dev owner account recreated locally with
+`npm run platform:admin` (credentials live in the operator's environment, never in the repo).
+
+**Gates:** typecheck 0 (5 workspaces) · eslint 0 · shared 72/72 · api 73/73 · worker no tests ·
+`check:secrets` clean. No `next build` run this session (dev server verified in the browser instead).
+
+**Known gaps / operator notes:** a handoff session has no refresh token by design, so a hard reload
+while "Open as" lands back on `/login`; Paystack is still the mock flow until live keys are set; the
+office needs at least one active OWNER, so keep one outside the test accounts; docs updated here.

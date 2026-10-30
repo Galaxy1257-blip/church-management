@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-10-21 (Session G). **Self-contained**: a fresh session can
+Last updated: 2026-10-30 (Session O). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -20,7 +20,8 @@ C:\Users\HP\Desktop\church\
   apps/api                 # NestJS 11 /api/v1; default-deny RBAC + boot check; raw-body Paystack webhook
   apps/worker              # BullMQ: sms-send, giving-settle, campaign-send, verify-pending,
                            #   maintenance (sweep/reconcile/age-promotion/followup-tick/verse-of-day)
-  apps/web                 # Next 15 PWA: staff app (+usher mode), /give public, member companion /portal, /bible
+  apps/web                 # Next 15 PWA: staff app (+usher mode, /billing, /extras), /give public,
+                           #   member companion /portal, /bible, public home+signup+reset, /platform office
   docker-compose.yml       # postgres:16 + redis:7 (init creates app_user/platform_user)
   scripts/                 # check-secrets.mjs, verify-stack.mjs (db:verify), fetch-bible.mjs, fetch-web.mjs
   mockups/index.html       # 11 static screen mockups
@@ -127,11 +128,20 @@ C:\Users\HP\Desktop\church\
   Akuapem-Twi-asante via Room-DB pipeline; extractor hardening; 66 books/1,189 chapters each.
 - **J**: Ewe bundled (66/66, 31,137 verses) + /bible fixes (DATA_DIR off-by-one, kjv default,
   ewe/twi-asante publicDomain=false).
-- **K (current)**: **`npm run db:verify` GATE PASSED — 26/26** on native PostgreSQL 16.11
+- **K**: **`npm run db:verify` GATE PASSED — 26/26** on native PostgreSQL 16.11
   (Docker install failed → EDB silent installer, service Automatic). Fixed along the way:
   withPlatform→platformPrisma, extras.sql idempotency, create-roles password healing,
   verify-stack dotenv, headcount SAVEPOINT replay, SmsLedger refId-backfill trigger exception,
   handleInbound phone normalisation, integration tests modernised + fresh `chms_test` per run.
+- **O (current, 30 Oct)**: **subscriptions, public site and the platform office.** Monthly billing
+  (14-day trial → active → 7-day grace → paused) with `BillingGuard` 402 and a workspace lock;
+  Paystack subscription payments (mock until live keys) plus cash confirmation by the office;
+  public home / sign-in (password or SMS) / sign-up (new church or join by id) / 3-step password
+  reset; `/platform` office for OmniLabs staff (OWNER, ONBOARDER, SUPPORT) with churches, users,
+  payments, app sections, per-church **extra tools**, member CSV import and 90-second "Open as"
+  handoff. Owners alone manage money, create churches and the team; onboarders set churches up.
+  Shipped as `962aef4` (api), `cbf4934` (public web), `9efd7e6` (billing/extras web), `3d4049f`
+  (office web), pushed to `origin/main`.
 
 ## 6. Currently working on (exact in-flight state)
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
@@ -141,16 +151,18 @@ C:\Users\HP\Desktop\church\
    Settings→SMS gateway + confirm body fields; Paystack sandbox keys → flip PAYSTACK_MODE; WEB
    translation needs a *reachable* PD source (do NOT retry bible-api.com from this network).
    (`npm run db:verify` ✅ cleared 22 Oct — no longer a gate.)
-3. **Owner feedback round 1 — code-complete 29 Oct (Session N, uncommitted).** Plain English
-   ("offering"), simple Children/Men/Women groups with a Settings switch to detailed groups and
-   custom groups, occasional money events (anniversary, seed offering, Harvest…) added from
-   Settings → Offering on demand rather than seeded for every church, Worship off by default and
-   switchable back on in Settings → App sections, and per-role visibility tightened
-   (USHER/LEADER/FINANCE_ADMIN/MEMBER audited; MEMBER goes to /portal). Owner will add more items.
-4. **Known gaps:** no staff-user/roles admin screen (roles exist in seed+presets only); milestone
-   dates capturable via API but no dedicated member-detail UI yet; API smoke boot not re-run this
-   session (typecheck+build only); `npm run test -w @chms/worker` reports "no test files" (pre-existing).
-5. **Ghana-language Bibles — ✅ DONE through Session I**: six bundles live in `apps/api/data/bible/`
+3. **Owner feedback round 1 — ✅ committed 28e4f37 (Session N).** Plain English, simple
+   Children/Men/Women groups, on-demand money events, Worship off by default, per-role visibility.
+4. **Owner round 2 — ✅ shipped Session O (`962aef4`…`3d4049f`).** Monthly subscription with a
+   workspace lock and `/billing`; public home/login/sign-up/forgot; platform office with owner /
+   onboarder / support roles, per-church extra tools and member CSV import. Create an office login
+   with `PLATFORM_ADMIN_EMAIL=… PLATFORM_ADMIN_PASSWORD=… npm run platform:admin` (role via
+   `PLATFORM_ADMIN_ROLE=OWNER|ONBOARDER|SUPPORT`). Keep at least one active owner.
+5. **Known gaps:** church-level staff roles still have no admin screen (platform Team only manages
+   office staff); milestone dates capturable via API but no dedicated member-detail UI yet; handoff
+   sessions have no refresh token (hard reload → `/login`); Paystack is still mock until live keys;
+   `npm run test -w @chms/worker` reports "no test files" (pre-existing).
+6. **Ghana-language Bibles — ✅ DONE through Session I**: six bundles live in `apps/api/data/bible/`
    (kjv, asv, twi, twi-asante, ga, fante — all 66 books/1,189 chapters), auto-listed by `/bible`.
    Tools: `scripts/extract-apk-bible.mjs` (APK **and XAPK**; `--mobobi` decrypts the mobobi AES
    scheme — key `nv93h50sk1zh508v`, zero IV, 3 layers, recovered via dexdump), 
@@ -173,8 +185,9 @@ C:\Users\HP\Desktop\church\
 - **R4 (Ghana pack)**: ✅ ALL 12 items (Session G) — customisation layer, missing-member alerts,
   MoMo+instructions, SMS locales, funds, remittances, funeral categories, elder/secretary,
   milestones, care queue, denomination presets, Act 843, discipleship. See BUILD_ORDER §R4 + LOGS G.
-- **Known gaps / polish**: staff-user & roles admin screen; member-detail UI for milestone dates;
-  WEB translation source; GitHub CI run; Turnstile keys; worker has no test files.
+- **Known gaps / polish**: church-level staff roles admin screen (office staff now managed at
+  `/platform/team`); member-detail UI for milestone dates; WEB translation source; GitHub CI run;
+  Turnstile keys; worker has no test files; Paystack live keys and cSMS token (owner gates).
 
 ## 8. How to run / verify (quick reference)
 ```bash

@@ -3,6 +3,27 @@
 **Read first in a new session.** Repo-level context lives in `../STATE.md` and
 `../LOGS.md`; this file is the ECC gate journal.
 
+## Session O — CLOSED (30 Oct 2026, `3d4049f`)
+
+**Task:** owner round 2 — subscriptions, public site, platform office, onboarder console and
+per-church extra tools. Storefront scope was fixed earlier in the session (14-day trial, 7-day
+grace then pause, GHS 100/month configurable).
+
+**Shipped (4 commits, pushed; `git ls-remote` = `git rev-parse HEAD`):** `962aef4` API/DB/shared
+(ONBOARDER role, staff CRUD, custom features helper + tests, OTP purpose migration, member import,
+billing-lock fixes), `cbf4934` public home/login/signup/forgot, `9efd7e6` `/billing` + lock screen +
+`/extras`, `3d4049f` platform office console.
+
+**Gates:** typecheck 0 (5 workspaces) · eslint 0 · shared 72/72 · api 73/73 · worker no tests ·
+`check:secrets` clean. Browser pass at 390×844: platform overview/team/church detail, lock screen,
+`/billing`, `/extras`, public home and forgot-password — no horizontal overflow.
+
+**Not run:** `next build` (dev server used instead); `db:verify` unchanged since Session K.
+
+**Test-data note:** verification church extras, test member and two test office logins were removed
+afterwards; a local dev owner was recreated with `npm run platform:admin`. The office requires at
+least one active OWNER.
+
 ## Session M — CLOSED (26 Oct 2026, `38f8f9a`)
 
 **Task:** implement the Session L audit. Plan `artifacts/005-implementation-plan.md` (approved),

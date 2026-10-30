@@ -177,6 +177,22 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
 - Google/Apple Wallet passes; livestream platform deep links; multi-currency diaspora mode B
 - View-audit on sensitive records (privacy tradeoff — edit-audit already hash-chained; revisit with DPC advice)
 
+## R7. Owner round 2 (30 Oct 2026 — subscriptions, public site, platform office)
+- [x] Monthly subscription billing: 14-day trial → paid → 7-day grace → workspace paused;
+      `BillingGuard` returns 402 and the app shows one calm lock screen (except `/billing`)
+- [x] Paystack subscription checkout (mock flow until live keys) + office confirmation of cash payments
+- [x] `/billing`: fee, billing day, covered-until, pause date, payment history, pay/instructions
+- [x] Public home, sign-in (password or SMS code), sign-up (start a church with trial **or** join by id),
+      three-step forgot-password via SMS; `/auth` exempt from the billing lock
+- [x] Password-reset codes carry their own OTP purpose (a login code cannot reset a password)
+- [x] Platform Office `/platform`: overview, churches, church detail, payments, audit trail
+- [x] Office roles OWNER / ONBOARDER / SUPPORT enforced server-side; owner-only team management
+      (create login, reset password, turn off) and owner-only money/church creation
+- [x] Per-church extra tools (`settings.customFeatures`): office editor + church-side `/extras` nav group
+- [x] Member CSV import from the office: preview with duplicates/errors, then confirm
+- [x] "Open as" handoff (90-second single-use link) for support work inside a church
+- [ ] Owner follow-ups — awaiting the next list
+
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed
 tokens) · households/guardians ✅ · children dual-ticket ✅ · visitor slips + GH phone norm ✅ · drip
