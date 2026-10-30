@@ -1,8 +1,10 @@
 /* ============================================================
-   ChMS design system — "warm sanctuary"
-   Deep forest green + harvest gold + terracotta on warm paper.
-   One stylesheet drives every screen; church branding overrides
-   --brand at runtime (Settings → Church setup).
+   ChMS design system — "warm sanctuary" is the default look:
+   deep forest green + harvest gold + terracotta on warm paper.
+   The presets below deliberately span cool, vivid and neutral
+   hues too — do not build new palettes as variations of green
+   and brown. One stylesheet drives every screen; church branding
+   overrides --brand at runtime (Settings → Church setup).
    ============================================================ */
 
 :root {
@@ -267,6 +269,167 @@
   --focus: #c69338;
   --glow-accent: rgba(184, 128, 47, 0.15);
   --glow-brand: rgba(107, 79, 42, 0.10);
+}
+
+:root[data-theme='sky'] {
+  --bg: #eef5fc;
+  --bg-soft: #dfeaf7;
+  --card: #ffffff;
+  --ink: #14212e;
+  --muted: #51657a;
+  --line: #cfe0ef;
+  --line-strong: #b4cde3;
+  --brand: #1e4f8a;
+  --accent: #2f8fd0;
+  --accent-soft: #dcecf9;
+  --terracotta: #d9633f;
+  --warn: #8a6414;
+  --input-bg: #fbfdff;
+  --row-alt: rgba(223, 234, 247, 0.34);
+  --stat-a: #ffffff;
+  --stat-b: #f0f7fd;
+  --secondary-hover: #d4e5f3;
+  --focus: #4d9fdc;
+  --glow-accent: rgba(47, 143, 208, 0.12);
+  --glow-brand: rgba(30, 79, 138, 0.10);
+}
+
+:root[data-theme='mint'] {
+  --bg: #ecfaf5;
+  --bg-soft: #d8f1e9;
+  --card: #fdfffe;
+  --ink: #122621;
+  --muted: #4d6c62;
+  --line: #cfe9df;
+  --line-strong: #b2d9cc;
+  --brand: #0f6b5c;
+  --accent: #16a38c;
+  --accent-soft: #d3f1e9;
+  --terracotta: #d9633f;
+  --warn: #7a6412;
+  --input-bg: #fbfffd;
+  --row-alt: rgba(216, 241, 233, 0.34);
+  --stat-a: #fdfffe;
+  --stat-b: #effaf6;
+  --secondary-hover: #cceadf;
+  --focus: #35b8a2;
+  --glow-accent: rgba(22, 163, 140, 0.12);
+  --glow-brand: rgba(15, 107, 92, 0.10);
+}
+
+:root[data-theme='indigo'] {
+  --bg: #eef1ff;
+  --bg-soft: #e0e5fb;
+  --card: #fdfdff;
+  --ink: #171a33;
+  --muted: #565d80;
+  --line: #d5dbf4;
+  --line-strong: #bdc6ec;
+  --brand: #3730a3;
+  --accent: #6366f1;
+  --accent-soft: #e3e4fd;
+  --terracotta: #e0663f;
+  --warn: #8a6414;
+  --input-bg: #fdfdff;
+  --row-alt: rgba(224, 229, 251, 0.34);
+  --stat-a: #fdfdff;
+  --stat-b: #f2f4fe;
+  --secondary-hover: #d2d8f5;
+  --focus: #7c7ef3;
+  --glow-accent: rgba(99, 102, 241, 0.12);
+  --glow-brand: rgba(55, 48, 163, 0.10);
+}
+
+:root[data-theme='violet'] {
+  --bg: #f6f1fd;
+  --bg-soft: #eadffa;
+  --card: #fffdff;
+  --ink: #231733;
+  --muted: #665576;
+  --line: #e2d4f2;
+  --line-strong: #cfbce6;
+  --brand: #6b21a8;
+  --accent: #a855f7;
+  --accent-soft: #f0e2fb;
+  --terracotta: #d9538a;
+  --warn: #8a6414;
+  --input-bg: #fefcff;
+  --row-alt: rgba(234, 223, 250, 0.34);
+  --stat-a: #fffdff;
+  --stat-b: #f9f3fe;
+  --secondary-hover: #e7d9f6;
+  --focus: #b071f2;
+  --glow-accent: rgba(168, 85, 247, 0.12);
+  --glow-brand: rgba(107, 33, 168, 0.10);
+}
+
+:root[data-theme='coral'] {
+  --bg: #fff1ee;
+  --bg-soft: #fbe0da;
+  --card: #fffaf9;
+  --ink: #2a1a17;
+  --muted: #766059;
+  --line: #f2d6ce;
+  --line-strong: #e6bbb0;
+  --brand: #b03a2e;
+  --accent: #ee6c4d;
+  --accent-soft: #fbe0d8;
+  --terracotta: #c2410c;
+  --warn: #8a6414;
+  --input-bg: #fffbf9;
+  --row-alt: rgba(251, 224, 218, 0.36);
+  --stat-a: #fffaf9;
+  --stat-b: #fdf2ee;
+  --secondary-hover: #f6d7cd;
+  --focus: #ef8166;
+  --glow-accent: rgba(238, 108, 77, 0.13);
+  --glow-brand: rgba(176, 58, 46, 0.10);
+}
+
+:root[data-theme='blossom'] {
+  --bg: #fdf1f6;
+  --bg-soft: #f8deea;
+  --card: #fffbfd;
+  --ink: #2a1923;
+  --muted: #765f6c;
+  --line: #f0d4e1;
+  --line-strong: #e3b9cd;
+  --brand: #9d174d;
+  --accent: #ec4899;
+  --accent-soft: #fbe0ef;
+  --terracotta: #c2410c;
+  --warn: #8a6414;
+  --input-bg: #fffcfd;
+  --row-alt: rgba(248, 222, 234, 0.36);
+  --stat-a: #fffbfd;
+  --stat-b: #fdf4f8;
+  --secondary-hover: #f4d3e2;
+  --focus: #ef6aac;
+  --glow-accent: rgba(236, 72, 153, 0.10);
+  --glow-brand: rgba(157, 23, 77, 0.10);
+}
+
+:root[data-theme='slate'] {
+  --bg: #f3f5f8;
+  --bg-soft: #e5e9ef;
+  --card: #ffffff;
+  --ink: #1a2029;
+  --muted: #5b6673;
+  --line: #dde2e9;
+  --line-strong: #c8d0da;
+  --brand: #2c3a4b;
+  --accent: #5b7a99;
+  --accent-soft: #e3eaf1;
+  --terracotta: #c25a44;
+  --warn: #8a6414;
+  --input-bg: #fcfdff;
+  --row-alt: rgba(229, 233, 239, 0.34);
+  --stat-a: #ffffff;
+  --stat-b: #f6f8fb;
+  --secondary-hover: #dce2e9;
+  --focus: #6d8aa8;
+  --glow-accent: rgba(91, 122, 153, 0.10);
+  --glow-brand: rgba(44, 58, 75, 0.10);
 }
 
 :root[data-theme='night'] {
@@ -1112,4 +1275,58 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   .app-body { margin-left: 0 !important; padding-top: 0 !important; }
   body { background: #fff; }
   .card { box-shadow: none; border-color: #ccc; break-inside: avoid; }
+}
+
+/* ---------------------------------------------------------- platform office */
+/* The support console is deliberately not the church shell: a flat green bar
+   with three destinations, so a staff member never confuses the two apps. */
+.office-shell { min-height: 100vh; }
+.office-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 1.15rem;
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+.office-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--brand-ink);
+}
+.office-brand::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.office-links { display: flex; gap: 0.15rem; flex-wrap: wrap; }
+.office-link {
+  color: rgba(255, 253, 248, 0.78);
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.42rem 0.6rem;
+  border-radius: 8px;
+}
+.office-link:hover { color: var(--brand-ink); background: rgba(255, 255, 255, 0.1); }
+.office-link.active { color: var(--brand-ink); background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 -2px 0 var(--accent); }
+.office-spacer { flex: 1; }
+.office-user { font-size: 0.76rem; opacity: 0.82; }
+.office-bar button.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--brand-ink);
+}
+@media (max-width: 700px) {
+  .office-user { display: none; }
+  .office-bar { gap: 0.25rem 0.5rem; }
+  .office-link { padding: 0.42rem 0.5rem; font-size: 0.8rem; }
 }

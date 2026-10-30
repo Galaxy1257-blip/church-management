@@ -33,7 +33,10 @@ let refreshInFlight: Promise<boolean> | null = null;
 
 export function setTokens(t: Tokens): void {
   accessToken = t.accessToken;
-  if (typeof window !== 'undefined') localStorage.setItem(REFRESH_KEY, t.refreshToken);
+  if (typeof window !== 'undefined') {
+    if (t.refreshToken) localStorage.setItem(REFRESH_KEY, t.refreshToken);
+    else localStorage.removeItem(REFRESH_KEY);
+  }
 }
 
 export function clearTokens(): void {

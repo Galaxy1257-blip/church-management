@@ -34,6 +34,15 @@ export const SCOPE_LABEL: Record<DataScope, string> = {
   NONE: 'No access',
 };
 
+/** Per-church extras set up by the office (settings.customFeatures). */
+export interface CustomFeature {
+  key: string;
+  label: string;
+  description?: string;
+  href?: string;
+  enabled: boolean;
+}
+
 /** Shape of GET /auth/me as consumed by the shell (see auth.service#me). */
 export interface SessionUser {
   name: string;
@@ -42,7 +51,17 @@ export interface SessionUser {
   scope?: DataScope;
   /** Which areas this church has switched on (settings.modules). */
   modules?: ModuleFlags;
+  /** Extras the platform office added for this church alone. */
+  extras?: CustomFeature[];
   church: { name: string; slug?: string; branding?: { logoDataUrl?: string | null; primaryColor?: string } | null };
+  /** Subscription state (see api billing.logic) — the shell shows the lock screen from it. */
+  billing?: {
+    state: string;
+    locked: boolean;
+    coveredUntil: string | null;
+    locksAt: string | null;
+    amountMinor: number;
+  };
 }
 
 /** Human label for the role chip: FINANCE_ADMIN → "Finance admin". */
@@ -204,6 +223,10 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
   { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },
+  // Custom features the office delivered for this church (settings.customFeatures).
+  { prefix: '/extras', permissions: ['church:read'], label: 'Extras' },
+  // Not in the sidebar: reached from Settings and from the paused-workspace screen.
+  { prefix: '/billing', permissions: ['settings:write'], label: 'Subscription' },
 ];
 
 /** The access rule for a pathname, or null when the path is ungated. */

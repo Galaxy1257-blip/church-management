@@ -3,6 +3,7 @@
 // R4 customisation: profile/branding, funds, fees, care alerts, SMS locales.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import BillingPanel from '../../../components/billing-panel';
 import { clearSession } from '../../../lib/session';
 import { MODULE_DEFAULTS, MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
 import {
@@ -74,6 +75,14 @@ const THEMES: { key: string; name: string; hint: string; colors: string[] }[] = 
   { key: 'meadow', name: 'Meadow', hint: 'Leafy green & lime', colors: ['#1e5c3a', '#7fae4f', '#a8622f', '#edf4ec'] },
   { key: 'sage', name: 'Sage', hint: 'Soft green & clay', colors: ['#3f6256', '#b9793f', '#a8503e', '#f0f4ef'] },
   { key: 'sand', name: 'Sand', hint: 'Desert sand & bronze', colors: ['#6b4f2a', '#b8802f', '#a8563a', '#f7f1e3'] },
+  // Cool, vivid and neutral families so the picker is not all warm earth tones.
+  { key: 'sky', name: 'Sky', hint: 'Bright blue & cloud', colors: ['#1e4f8a', '#2f8fd0', '#d9633f', '#eef5fc'] },
+  { key: 'mint', name: 'Mint', hint: 'Fresh teal & mint', colors: ['#0f6b5c', '#16a38c', '#d9633f', '#ecfaf5'] },
+  { key: 'indigo', name: 'Indigo', hint: 'Deep indigo & periwinkle', colors: ['#3730a3', '#6366f1', '#e0663f', '#eef1ff'] },
+  { key: 'violet', name: 'Violet', hint: 'Purple & lilac', colors: ['#6b21a8', '#a855f7', '#d9538a', '#f6f1fd'] },
+  { key: 'coral', name: 'Coral', hint: 'Coral red & peach', colors: ['#b03a2e', '#ee6c4d', '#c2410c', '#fff1ee'] },
+  { key: 'blossom', name: 'Blossom', hint: 'Pink & rose', colors: ['#9d174d', '#ec4899', '#c2410c', '#fdf1f6'] },
+  { key: 'slate', name: 'Slate', hint: 'Cool grey & steel', colors: ['#2c3a4b', '#5b7a99', '#c25a44', '#f3f5f8'] },
   { key: 'night', name: 'Night', hint: 'Dark mode', colors: ['#12100d', '#2f6b52', '#e0ac52', '#f4ede1'] },
 ];
 
@@ -110,7 +119,7 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   // grouped settings: church setup (identity/logo/policy) vs SMS vs giving vs modules
-  const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'appearance' | 'modules'>('church');
+  const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'appearance' | 'modules' | 'billing'>('church');
   const [theme, setTheme] = useState('sanctuary');
   // Which areas of the app this church runs (settings.modules; absent =
   // shared defaults, and Worship starts switched off).
@@ -304,6 +313,7 @@ export default function SettingsPage() {
           ['giving', 'Offering', 'Money categories, special events (Harvest, Thanksgiving…) and online offering fees'],
           ['appearance', 'Appearance', 'Colour themes and dark mode for this device'],
           ['modules', 'App sections', 'Turn whole areas of the app on or off for this church'],
+          ['billing', 'Subscription', 'Monthly fee, Paystack or cash, and the payment history'],
         ] as const).map(([key, label, hint]) => (
           <button
             key={key}
@@ -327,7 +337,9 @@ export default function SettingsPage() {
               ? 'Money categories, special events like Harvest, and the online offering fee.'
               : tab === 'appearance'
                 ? 'Pick a colour scheme or switch to dark mode. It applies to this device straight away.'
-                : 'Turn areas on or off — hidden everywhere, nothing is deleted, and you can switch them back on here.'}
+                : tab === 'modules'
+                  ? 'Turn areas on or off — hidden everywhere, nothing is deleted, and you can switch them back on here.'
+                  : 'The monthly fee that keeps this workspace open. Pay with Paystack, or tell the office about a cash payment.'}
       </p>
 
       <form className="card stack" onSubmit={saveAll} hidden={tab !== 'church'}>
@@ -797,6 +809,9 @@ export default function SettingsPage() {
         ))}
         <button>Save app sections</button>
       </form>
+      <div hidden={tab !== 'billing'} style={{ marginTop: '0.4rem' }}>
+        <BillingPanel />
+      </div>
     </div>
   );
 }

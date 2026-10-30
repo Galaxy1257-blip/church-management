@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { clearTokens, hasSession } from '../../lib/api';
 import AppNav from '../../components/app-nav';
+import LockScreen from '../../components/lock-screen';
 import { clearSession, getSession } from '../../lib/session';
 import {
   areaForItem,
@@ -72,10 +73,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!ready) return <div className="container">Loading…</div>;
   if (!me) return <div className="container">Loading…</div>;
 
+  // Billing pause: every screen is replaced by the lock page, except /billing
+  // itself so the church can actually pay its way back in.
+  if (me.billing?.locked && pathname !== '/billing') {
+    return (
+      <LockScreen
+        churchName={me.church.name}
+        amountMinor={me.billing.amountMinor}
+        canPay={hasPermission(me.permissions, 'settings:write')}
+        onPay={() => router.push('/billing')}
+        onLogout={logout}
+      />
+    );
+  }
+
   // Everything the shell shows is derived from the permission set the API
   // returned for this session — never from a hardcoded role name.
   const perms = me.permissions;
   const groups = visibleNavGroups(perms, me.modules);
+  // Office-delivered extras (per-church features) get one quiet entry, and only
+  // when the office actually switched something on for this church.
+  if ((me.extras?.length ?? 0) > 0 && hasPermission(perms, 'church:read')) {
+    groups.push({
+      label: 'Extras',
+      hint: 'Extra tools set up for this church',
+      items: [{ href: '/extras', label: 'Extras', permissions: ['church:read'] }],
+    });
+  }
   const usherNav = visibleUsherNav(perms);
   const canUsherMode = hasPermission(perms, 'headcount:write') && hasPermission(perms, 'services:read');
   const showUsher = usherMode && canUsherMode;

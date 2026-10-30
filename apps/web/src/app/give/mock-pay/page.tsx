@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 function MockPayInner() {
   const params = useSearchParams();
   const ref = params.get('ref') ?? '';
+  const isSubscription = ref.startsWith('sub_');
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
@@ -25,9 +26,17 @@ function MockPayInner() {
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error?.message ?? 'failed');
       setStatus('done');
-      setMessage(success ? 'Payment settled — check the SMS receipt.' : 'Payment marked failed.');
+      setMessage(
+        success
+          ? isSubscription
+            ? 'Subscription payment settled.'
+            : 'Payment settled — check the SMS receipt.'
+          : 'Payment marked failed.',
+      );
       setTimeout(() => {
-        window.location.href = '/give/demo/thanks';
+        window.location.href = isSubscription
+          ? `/billing?billing=${success ? 'paid' : 'failed'}`
+          : '/give/demo/thanks';
       }, 1200);
     } catch (e) {
       setStatus('error');
