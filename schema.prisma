@@ -35,6 +35,26 @@ enum Gender {
   FEMALE
 }
 
+// Platform Office (OmniLabs staff). Deliberately separate from church User:
+// these accounts never belong to a tenant and must not pass church guards.
+enum PlatformRole {
+  OWNER
+  SUPPORT
+}
+
+enum SubscriptionMethod {
+  PAYSTACK
+  CASH
+  TRANSFER
+}
+
+enum SubscriptionStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 enum MemberStatus {
   ACTIVE
   INACTIVE
@@ -251,9 +271,25 @@ model Church {
   settings           Json     @default("{}")
   createdAt          DateTime @default(now())
 
+  // Subscription billing. Status is derived from these dates (see billing
+  // service): trial -> active -> grace -> paused. `billingExempt` is for the
+  // demo/internal church and never locks.
+  plan               String   @default("standard")
+  monthlyFeeMinor    Int      @default(10000) // pesewas: GHS 100
+  billingDay         Int      @default(1)
+  graceDays          Int      @default(7)
+  trialEndsAt        DateTime?
+  paidUntil          DateTime?
+  billingPausedAt    DateTime?
+  billingExempt      Boolean  @default(false)
+  billingEmail       String?
+  billingPhone       String?
+  billingNote        String?
+
   branches Branch[]
   users    User[]
   roles    Role[]
+  subscriptionPayments SubscriptionPayment[]
 }
 
 model Branch {
@@ -327,6 +363,46 @@ model UserBranch {
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@id([userId, branchId])
+}
+
+// Platform Office (OmniLabs staff). Deliberately separate from church User:
+// these accounts never belong to a tenant and must not pass church guards.
+model PlatformUser {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         PlatformRole @default(SUPPORT)
+  isActive     Boolean      @default(true)
+  totpSecret   String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([role])
+}
+
+// One row per church per billing period ("2026-11"). A unique (church, period)
+// pair is what makes a double webhook or double cash entry harmless.
+model SubscriptionPayment {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  churchId       String             @db.Uuid
+  period         String
+  amountMinor    Int
+  method         SubscriptionMethod
+  status         SubscriptionStatus @default(PENDING)
+  reference      String             @unique
+  providerRef    String?
+  paidAt         DateTime?
+  recordedById   String? // platform user id, for CASH / TRANSFER rows
+  recordedByName String?
+  note           String?
+  createdAt      DateTime           @default(now())
+
+  church Church @relation(fields: [churchId], references: [id])
+
+  @@unique([churchId, period])
+  @@index([churchId, createdAt])
+  @@index([status])
 }
 
 model ChurchGivingSettings {

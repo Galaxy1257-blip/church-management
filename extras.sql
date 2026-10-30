@@ -56,6 +56,21 @@ END $$;
 -- comparing as text works for both. Tables with a NULLable churchId (InboundSms, ReconciliationRun)
 -- are hidden from app_user unless churchId matches; platform jobs use a separate role.
 
+-- ---------------------------------------------------------------------
+-- 1b. Platform staff accounts are not tenant data: app_user must never read
+-- them (password hashes, TOTP secrets). platform_user has BYPASSRLS and is the
+-- only reader; the table owner (migrations, first-admin seed) is not forced.
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+  IF to_regclass('public."PlatformUser"') IS NOT NULL THEN
+    ALTER TABLE "PlatformUser" ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS platform_only ON "PlatformUser";
+    CREATE POLICY platform_only ON "PlatformUser" USING (false);
+    REVOKE ALL ON "PlatformUser" FROM app_user;
+  END IF;
+END $$;
+
 -- Branch scope (second policy), example for Transaction. app.branch_ids is a comma list; empty = all branches.
 -- Policies are OR-ed by default, so use RESTRICTIVE to make it an additional requirement.
 DROP POLICY IF EXISTS branch_scope ON "Transaction";

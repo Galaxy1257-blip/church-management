@@ -40,6 +40,16 @@ async function main(): Promise<void> {
       ALTER ROLE app_user LOGIN PASSWORD '${appPassword}';
       ALTER ROLE platform_user LOGIN PASSWORD '${platformPassword}';
     `);
+    // The blanket grant above must not hand tenant code the platform staff
+    // table. Re-assert the revoke on every run (extras.sql does the same for
+    // the RLS policy; this is the grant half).
+    await client.query(`
+      DO $$ BEGIN
+        IF to_regclass('public."PlatformUser"') IS NOT NULL THEN
+          REVOKE ALL ON "PlatformUser" FROM app_user;
+        END IF;
+      END $$;
+    `);
     console.log('app_user + platform_user ready (grants + passwords applied)');
   } finally {
     await client.end();
