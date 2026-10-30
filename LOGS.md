@@ -226,7 +226,7 @@ account model, cSMS token steps, Bible licences).
 - **`scripts/extract-apk-bible.mjs`** â€” generic APKâ†’Bible-bundle extractor (zero npm deps), reusable
   for every language APK: PowerShell unzip of `assets/*.txt` â†’ BOM-aware UTF-16LE/BE/UTF-8 reading â†’
   parser for both observed HTML styles (`<p>/<strong><em>N` mobobi style + Apple-export spans) â†’
-  legacy-font decode `qâ†’É” Qâ†’Æ† xâ†’É› Xâ†’Æ` (`--no-decode` to disable) â†’ chapter-header handling (bare
+  legacy-font decode `qâ†’É” Qâ†’Æ† xâ†’É› Xâ†’ï¿½?` (`--no-decode` to disable) â†’ chapter-header handling (bare
   headers outside `<p>`, CRLF endings, unclosed `<p>` tags, empty-`<strong>` suffixes) â†’ `X-X-X`
   divider skip â†’ mixed-file salvage (slices English junk prepended before the real book) â†’
   English-content guard (word-based; short books aren't false-flagged) â†’ structural book ID against
@@ -733,41 +733,84 @@ all **200** Â· guard negative test exit 1 with the intended message Â·
 
 
 
-## 2026-10-26 — Session M closed: audit fixes + 5-area nav (`38f8f9a`)
+## 2026-10-26 ï¿½ Session M closed: audit fixes + 5-area nav (`38f8f9a`)
 
 **Request (owner):** *"implement the changes you recommended for the supposed bloated
-features and fix issues you found when scanning the codebase"* — audit fixes (track A) plus the
+features and fix issues you found when scanning the codebase"* ï¿½ audit fixes (track A) plus the
 nav/module consolidation (track B). Plan `.ecc/artifacts/005`, validation `010`, verification `011`.
 
-**Shipped** — one commit, pushed (`origin/main == 38f8f9a`):
+**Shipped** ï¿½ one commit, pushed (`origin/main == 38f8f9a`):
 
-- **Secrets** — `check:secrets` now sees Postgres/Redis/Mongo DSNs with an embedded password, Neon
+- **Secrets** ï¿½ `check:secrets` now sees Postgres/Redis/Mongo DSNs with an embedded password, Neon
   `npg_` values, cSMS `csms_` tokens and generic `*SECRET`/`*PASSWORD` assignments; the credential-
   bearing scratch scripts are gone, the tracked demo scripts read `DATABASE_URL` from the env, and
   the `tmp-*`/`*neon*`/`check-users` patterns are gitignored.
-- **API** — prod env validation rejects dev secrets and short `JWT_SECRET`s; token-bucket rate
+- **API** ï¿½ prod env validation rejects dev secrets and short `JWT_SECRET`s; token-bucket rate
   limits on signup/login/otp/refresh; OTP attempts are counted and the challenge burns at 5
   (the cap was unreachable before); `memberNo` allocated under an advisory lock + `MAX()` so
   concurrent creates stop hitting P2002; CORS is an allowlist from `WEB_URL`; 5xx bodies no longer
   echo `exception.message`; both shared secrets compare in constant time.
-- **Web** — nav collapsed to 5 areas (People, Worship, Money, Reach, Organisation) with one tab
+- **Web** ï¿½ nav collapsed to 5 areas (People, Worship, Money, Reach, Organisation) with one tab
   strip rendered from the layout; a Modules tab in Settings turns areas off *and* closes their
   routes; dashboard rebuilt as 3 KPIs + 3 actions with every card permission- and module-gated
   (the ungated "Latest service" card was a back door); `/auth/me` is fetched once per session; the
   API base URL is no longer written to localStorage on every request.
 
-**Gates (final run):** shared build 0 · shared 68/68 · api 55/55 (46 unit + 9 live-DB
-integration) · typecheck 0 · eslint 0 · check:secrets clean · access-smoke `ALL CHECKS PASSED` ·
+**Gates (final run):** shared build 0 ï¿½ shared 68/68 ï¿½ api 55/55 (46 unit + 9 live-DB
+integration) ï¿½ typecheck 0 ï¿½ eslint 0 ï¿½ check:secrets clean ï¿½ access-smoke `ALL CHECKS PASSED` ï¿½
 `next build` 29 routes (26 static, 3 dynamic).
 
-**Verification earned its keep** — three real defects surfaced while writing report 011: a planted
+**Verification earned its keep** ï¿½ three real defects surfaced while writing report 011: a planted
 `SMS_PASSWORD` was invisible to the scanner (`\b` never matches after `_`); `churches.service.ts`
 compared the platform signup key with `!==`; and the first attempt at the two new integration tests
 silently nested them inside another test (caught as 1 failed, fixed to 9/9). Both Session M gaps
-that had been *claimed* unverifiable — the OTP cap and the member-number allocator — are now covered
+that had been *claimed* unverifiable ï¿½ the OTP cap and the member-number allocator ï¿½ are now covered
 by live-Postgres tests.
 
 **Still open:** no browser pass; A7/A8 untested; the integration suite skips silently without a
 `chms_test` database; the secrets scan is manual; the Render-like `next build` guard has never
 fired; **the owner must still rotate the Neon password** and set `NEXT_PUBLIC_API_URL` on
 `chms-web`.
+
+## 2026-10-29 - Session N: owner feedback round 1 (plain language, simple groups, visibility)
+
+**Request (owner):** make the English soft and easy to understand (e.g. "offering" instead of
+"giving"); simplify demographics to only Men, Women and Children but let the church change the
+groups; add financial events like Harvest; remove Worship from the app while keeping every removed
+area switchable back on from Settings; and stop members seeing parts of the app they are not allowed
+to see. Owner said more changes will follow.
+
+**Shipped (uncommitted at session end - awaiting owner confirmation to commit/push):**
+
+- **Modules** - `MODULE_DEFAULTS` in `packages/shared/src/modules.ts` (new, mirrored in
+  `apps/web/src/lib/access.ts`) with **Worship off by default**; `resolveModules`/`moduleEnabled` now
+  fall back to those defaults when a church has no stored key, so existing churches get Worship off
+  but can tick it back on under Settings -> App sections. Shared tests rewritten (68/68).
+- **Simple groups** - seed now creates `Children` (0-12) + `Adults` (13+, split) instead of six age
+  brackets; Settings has "Simple: Children / Men / Women" and "Detailed age groups" presets, plus
+  editable/removable groups and a "+ Add group" row; split segments are labelled exactly Men/Women.
+  `demographics.service.saveBrackets` now deactivates IN_PERSON headcount segments the new group set
+  no longer uses, so switching from detailed to simple stops orphan groups appearing in the counter.
+- **Special money events** - default funds stay the common, recurring ones (Tithe, Offering, Welfare,
+  Building, Missions, First Fruits, Thanksgiving, Harvest). Occasional events â€” church anniversary,
+  seed offering, a named harvest â€” are NOT seeded; Settings -> Offering has one-tap buttons for
+  Church Anniversary / Seed Offering / Harvest / Thanksgiving / First Fruits that skip events the
+  church already has, and any other category can be typed in by hand.
+- **Visibility** - nav and route rules now name the permission that fits each job instead of broad
+  read scopes: USHER no longer sees Groups, Children, Roster, Departments, Branches or Events;
+  LEADER no longer sees Branches; `/branches` needs church/settings write or finance read; MEMBER is
+  redirected to `/portal` at login. Usher Mode still reaches check-in even when Worship is off.
+- **Plain language** - Finance -> Offerings, "By category", "count" wording for cash/cheque, give page
+  -> "Give an offering", "What is this offering for?", "Other ways to give an offering"; portal ->
+  "My offerings", "No offerings recorded yet"; service detail -> "Attendance count"; members table ->
+  "Group"; Settings copy softened throughout.
+
+**Gates (29 Oct):** shared build 0 - shared 68/68 - api 55/55 - typecheck 0 (shared/db/api/worker/web)
+- eslint 0 - `check:secrets` clean - access-smoke `ALL CHECKS PASSED` (rewritten for the new
+array-permission model and Worship default off) - `next build` 29 routes (26 static, 3 dynamic).
+
+**Not done:** no browser pass on the three affected surfaces (Settings groups/presets, public give
+page, member portal); a church that explicitly saved worship: true keeps Worship on (expected -
+resolveModules only applies the new default when the key is absent); role visibility for custom
+roles follows the stored permission preset, so a hand-widened custom role still sees what its
+permissions allow.

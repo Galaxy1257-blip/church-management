@@ -18,25 +18,43 @@ export function permissionsForRoleSeed(key: RoleKey): string[] {
   return key === 'SUPER_ADMIN' ? [SUPER_ADMIN_PERMISSION] : (ROLE_PERMISSIONS[key] as string[]);
 }
 
+// Common, recurring funds every church starts with. Anything else (building,
+// missions, anniversary, seed offering…) is added from Settings → Offering with
+// the + button, so no unused category clutters the offering form.
 export const DEFAULT_FUNDS = [
-  { name: 'Tithe', type: 'TITHE' as const },
   { name: 'Offering', type: 'OFFERING' as const },
+  { name: 'Tithe', type: 'TITHE' as const },
+  { name: 'Mini Harvest', type: 'HARVEST' as const },
+  { name: 'Annual Harvest', type: 'HARVEST' as const },
   { name: 'Welfare', type: 'WELFARE' as const },
-  { name: 'Building', type: 'BUILDING' as const },
-  { name: 'Missions', type: 'MISSIONS' as const },
-  // R4.4 Ghana-typical funds
-  { name: 'First Fruits', type: 'FIRST_FRUIT' as const },
-  { name: 'Thanksgiving', type: 'THANKSGIVING' as const },
-  { name: 'Harvest', type: 'HARVEST' as const },
 ];
 
+/**
+ * Simple attendance groups by default: Sunday School split into Boys and Girls,
+ * and Adults split into Men and Women. A church can rename any group, switch to
+ * detailed age groups, or add its own groups in Settings → Church groups.
+ */
 export const DEFAULT_BRACKETS = [
-  { key: 'TODDLERS', label: 'Nursery & Toddlers', minAge: 0, maxAge: 4, genderSplit: false, segmentKey: 'TODDLERS' },
-  { key: 'CHILDREN', label: 'Children Ministry', minAge: 5, maxAge: 12, genderSplit: false, segmentKey: 'CHILDREN' },
-  { key: 'TEENS', label: 'Teens Chapel', minAge: 13, maxAge: 19, genderSplit: false, segmentKey: 'TEENS' },
-  { key: 'YOUNG_ADULTS', label: 'Young Adults', minAge: 20, maxAge: 35, genderSplit: false, segmentKey: 'YOUNG_ADULTS' },
-  { key: 'ADULTS', label: 'Main Sanctuary Adults', minAge: 36, maxAge: 59, genderSplit: true, segmentKey: 'ADULTS' },
-  { key: 'SENIORS', label: 'Golden Age Fellowship', minAge: 60, maxAge: null, genderSplit: false, segmentKey: 'SENIORS' },
+  {
+    key: 'SUNDAY_SCHOOL',
+    label: 'Sunday School',
+    minAge: 0,
+    maxAge: 12,
+    genderSplit: true,
+    maleLabel: 'Sunday School (Boys)',
+    femaleLabel: 'Sunday School (Girls)',
+    segmentKey: 'SUNDAY_SCHOOL',
+  },
+  {
+    key: 'ADULTS',
+    label: 'Adults',
+    minAge: 13,
+    maxAge: null,
+    genderSplit: true,
+    maleLabel: 'Men',
+    femaleLabel: 'Women',
+    segmentKey: 'ADULTS',
+  },
 ] as const;
 
 /** Online-only extra section (not an age bracket). */

@@ -185,7 +185,10 @@ async function main(): Promise<void> {
   await queues.maintenance.add('reconcile', {}, { repeat: { pattern: '20 2 * * *' }, jobId: 'nightly-reconcile' });
   await queues.maintenance.add('age-promotion', {}, { repeat: { pattern: '35 2 * * *' }, jobId: 'nightly-age-promotion' });
   await queues.maintenance.add('followup-tick', {}, { repeat: { pattern: '*/5 * * * *' }, jobId: 'followup-tick' });
-  await queues.maintenance.add('verse-of-day', {}, { repeat: { pattern: '55 5 * * *' }, jobId: 'verse-of-day' }); // 05:55 UTC = 05:55 Accra
+  // 20:00 UTC = 20:00 Accra (Ghana is UTC+0). Job id is new so the old 05:55
+  // repeat schedule is superseded instead of running both.
+  await queues.maintenance.removeRepeatable('verse-of-day', { pattern: '55 5 * * *' }, 'verse-of-day');
+  await queues.maintenance.add('verse-of-day', {}, { repeat: { pattern: '0 20 * * *' }, jobId: 'verse-of-day-8pm' });
   await queues.maintenance.add('missing-member-scan', {}, { repeat: { pattern: '10 3 * * *' }, jobId: 'missing-member-scan' }); // 03:10 UTC = 03:10 Accra (Ghana is UTC+0)
 
   // Boot reconciliation: rebuild any lost jobs from DB rows.

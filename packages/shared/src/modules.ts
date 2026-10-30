@@ -13,6 +13,19 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 
 export type ModuleFlags = Record<ModuleKey, boolean>;
 
+/**
+ * Areas a new church starts with. Worship is off by default — most churches
+ * only need people, money, reach and organisation — and a church that runs
+ * services can tick it back on in Settings → App sections.
+ */
+export const MODULE_DEFAULTS: ModuleFlags = {
+  people: true,
+  worship: false,
+  money: true,
+  reach: true,
+  org: true,
+};
+
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
   people: { label: 'People', hint: 'Members, visitors, children, groups, care and follow-up' },
   worship: { label: 'Worship', hint: 'Services, check-in, serving roster, media and events' },
@@ -25,11 +38,11 @@ export function isModuleKey(value: unknown): value is ModuleKey {
   return typeof value === 'string' && (MODULE_KEYS as readonly string[]).includes(value);
 }
 
-/** Stored flags merged over "everything on"; unknown/absent keys are enabled. */
+/** Stored flags merged over the defaults; unknown/absent keys use MODULE_DEFAULTS. */
 export function resolveModules(settings: unknown): ModuleFlags {
   const stored = ((settings ?? {}) as { modules?: unknown }).modules;
   const raw = stored && typeof stored === 'object' ? (stored as Record<string, unknown>) : {};
   const flags = {} as ModuleFlags;
-  for (const key of MODULE_KEYS) flags[key] = raw[key] !== false;
+  for (const key of MODULE_KEYS) flags[key] = raw[key] === undefined ? MODULE_DEFAULTS[key] : raw[key] !== false;
   return flags;
 }

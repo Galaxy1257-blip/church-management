@@ -1,12 +1,21 @@
 'use client';
 // Pastoral care: prayer wall (moderated), counseling (encrypted server-side),
-// welfare requests.
+// welfare requests. Any name opens the shared member drawer (contact + location).
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import MemberDrawer from '../../../components/member-drawer';
 
 interface Prayer { id: string; body: string; isAnonymous: boolean; moderation: string; status: string }
-interface Welfare { id: string; category: string; amountRequestedMinor: number | null; status: string }
-interface CareTask { id: string; type: string; status: string; note: string | null; dueAt: string; memberId?: string | null }
+interface Welfare { id: string; category: string; amountRequestedMinor: number | null; status: string; memberId: string; member?: { firstName: string; lastName: string } | null }
+interface CareTask {
+  id: string;
+  type: string;
+  status: string;
+  note: string | null;
+  dueAt: string;
+  memberId?: string | null;
+  member?: { id: string; firstName: string; lastName: string; phoneE164: string | null; address: string | null } | null;
+}
 
 export default function CarePage() {
   const [prayers, setPrayers] = useState<Prayer[]>([]);
@@ -17,6 +26,7 @@ export default function CarePage() {
   const [welfareForm, setWelfareForm] = useState({ memberId: '', category: 'MEDICAL', description: '', amount: '' });
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
   async function load(): Promise<void> {
     try {
@@ -68,8 +78,8 @@ export default function CarePage() {
                 <span className={`badge ${p.moderation === 'APPROVED' ? 'ok' : 'warn'}`}>{p.moderation}</span>
                 {p.moderation === 'PENDING' ? (
                   <span className="row">
-                    <button className="sm" onClick={() => void moderate(p.id, true)}>Approve</button>
-                    <button className="sm danger" onClick={() => void moderate(p.id, false)}>Reject</button>
+                    <button className="small" onClick={() => void moderate(p.id, true)}>Approve</button>
+                    <button className="small danger" onClick={() => void moderate(p.id, false)}>Reject</button>
                   </span>
                 ) : null}
               </div>
@@ -88,16 +98,23 @@ export default function CarePage() {
             <input placeholder="Amount requested GHS" value={welfareForm.amount} onChange={(e) => setWelfareForm({ ...welfareForm, amount: e.target.value })} inputMode="decimal" />
             <button>Submit request</button>
           </form>
-          <table><thead><tr><th>Category</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+          <table><thead><tr><th>Member</th><th>Category</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>
             {welfare.map((w) => (
               <tr key={w.id}>
+                <td>
+                  {w.member ? (
+                    <button type="button" className="link-button" onClick={() => setOpenMemberId(w.memberId)}>
+                      {w.member.firstName} {w.member.lastName}
+                    </button>
+                  ) : <span className="muted">—</span>}
+                </td>
                 <td>{w.category}</td>
                 <td>{w.amountRequestedMinor != null ? ghsLocal(w.amountRequestedMinor) : '—'}</td>
                 <td><span className={`badge ${w.status === 'APPROVED' ? 'ok' : w.status === 'DECLINED' ? 'err' : 'warn'}`}>{w.status}</span></td>
                 <td className="row">
                   {w.status === 'SUBMITTED' ? (<>
-                    <button className="sm" onClick={() => void api(`/welfare/${w.id}/decide`, { method: 'POST', body: { status: 'APPROVED' } }).then(load)}>Approve</button>
-                    <button className="sm danger" onClick={() => void api(`/welfare/${w.id}/decide`, { method: 'POST', body: { status: 'DECLINED' } }).then(load)}>Decline</button>
+                    <button className="small" onClick={() => void api(`/welfare/${w.id}/decide`, { method: 'POST', body: { status: 'APPROVED' } }).then(load)}>Approve</button>
+                    <button className="small danger" onClick={() => void api(`/welfare/${w.id}/decide`, { method: 'POST', body: { status: 'DECLINED' } }).then(load)}>Decline</button>
                   </>) : null}
                 </td>
               </tr>
@@ -107,8 +124,8 @@ export default function CarePage() {
       </div>
 
       <div className="card">
-        <h2>Care queue (R4.9 — visits &amp; follow-ups)</h2>
-        <p className="muted">Missing-member alerts land here automatically (nightly). Log hospital/bereavement/home visits and funeral support, then work them OPEN → IN PROGRESS → DONE.</p>
+        <h2>Visits &amp; follow-ups</h2>
+        <p className="muted">People who missed church and visits to log (hospital, bereavement, home). Open a name to see their phone and where they live.</p>
         <form className="stack" onSubmit={async (e) => {
           e.preventDefault();
           try {
@@ -133,11 +150,25 @@ export default function CarePage() {
         {tasks.slice(0, 50).map((t) => (
           <div className="spread" key={t.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
             <div>
-              <span className="badge mute">{t.type}</span> {t.note ?? <span className="muted">no note</span>}
-              <div className="muted">due {new Date(t.dueAt).toLocaleDateString()}</div>
+              <span className="badge mute">{t.type.replace(/_/g, ' ').toLowerCase()}</span>{' '}
+              {t.memberId ? (
+                <button type="button" className="link-button" onClick={() => setOpenMemberId(t.memberId!)}>
+                  {t.member ? `${t.member.firstName} ${t.member.lastName}` : 'Open member'}
+                </button>
+              ) : (
+                <span className="muted">no member attached</span>
+              )}
+              <div className="muted">{t.note ?? <span>no note</span>} · due {new Date(t.dueAt).toLocaleDateString()}</div>
+              {t.member?.phoneE164 || t.member?.address ? (
+                <div className="muted" style={{ fontSize: '0.8rem' }}>
+                  {t.member.phoneE164 ?? ''}
+                  {t.member.phoneE164 && t.member.address ? ' · ' : ''}
+                  {t.member.address ?? ''}
+                </div>
+              ) : null}
             </div>
             <div className="row">
-              <span className={`badge ${t.status === 'DONE' ? 'ok' : t.status === 'CANCELLED' ? 'mute' : 'warn'}`}>{t.status}</span>
+              <span className={`badge ${t.status === 'DONE' ? 'ok' : t.status === 'CANCELLED' ? 'mute' : 'warn'}`}>{t.status.replace(/_/g, ' ').toLowerCase()}</span>
               {t.status === 'OPEN' ? <button className="small" onClick={() => void api(`/tasks/${t.id}`, { method: 'POST', body: { status: 'IN_PROGRESS' } }).then(load)}>Start</button> : null}
               {t.status === 'OPEN' || t.status === 'IN_PROGRESS' ? <button className="small" onClick={() => void api(`/tasks/${t.id}`, { method: 'POST', body: { status: 'DONE' } }).then(load)}>Done</button> : null}
             </div>
@@ -145,6 +176,7 @@ export default function CarePage() {
         ))}
         {tasks.length === 0 ? <p className="muted">Queue is empty.</p> : null}
       </div>
+      {openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>
   );
 }

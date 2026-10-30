@@ -42,7 +42,14 @@ export default function LoginPage() {
 
   async function finishLogin(tokens: Tokens): Promise<void> {
     setTokens(tokens);
-    router.replace('/dashboard');
+    // Members hold no staff permissions: send them to the member portal before
+    // the staff shell can render anything at all.
+    try {
+      const me = await api<{ permissions: string[] }>('/auth/me');
+      router.replace(me.permissions.length > 0 ? '/dashboard' : '/portal');
+    } catch {
+      router.replace('/dashboard');
+    }
   }
 
   async function onSubmit(e: FormEvent): Promise<void> {

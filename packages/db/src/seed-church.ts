@@ -72,6 +72,8 @@ export async function seedChurchDefaults(churchId: string, actorId: string | nul
             minAge: b.minAge,
             maxAge: b.maxAge,
             genderSplit: b.genderSplit,
+            maleLabel: b.maleLabel ?? null,
+            femaleLabel: b.femaleLabel ?? null,
             segmentKey: b.segmentKey,
             sortOrder,
           },
@@ -79,8 +81,8 @@ export async function seedChurchDefaults(churchId: string, actorId: string | nul
       }
       const segs = b.genderSplit
         ? [
-            { key: `${b.segmentKey}_M`, label: `${b.label} (Men)`, kind: 'IN_PERSON' as const },
-            { key: `${b.segmentKey}_W`, label: `${b.label} (Women)`, kind: 'IN_PERSON' as const },
+            { key: `${b.segmentKey}_M`, label: b.maleLabel ?? 'Men', kind: 'IN_PERSON' as const },
+            { key: `${b.segmentKey}_W`, label: b.femaleLabel ?? 'Women', kind: 'IN_PERSON' as const },
           ]
         : [{ key: b.segmentKey, label: b.label, kind: 'IN_PERSON' as const }];
       for (const s of segs) {

@@ -90,6 +90,11 @@ C:\Users\HP\Desktop\church\
 - **Session J delta**: Ewe bundled (66/66, 31,137v) + /bible fixes (`DATA_DIR` off-by-one,
   default translation = kjv, `ewe`+`twi-asante` pd=false) — BibleService dist sim ✓.
 
+- **Session N delta (29 Oct, uncommitted):** shared build ✓ · shared **68/68** · api **55/55** ·
+  typecheck 0 (shared/db/api/worker/web) · eslint 0 · check:secrets clean · access-smoke
+  **ALL CHECKS PASSED** (rewritten for array permissions + Worship default off) · `next build` 29 routes.
+  No browser pass on the changed surfaces yet.
+
 ## 5. Milestones (detail per session in LOGS.md)
 - **A (21 Oct overnight)**: Phase 0 + Phase 1 core complete — monorepo, schema+FORCE-RLS+hash-chained audit,
   withTenant, auth (password+OTP+refresh rotation), RBAC default-deny+boot check, members+CSV import,
@@ -136,10 +141,16 @@ C:\Users\HP\Desktop\church\
    Settings→SMS gateway + confirm body fields; Paystack sandbox keys → flip PAYSTACK_MODE; WEB
    translation needs a *reachable* PD source (do NOT retry bible-api.com from this network).
    (`npm run db:verify` ✅ cleared 22 Oct — no longer a gate.)
-3. **Known gaps:** no staff-user/roles admin screen (roles exist in seed+presets only); milestone
+3. **Owner feedback round 1 — code-complete 29 Oct (Session N, uncommitted).** Plain English
+   ("offering"), simple Children/Men/Women groups with a Settings switch to detailed groups and
+   custom groups, occasional money events (anniversary, seed offering, Harvest…) added from
+   Settings → Offering on demand rather than seeded for every church, Worship off by default and
+   switchable back on in Settings → App sections, and per-role visibility tightened
+   (USHER/LEADER/FINANCE_ADMIN/MEMBER audited; MEMBER goes to /portal). Owner will add more items.
+4. **Known gaps:** no staff-user/roles admin screen (roles exist in seed+presets only); milestone
    dates capturable via API but no dedicated member-detail UI yet; API smoke boot not re-run this
    session (typecheck+build only); `npm run test -w @chms/worker` reports "no test files" (pre-existing).
-4. **Ghana-language Bibles — ✅ DONE through Session I**: six bundles live in `apps/api/data/bible/`
+5. **Ghana-language Bibles — ✅ DONE through Session I**: six bundles live in `apps/api/data/bible/`
    (kjv, asv, twi, twi-asante, ga, fante — all 66 books/1,189 chapters), auto-listed by `/bible`.
    Tools: `scripts/extract-apk-bible.mjs` (APK **and XAPK**; `--mobobi` decrypts the mobobi AES
    scheme — key `nv93h50sk1zh508v`, zero IV, 3 layers, recovered via dexdump), 

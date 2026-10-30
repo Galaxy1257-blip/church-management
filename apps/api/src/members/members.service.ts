@@ -11,6 +11,7 @@ import {
 } from '@chms/shared';
 import { TenantService } from '../common/tenant';
 import { allocateMemberNo } from '../common/member-no';
+import { normalizePhotoDataUrl } from '../common/photo';
 import { AuthUser } from '../common/guards';
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -33,6 +34,19 @@ export interface CreateMemberInput {
   ageBracketId?: string; // manual override
   joinedAt?: string;
   smsConsent?: boolean;
+  address?: string | null;
+  photoDataUrl?: string | null;
+  /** Groups this person joins at onboarding (or afterwards). */
+  groupIds?: string[];
+}
+
+/** Guard: only groups owned by this church may be attached to a member. */
+async function validGroupIds(tx: Db, churchId: string, ids: string[] | undefined): Promise<string[]> {
+  if (!ids?.length) return [];
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const rows = await tx.group.findMany({ where: { churchId, id: { in: unique } }, select: { id: true } });
+  return rows.map((r) => r.id);
 }
 
 /** Explicit bracket id wins; else dob -> age -> configured bracket. */
@@ -94,16 +108,65 @@ export class MembersService {
     });
   }
 
-  async getOne(user: AuthUser, id: string) {
+  /**
+   * Everything the member drawer shows: contact + location, photo, group
+   * memberships (with their leaders), last check-in and open care tasks.
+   */
+  getOne(user: AuthUser, id: string) {
     return this.tenant.run(user, async (tx) => {
       const m = await tx.member.findFirst({ where: { id, churchId: user.churchId, deletedAt: null } });
       if (!m) throw new NotFoundException('member not found');
-      return m;
+      const [bracket, groups, lastAttendance, careTasks, notices] = await Promise.all([
+        m.ageBracketId ? tx.ageBracket.findFirst({ where: { id: m.ageBracketId, churchId: user.churchId } }) : null,
+        tx.groupMember.findMany({ where: { memberId: id }, include: { group: true } }),
+        tx.attendance.findFirst({ where: { churchId: user.churchId, memberId: id }, orderBy: { checkedInAt: 'desc' } }),
+        tx.careTask.findMany({
+          where: { churchId: user.churchId, memberId: id, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          orderBy: { dueAt: 'asc' },
+          take: 10,
+        }),
+        tx.announcement.findMany({
+          where: { churchId: user.churchId, memberId: id },
+          orderBy: { publishAt: 'desc' },
+          take: 5,
+          select: { id: true, title: true, body: true, category: true, publishAt: true, photoDataUrl: true },
+        }),
+      ]);
+      const leaderIds = [...new Set(groups.map((g) => g.group.leaderId).filter((v): v is string => Boolean(v)))];
+      const leaders = leaderIds.length
+        ? await tx.member.findMany({
+            where: { churchId: user.churchId, id: { in: leaderIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+      const leaderById = new Map(leaders.map((l) => [l.id, `${l.firstName} ${l.lastName}`]));
+      const ageSegment = bracket
+        ? bracket.genderSplit && (m.gender === 'MALE' || m.gender === 'FEMALE')
+          ? (m.gender === 'MALE' ? bracket.maleLabel : bracket.femaleLabel) ?? bracket.label
+          : bracket.label
+        : null;
+      return {
+        ...m,
+        ageSegment,
+        ageBracket: bracket,
+        lastCheckIn: lastAttendance?.checkedInAt ?? null,
+        groups: groups.map((g) => ({
+          id: g.group.id,
+          name: g.group.name,
+          type: g.group.type,
+          role: g.role,
+          leaderId: g.group.leaderId,
+          leaderName: g.group.leaderId ? leaderById.get(g.group.leaderId) ?? null : null,
+        })),
+        careTasks,
+        announcements: notices,
+      };
     });
   }
 
   async create(user: AuthUser, input: CreateMemberInput, ip?: string) {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : null;
+    const photo = normalizePhotoDataUrl(input.photoDataUrl);
     return this.tenant.run(user, async (tx) => {
       // Staff-typed numbers are kept; otherwise allocate under the per-church
       // lock (see common/member-no.ts for why count()+1 was wrong).
@@ -123,15 +186,24 @@ export class MembersService {
           joinedAt: input.joinedAt ? new Date(input.joinedAt) : new Date(),
           smsConsent: input.smsConsent ?? true,
           smsConsentAt: input.smsConsent === false ? null : new Date(),
+          address: input.address?.trim() || null,
+          ...(photo ? { photoDataUrl: photo } : {}),
         },
       });
+      const groupIds = await validGroupIds(tx, user.churchId, input.groupIds);
+      if (groupIds.length) {
+        await tx.groupMember.createMany({
+          data: groupIds.map((groupId) => ({ groupId, memberId: m.id, role: 'MEMBER' })),
+          skipDuplicates: true,
+        });
+      }
       await appendAudit(tx, {
         churchId: user.churchId,
         actorId: user.userId,
         action: 'member.create',
         entity: 'Member',
         entityId: m.id,
-        after: m,
+        after: { ...m, groupIds },
         ip,
       });
       return m;
@@ -145,6 +217,7 @@ export class MembersService {
     ip?: string,
   ) {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : undefined;
+    const photo = normalizePhotoDataUrl(input.photoDataUrl);
     return this.tenant.run(user, async (tx) => {
       const existing = await tx.member.findFirst({ where: { id, churchId: user.churchId, deletedAt: null } });
       if (!existing) throw new NotFoundException('member not found');
@@ -167,6 +240,8 @@ export class MembersService {
           ...(phone !== undefined ? { phoneE164: phone } : {}),
           ...(input.email !== undefined ? { email: input.email || null } : {}),
           ...(input.gender !== undefined ? { gender: input.gender } : {}),
+          ...(input.address !== undefined ? { address: input.address?.trim() || null } : {}),
+          ...(photo !== undefined ? { photoDataUrl: photo } : {}),
           ...bracketPatch,
           ...(input.status !== undefined ? { status: input.status } : {}),
           ...(input.smsConsent !== undefined
@@ -174,6 +249,16 @@ export class MembersService {
             : {}),
         },
       });
+      if (input.groupIds !== undefined) {
+        const groupIds = await validGroupIds(tx, user.churchId, input.groupIds);
+        await tx.groupMember.deleteMany({ where: { memberId: id, groupId: { notIn: groupIds } } });
+        if (groupIds.length) {
+          await tx.groupMember.createMany({
+            data: groupIds.map((groupId) => ({ groupId, memberId: id, role: 'MEMBER' })),
+            skipDuplicates: true,
+          });
+        }
+      }
       await appendAudit(tx, {
         churchId: user.churchId,
         actorId: user.userId,

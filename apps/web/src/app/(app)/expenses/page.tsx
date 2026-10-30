@@ -72,8 +72,8 @@ export default function ExpensesPage() {
               <td><span className={`badge ${x.status === 'APPROVED' ? 'ok' : x.status === 'REJECTED' ? 'err' : 'warn'}`}>{x.status}</span></td>
               <td className="row">
                 {x.status === 'SUBMITTED' ? (<>
-                  <button className="sm" onClick={() => void decide(x.id, true)}>Approve</button>
-                  <button className="sm danger" onClick={() => void decide(x.id, false)}>Reject</button>
+                  <button className="small" onClick={() => void decide(x.id, true)}>Approve</button>
+                  <button className="small danger" onClick={() => void decide(x.id, false)}>Reject</button>
                 </>) : null}
               </td>
             </tr>

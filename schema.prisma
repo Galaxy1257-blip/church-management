@@ -226,6 +226,8 @@ model AgeBracket {
   minAge       Int // inclusive
   maxAge       Int? // inclusive; null = open-ended
   genderSplit  Boolean  @default(false) // adults split into Men/Women sections
+  maleLabel    String? // split segment label, e.g. "Sunday School (Boys)"; null = "Men"
+  femaleLabel  String? // split segment label, e.g. "Sunday School (Girls)"; null = "Women"
   segmentKey   String // headcount section key (ADULTS -> ADULTS_M/ADULTS_W when genderSplit)
   ministryNote String? // "Youth fellowship" — free-text affiliation shown on profiles
   sortOrder    Int      @default(0)
@@ -394,6 +396,7 @@ model Member {
   qrIssuedAt       DateTime?
   externalId       String?
   photoKey         String?
+  photoDataUrl     String?        @db.Text // small profile photo as a data URL (~200KB cap)
   // R4.8 spiritual milestones + R4.12 discipleship pathway
   salvationDate    DateTime?      @db.Date
   baptismDate      DateTime?      @db.Date
@@ -1138,6 +1141,8 @@ model Announcement {
   title     String
   body      String
   category  String    @default("GENERAL") // GENERAL|FUNERAL|OUTDOORING|EVENT|ALERT
+  memberId  String?   @db.Uuid // the member this notice is about (funeral, outdooring…)
+  photoDataUrl String? @db.Text // photo shown with the notice (e.g. the deceased)
   audience  Json
   channels  String[] // INAPP, PUSH, SMS, WHATSAPP
   publishAt DateTime  @default(now())

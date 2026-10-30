@@ -63,7 +63,7 @@ export default function CampaignsPage() {
           return (
             <div key={c.id} style={{ marginBottom: 10 }}>
               <div className="spread"><strong>{c.name}</strong><span className="muted">{ghs(c.raisedMinor)} / {ghs(c.goalMinor)} · pledged {ghs(c.pledgedMinor)}</span></div>
-              <div style={{ background: '#e8edf2', borderRadius: 8, height: 12, marginTop: 4 }}>
+              <div style={{ background: 'var(--bg-soft)', borderRadius: 8, height: 12, marginTop: 4 }}>
                 <div style={{ width: `${pct}%`, background: 'var(--accent)', height: '100%', borderRadius: 8 }} />
               </div>
             </div>

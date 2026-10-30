@@ -1,7 +1,7 @@
-// Verse-of-the-day SMS (R2): daily devotional to opted-in active members.
-// Opt-out respected (source ANNOUNCEMENT is blocking); idempotent per member
-// per day (vod:{church}:{yyyymmdd}:{memberId}); configured per church in
-// Church.settings.devotional = { enabled, translation, verse }.
+// Verse-of-the-day SMS (R2): runs every day at 20:00 (8pm Accra) and sends to
+// opted-in active members. Opt-out respected (source ANNOUNCEMENT is blocking);
+// idempotent per member per day (vod:{church}:{yyyymmdd}:{memberId}); configured
+// per church in Church.settings.devotional = { enabled, translation, verse }.
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { withTenant, platformPrisma as prisma } from '@chms/db';

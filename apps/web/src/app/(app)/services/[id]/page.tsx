@@ -173,7 +173,7 @@ export default function ServiceDetailPage() {
 
       <div className="card">
         <div className="spread">
-          <h2 style={{ margin: 0 }}>Headcount</h2>
+          <h2 style={{ margin: 0 }}>Attendance count</h2>
           <div className="row">
             <span className={`badge ${offline ? 'warn' : 'ok'}`}>{offline ? 'OFFLINE — counting' : 'online'}</span>
             <span className="badge mute">{pending} unsynced</span>
@@ -183,8 +183,8 @@ export default function ServiceDetailPage() {
           </div>
         </div>
         <p className="muted">
-          Tap +/− or <strong>type a number directly</strong> (then press Enter) — every change queues
-          events on this device; sync replays them. Airplane mode is safe — nothing is lost.
+          Tap +/− or <strong>type a number directly</strong> (then press Enter). Every change is saved on this
+          phone and sent when you have network again — airplane mode is safe.
         </p>
         <div style={{ marginTop: '0.5rem' }}>
           {segments.map((s) => (

@@ -2,6 +2,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
+import { fileToPhotoDataUrl } from '../../../lib/photo';
+import MemberDrawer from '../../../components/member-drawer';
 
 interface Member {
   id: string;
@@ -14,6 +16,8 @@ interface Member {
   joinedAt: string | null;
   discipleshipStage?: string | null;
 }
+
+interface GroupOption { id: string; name: string; _count?: { members: number } }
 
 interface ImportPreview {
   totalRows: number;
@@ -40,7 +44,11 @@ export default function MembersPage() {
   const [csvText, setCsvText] = useState('');
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [notice, setNotice] = useState('');
-  const [form, setForm] = useState({ firstName: '', lastName: '', phoneE164: '', dob: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', phoneE164: '', dob: '', gender: '', address: '' });
+  const [formGroups, setFormGroups] = useState<string[]>([]);
+  const [formPhoto, setFormPhoto] = useState('');
+  const [groupOptions, setGroupOptions] = useState<GroupOption[]>([]);
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const [brackets, setBrackets] = useState<{ id: string; label: string }[]>([]);
   const [counts, setCounts] = useState<{ ageBracketId: string | null; count: number }[]>([]);
   const [bracketFilter, setBracketFilter] = useState('');
@@ -98,18 +106,43 @@ export default function MembersPage() {
     void api<{ id: string; label: string; isActive?: boolean }[]>('/demographics/brackets').then((b) => setBrackets(b.filter((x) => x.isActive !== false))).catch(() => undefined);
     void api<{ ageBracketId: string | null; count: number }[]>('/demographics/counts').then(setCounts).catch(() => undefined);
     refreshStages();
+    void api<GroupOption[]>('/groups').then(setGroupOptions).catch(() => undefined);
   }, [members.length]);
 
   async function addMember(e: FormEvent): Promise<void> {
     e.preventDefault();
     try {
-      await api('/members', { method: 'POST', body: form });
-      setNotice(`Added ${form.firstName} ${form.lastName}`);
+      await api('/members', {
+        method: 'POST',
+        body: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phoneE164: form.phoneE164 || undefined,
+          dob: form.dob || undefined,
+          gender: form.gender || undefined,
+          address: form.address || undefined,
+          photoDataUrl: formPhoto || undefined,
+          groupIds: formGroups,
+        },
+      });
+      setNotice(`Added ${form.firstName} ${form.lastName}${formGroups.length ? ` — joined ${formGroups.length} group${formGroups.length === 1 ? '' : 's'}` : ''}`);
       setShowAdd(false);
-      setForm({ firstName: '', lastName: '', phoneE164: '', dob: '' });
+      setForm({ firstName: '', lastName: '', phoneE164: '', dob: '', gender: '', address: '' });
+      setFormGroups([]);
+      setFormPhoto('');
       await load(q);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed to add');
+    }
+  }
+
+  async function pickPhoto(file: File | undefined): Promise<void> {
+    if (!file) return;
+    try {
+      setFormPhoto(await fileToPhotoDataUrl(file));
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not read photo');
     }
   }
 
@@ -168,12 +201,12 @@ export default function MembersPage() {
   const countFor = (id: string | null) => counts.find((c) => c.ageBracketId === id)?.count ?? 0;
   return (
     <div>
-      <div className="spread">
+      <div className="page-head">
         <h1>Members ({total})</h1>
-        <div className="row">
-          <button className="secondary" onClick={() => void runPromotions()}>🎉 Age promotions</button>
-          <button className="secondary" onClick={() => setShowAdd((v) => !v)}>+ Add</button>
-          <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import CSV</button>
+        <div className="head-actions">
+          <button className="secondary" onClick={() => void runPromotions()}>Update age groups</button>
+          <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import list</button>
+          <button onClick={() => setShowAdd((v) => !v)}>+ Add member</button>
         </div>
       </div>
 
@@ -194,7 +227,7 @@ export default function MembersPage() {
         </div>
       ) : null}
 
-      <div className="row" style={{ marginBottom: '0.6rem' }}>
+      <div className="chip-scroll" style={{ marginBottom: '0.6rem' }}>
         <button className={`small ${bracketFilter === '' ? '' : 'secondary'}`} onClick={() => setBracketFilter('')}>
           All Ages ({countFor(null) + brackets.reduce((a, b) => a + countFor(b.id), 0)})
         </button>
@@ -210,7 +243,7 @@ export default function MembersPage() {
       </div>
 
       {stageReport ? (
-        <div className="row" style={{ marginBottom: '0.6rem' }}>
+        <div className="chip-scroll" style={{ marginBottom: '0.6rem' }}>
           <span className="muted" style={{ marginRight: 6 }}>Pathway:</span>
           {stageReport.byStage.map((s) => (
             <span key={s.stage} className="badge mute">{s.stage.replace('_', ' ')} {s.count}</span>
@@ -238,13 +271,55 @@ export default function MembersPage() {
             <div className="row">
               <label style={{ flex: 1 }}>
                 Phone
-                <input value={form.phoneE164} onChange={(e) => setForm({ ...form, phoneE164: e.target.value })} />
+                <input value={form.phoneE164} onChange={(e) => setForm({ ...form, phoneE164: e.target.value })} inputMode="tel" />
               </label>
               <label>
-                Date of birth (drives ministry bracket)
+                Date of birth (drives age group)
                 <input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
               </label>
+              <label>
+                Gender
+                <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+                  <option value="">—</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                </select>
+              </label>
             </div>
+            <label>
+              Where they live
+              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="e.g. Adenta, House 12" />
+            </label>
+            <label>
+              Photo (optional)
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
+            </label>
+            {formPhoto ? (
+              <div className="row">
+                <img className="avatar avatar-lg" src={formPhoto} alt="Chosen photo" />
+                <button type="button" className="small secondary" onClick={() => setFormPhoto('')}>Remove photo</button>
+              </div>
+            ) : null}
+            {groupOptions.length ? (
+              <div>
+                <div className="muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>Add to groups now (optional)</div>
+                <div className="chip-scroll">
+                  {groupOptions.map((g) => (
+                    <label key={g.id} className="badge mute" style={{ cursor: 'pointer', gap: 4, flexDirection: 'row', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={formGroups.includes(g.id)}
+                        onChange={(e) =>
+                          setFormGroups(e.target.checked ? [...formGroups, g.id] : formGroups.filter((id) => id !== g.id))
+                        }
+                        style={{ width: 'auto' }}
+                      />
+                      {g.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <button>Save member</button>
           </form>
         </div>
@@ -296,7 +371,7 @@ export default function MembersPage() {
               <th>No.</th>
               <th>Name</th>
               <th>Phone</th>
-              <th>Segment</th>
+              <th>Group</th>
               <th>Joined</th>
               <th>Stage</th>
               <th>Status</th>
@@ -307,7 +382,9 @@ export default function MembersPage() {
               <tr key={m.id}>
                 <td>{m.memberNo}</td>
                 <td>
-                  {m.firstName} {m.lastName}{' '}
+                  <button type="button" className="link-button" onClick={() => setOpenMemberId(m.id)}>
+                    {m.firstName} {m.lastName}
+                  </button>{' '}
                   <button className="small secondary" title="Export this member's data (Act 843)" onClick={() => void exportMember(m)}>⤓</button>
                 </td>
                 <td>{m.phoneE164 ?? '—'}</td>
@@ -328,6 +405,7 @@ export default function MembersPage() {
         </table>
         {members.length === 0 ? <p className="muted">No members found.</p> : null}
       </div>
+      {openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>
   );
 }

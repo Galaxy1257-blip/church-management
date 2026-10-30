@@ -219,3 +219,23 @@ read `process.env.DATABASE_URL` and refuse to run without it, `.gitignore` block
 `*neon*` / `check-users.cjs` files, and `check-secrets.mjs` finally detects credentialed DSNs (it could not
 see this one). Rotation is still the owner's action; **history does not need rewriting** — re-verified:
 `git grep -l npg_ HEAD` is empty and none of the three commits carrying it is an ancestor of `origin/main`.
+
+## Session N (29 Oct 2026) - owner feedback round 1, gates green, NOT committed
+
+Scope: plain language ("offering"), simple Children/Men/Women groups with Settings presets and
+custom groups, occasional money events (anniversary/seed/Harvest) added on demand from Settings
+rather than seeded, Worship off by default + re-enableable in Settings, and per-role visibility
+tightened.
+
+Evidence (run 29 Oct): shared build 0; shared 68/68; api 55/55; typecheck 0 across
+shared/db/api/worker/web; eslint 0; check:secrets clean; `.ecc/access-smoke.mts` ALL CHECKS PASSED
+(now reads `NavItem.permissions[]` and asserts Worship defaults off but can be switched on);
+`next build` 29 routes. No browser pass on Settings groups, the public give page or the portal.
+
+Visibility model now: each nav item / route names the permission that fits the job (USHER keeps
+check-in + attendance + visitors only; LEADER loses Departments/Branches; FINANCE_ADMIN keeps
+Offerings/Branches but not Settings; MEMBER redirects to /portal). Usher Mode bypasses the Worship
+switch so check-in is still reachable when the area is off.
+
+Pending owner confirmation: commit + push this unit (docs updated in LOGS.md, BUILD_ORDER R5,
+STATE.md 4/6).

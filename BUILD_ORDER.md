@@ -153,7 +153,19 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
 - [x] R4.12 **Discipleship pathway tracker** — stages (visitor → new believer → member → worker → leader),
       per-member progress, stage report (ties to brackets/drip already built)
 
-## R5. Backlog (evaluate after a pilot church uses R4 — do not build speculatively)
+## R5. Owner feedback round 1 (29 Oct 2026 — plain language + visibility)
+- [x] Plain English: "Offering" instead of "Giving" across nav, finance, public give page and portal
+- [x] Simple groups by default: Children / Men / Women, switchable to detailed age groups in Settings
+- [x] Churches can rename, remove and add their own groups; unused headcount segments are deactivated
+- [x] Money events: common recurring categories stay as defaults (Tithe, Offering, Welfare, Building,
+      Missions, First Fruits, Thanksgiving, Harvest); occasional events (Church Anniversary, Seed
+      Offering, a named harvest) are one-tap adds in Settings → Offering, not seeded defaults
+- [x] Worship switched off by default and re-enableable from Settings → App sections
+- [x] Per-role visibility: nav and routes require the permission that fits the job (USHER, LEADER,
+      FINANCE_ADMIN, MEMBER audited); MEMBER lands on /portal
+- [ ] Owner follow-ups ("I will add others") — awaiting the next list
+
+## R6. Backlog (evaluate after a pilot church uses R4 — do not build speculatively)
 - Budget vs actuals + council export (expense ledger exists; budget module new)
 - Asset/inventory register + check-out; facility booking; leadership meeting minutes
 - Spiritual gifts/skills survey feeding rosters

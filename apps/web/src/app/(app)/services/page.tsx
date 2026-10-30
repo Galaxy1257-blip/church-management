@@ -53,9 +53,11 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <div className="spread">
+      <div className="page-head">
         <h1>Services</h1>
-        <button onClick={() => setShowCreate((v) => !v)}>+ Create</button>
+        <div className="head-actions">
+          <button onClick={() => setShowCreate((v) => !v)}>+ Create service</button>
+        </div>
       </div>
       {error ? <div className="error">{error}</div> : null}
 

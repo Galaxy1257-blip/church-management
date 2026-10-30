@@ -60,7 +60,8 @@ export function describeRoles(roles: readonly string[]): string {
 export interface NavItem {
   href: string;
   label: string;
-  permission: Permission;
+  /** Any one of these permissions opens the page (and shows the link). */
+  permissions: Permission[];
 }
 
 export interface NavGroup {
@@ -69,11 +70,9 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-
-// One app, five areas. The top bar shows Home + the five areas + Settings, and
-// each area renders its own tab strip (components/area-tabs.tsx). That keeps all
-// ~18 screens reachable while the top-level nav stays 7 destinations instead of
-// 20 — the bloat complaint — and no route had to be deleted.
+// One app, five areas. The sidebar lists every permitted page once, grouped by
+// area (components/app-nav.tsx); usher mode swaps it for a labelled rail and
+// phones get the same list as a drawer. No route was deleted to get there.
 //
 // Mirrors packages/shared/src/modules.ts (this app does not import the workspace
 // package; the access smoke test is what catches drift).
@@ -81,56 +80,68 @@ export const MODULE_KEYS = ['people', 'worship', 'money', 'reach', 'org'] as con
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
 
+/** Must match packages/shared MODULE_DEFAULTS. Worship starts switched off. */
+export const MODULE_DEFAULTS: Record<ModuleKey, boolean> = {
+  people: true,
+  worship: false,
+  money: true,
+  reach: true,
+  org: true,
+};
+
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
   people: { label: 'People', hint: 'Members, visitors, children, groups, care and follow-up' },
-  worship: { label: 'Worship', hint: 'Services, check-in, serving roster, media and events' },
-  money: { label: 'Money', hint: 'Giving, funds, expenses and finance reports' },
+  worship: { label: 'Worship', hint: 'Services, check-in, serving team, media and events' },
+  money: { label: 'Money', hint: 'Offerings, special events, expenses and money reports' },
   reach: { label: 'Reach', hint: 'SMS campaigns and announcements' },
-  org: { label: 'Organisation', hint: 'Departments, branches and HQ remittances' },
+  org: { label: 'Organisation', hint: 'Departments, branches and money sent to HQ' },
 };
 
 export interface NavArea {
-  /** Which church-level switch hides this whole area (Settings → Modules). */
+  /** Which church-level switch hides this whole area (Settings → App sections). */
   module: ModuleKey;
   label: string;
   hint: string;
   items: NavItem[];
 }
 
+// Each link names the permission that actually fits the job. Broad read
+// permissions (services:read, church:read) are not enough on their own: an usher
+// can count attendance without also seeing groups, events or HQ departments.
 export const NAV_AREAS: NavArea[] = [
   {
     module: 'people',
     label: 'People',
     hint: 'Members, visitors, children, groups, care and follow-up',
     items: [
-      { href: '/members', label: 'Members', permission: 'members:read' },
-      { href: '/visitors', label: 'Visitors', permission: 'visitors:read' },
-      { href: '/children', label: 'Children', permission: 'members:read' },
-      { href: '/groups', label: 'Groups', permission: 'members:read' },
-      { href: '/care', label: 'Care', permission: 'care:read' },
-      { href: '/drip', label: 'Follow-up', permission: 'care:read' },
+      { href: '/members', label: 'Members', permissions: ['members:read'] },
+      { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
+      { href: '/children', label: 'Children', permissions: ['members:write'] },
+      { href: '/groups', label: 'Groups', permissions: ['members:write'] },
+      { href: '/care', label: 'Care', permissions: ['care:read'] },
+      { href: '/drip', label: 'Follow-up', permissions: ['care:read'] },
     ],
   },
   {
     module: 'worship',
     label: 'Worship',
-    hint: 'Services, check-in, serving roster, media and events',
+    hint: 'Services, check-in, serving team, media and events',
     items: [
-      { href: '/services', label: 'Services', permission: 'services:read' },
-      { href: '/checkin', label: 'Check-in', permission: 'services:read' },
-      { href: '/roster', label: 'Roster', permission: 'services:read' },
-      { href: '/media', label: 'Media', permission: 'media:read' },
-      { href: '/events', label: 'Events', permission: 'services:read' },
+      { href: '/services', label: 'Services', permissions: ['services:read'] },
+      { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
+      { href: '/roster', label: 'Serving team', permissions: ['members:write'] },
+      { href: '/media', label: 'Media', permissions: ['media:read'] },
+      { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'] },
     ],
   },
   {
     module: 'money',
     label: 'Money',
-    hint: 'Giving, pledges, expenses and finance reports',
+    hint: 'Offerings, special events, expenses and reports',
     items: [
-      { href: '/finance', label: 'Giving', permission: 'finance:read' },
-      { href: '/campaigns', label: 'Pledges', permission: 'giving:read' },
-      { href: '/expenses', label: 'Expenses', permission: 'expenses:read' },
+      { href: '/finance', label: 'Offerings', permissions: ['finance:read'] },
+      { href: '/campaigns', label: 'Special offerings', permissions: ['giving:read'] },
+      { href: '/expenses', label: 'Expenses', permissions: ['expenses:read'] },
     ],
   },
   {
@@ -138,17 +149,17 @@ export const NAV_AREAS: NavArea[] = [
     label: 'Reach',
     hint: 'SMS campaigns and announcements',
     items: [
-      { href: '/sms', label: 'SMS', permission: 'sms:read' },
-      { href: '/announcements', label: 'News', permission: 'campaigns:read' },
+      { href: '/sms', label: 'SMS', permissions: ['sms:read'] },
+      { href: '/announcements', label: 'News', permissions: ['campaigns:read'] },
     ],
   },
   {
     module: 'org',
     label: 'Organisation',
-    hint: 'Departments, branches and HQ remittances',
+    hint: 'Departments, branches and money sent to HQ',
     items: [
-      { href: '/org', label: 'Departments', permission: 'church:read' },
-      { href: '/branches', label: 'Branches', permission: 'church:read' },
+      { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write'] },
+      { href: '/branches', label: 'Branches', permissions: ['church:write', 'settings:write', 'finance:read'] },
     ],
   },
 ];
@@ -159,39 +170,45 @@ export const NAV_GROUPS: NavGroup[] = NAV_AREAS.map(({ label, hint, items }) => 
 // Usher Mode: ONE app, role-scoped shell. Ushers get a mobile-first subset
 // (Today / Check-in / Visitors) with big touch targets; leaders toggle it off.
 export const USHER_NAV: NavItem[] = [
-  { href: '/dashboard', label: 'Today', permission: 'church:read' },
-  { href: '/checkin', label: 'Check-in', permission: 'services:read' },
-  { href: '/services', label: 'Headcount', permission: 'services:read' },
-  { href: '/visitors', label: 'Visitors', permission: 'visitors:read' },
+  { href: '/dashboard', label: 'Today', permissions: ['church:read'] },
+  { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
+  { href: '/services', label: 'Attendance', permissions: ['services:read'] },
+  { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
 ];
 
-/** Route → permission. Longest matching prefix wins (see routeAccess). */
-export const ROUTE_ACCESS: { prefix: string; permission: Permission; label: string }[] = [
-  { prefix: '/dashboard', permission: 'church:read', label: 'Dashboard' },
-  { prefix: '/members', permission: 'members:read', label: 'Members' },
-  { prefix: '/visitors', permission: 'visitors:read', label: 'Visitors' },
-  { prefix: '/children', permission: 'members:read', label: 'Children' },
-  { prefix: '/care', permission: 'care:read', label: 'Care' },
-  { prefix: '/groups', permission: 'members:read', label: 'Groups' },
-  { prefix: '/services', permission: 'services:read', label: 'Services' },
-  { prefix: '/checkin', permission: 'services:read', label: 'Check-in' },
-  { prefix: '/roster', permission: 'services:read', label: 'Roster' },
-  { prefix: '/media', permission: 'media:read', label: 'Media' },
-  { prefix: '/finance', permission: 'finance:read', label: 'Finance' },
-  { prefix: '/campaigns', permission: 'giving:read', label: 'Pledges' },
-  { prefix: '/expenses', permission: 'expenses:read', label: 'Expenses' },
-  { prefix: '/events', permission: 'services:read', label: 'Events' },
-  { prefix: '/drip', permission: 'care:read', label: 'Drip' },
-  { prefix: '/sms', permission: 'sms:read', label: 'SMS' },
-  { prefix: '/announcements', permission: 'campaigns:read', label: 'News' },
-  { prefix: '/org', permission: 'church:read', label: 'Org' },
-  { prefix: '/branches', permission: 'church:read', label: 'Branches' },
-  { prefix: '/settings', permission: 'settings:write', label: 'Settings' },
+export interface AccessRule {
+  prefix: string;
+  permissions: Permission[];
+  label: string;
+}
+
+/** Route → permissions (any one opens it). Longest matching prefix wins. */
+export const ROUTE_ACCESS: AccessRule[] = [
+  { prefix: '/dashboard', permissions: ['church:read'], label: 'Dashboard' },
+  { prefix: '/members', permissions: ['members:read'], label: 'Members' },
+  { prefix: '/visitors', permissions: ['visitors:read'], label: 'Visitors' },
+  { prefix: '/children', permissions: ['members:write'], label: 'Children' },
+  { prefix: '/care', permissions: ['care:read'], label: 'Care' },
+  { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },
+  { prefix: '/services', permissions: ['services:read'], label: 'Services' },
+  { prefix: '/checkin', permissions: ['checkin:write'], label: 'Check-in' },
+  { prefix: '/roster', permissions: ['members:write'], label: 'Serving team' },
+  { prefix: '/media', permissions: ['media:read'], label: 'Media' },
+  { prefix: '/finance', permissions: ['finance:read'], label: 'Offerings' },
+  { prefix: '/campaigns', permissions: ['giving:read'], label: 'Special offerings' },
+  { prefix: '/expenses', permissions: ['expenses:read'], label: 'Expenses' },
+  { prefix: '/events', permissions: ['services:write', 'members:write'], label: 'Events' },
+  { prefix: '/drip', permissions: ['care:read'], label: 'Follow-up' },
+  { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },
+  { prefix: '/announcements', permissions: ['campaigns:read'], label: 'News' },
+  { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },
+  { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
+  { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },
 ];
 
 /** The access rule for a pathname, or null when the path is ungated. */
-export function routeAccess(pathname: string): { prefix: string; permission: Permission; label: string } | null {
-  let match: { prefix: string; permission: Permission; label: string } | null = null;
+export function routeAccess(pathname: string): AccessRule | null {
+  let match: AccessRule | null = null;
   for (const rule of ROUTE_ACCESS) {
     const hit = pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`);
     if (hit && (!match || rule.prefix.length > match.prefix.length)) match = rule;
@@ -199,10 +216,10 @@ export function routeAccess(pathname: string): { prefix: string; permission: Per
   return match;
 }
 
-/** A church can switch an area off; absent flags mean "on" (the default today). */
+/** A church can switch an area off; absent flags use the church defaults. */
 export function moduleEnabled(modules: ModuleFlags | undefined, key: ModuleKey | undefined): boolean {
   if (!key) return true;
-  return modules?.[key] !== false;
+  return modules?.[key] ?? MODULE_DEFAULTS[key];
 }
 
 /** The area a nav href belongs to (maps a route rule back to its module). */
@@ -222,19 +239,8 @@ export function areaForPath(pathname: string): { area: NavArea; items: NavItem[]
   return null;
 }
 
-/**
- * Tabs for the current page: permission- and module-filtered, and null when there
- * is nothing to choose (a one-tab strip is noise).
- */
-export function visibleAreaTabs(
-  pathname: string,
-  granted: readonly string[],
-  modules?: ModuleFlags,
-): { area: NavArea; items: NavItem[] } | null {
-  const hit = areaForPath(pathname);
-  if (!hit || !moduleEnabled(modules, hit.area.module)) return null;
-  const items = hit.items.filter((item) => hasPermission(granted, item.permission));
-  return items.length > 1 ? { area: hit.area, items } : null;
+function mayOpen(granted: readonly string[], item: NavItem): boolean {
+  return hasAnyPermission(granted, item.permissions);
 }
 
 /**
@@ -249,7 +255,7 @@ export function canAccessPath(
 ): boolean {
   const rule = routeAccess(pathname);
   if (!rule) return true;
-  if (!hasPermission(granted, rule.permission)) return false;
+  if (!hasAnyPermission(granted, rule.permissions)) return false;
   if (rule.prefix === '/settings') return true;
   return moduleEnabled(modules, areaForItem(rule.prefix)?.module);
 }
@@ -260,12 +266,12 @@ export function visibleNavGroups(granted: readonly string[], modules?: ModuleFla
     .map((area) => ({
       label: area.label,
       hint: area.hint,
-      items: area.items.filter((item) => hasPermission(granted, item.permission)),
+      items: area.items.filter((item) => mayOpen(granted, item)),
     }))
     .filter((group) => group.items.length > 0);
 }
 
 /** Usher-mode links this user may open. */
 export function visibleUsherNav(granted: readonly string[]): NavItem[] {
-  return USHER_NAV.filter((item) => hasPermission(granted, item.permission));
+  return USHER_NAV.filter((item) => mayOpen(granted, item));
 }

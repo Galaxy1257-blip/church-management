@@ -26,6 +26,8 @@ export interface BracketInput {
   minAge: number;
   maxAge?: number | null;
   genderSplit?: boolean;
+  maleLabel?: string | null;
+  femaleLabel?: string | null;
   segmentKey: string;
   ministryNote?: string;
   sortOrder?: number;
@@ -86,7 +88,23 @@ export class DemographicsService {
       }
     }
     return this.tenant.run(user, async (tx) => {
+      // Remember which sections the old groups owned so the ones that are no
+      // longer used can be switched off (leaving custom sections untouched).
+      const previous = await tx.ageBracket.findMany({
+        where: { churchId: user.churchId },
+        select: { segmentKey: true, genderSplit: true },
+      });
+      const oldSectionKeys = new Set<string>();
+      for (const p of previous) {
+        oldSectionKeys.add(p.segmentKey);
+        if (p.genderSplit) {
+          oldSectionKeys.add(`${p.segmentKey}_M`);
+          oldSectionKeys.add(`${p.segmentKey}_W`);
+        }
+      }
+
       const saved: string[] = [];
+      const sectionKeys = new Set<string>();
       let order = 0;
       for (const b of brackets) {
         order += 10;
@@ -99,6 +117,8 @@ export class DemographicsService {
             minAge: b.minAge,
             maxAge: b.maxAge ?? null,
             genderSplit: b.genderSplit ?? false,
+            maleLabel: b.maleLabel ?? null,
+            femaleLabel: b.femaleLabel ?? null,
             segmentKey: b.segmentKey,
             ministryNote: b.ministryNote ?? null,
             sortOrder: b.sortOrder ?? order,
@@ -109,6 +129,8 @@ export class DemographicsService {
             minAge: b.minAge,
             maxAge: b.maxAge ?? null,
             genderSplit: b.genderSplit ?? false,
+            maleLabel: b.maleLabel ?? null,
+            femaleLabel: b.femaleLabel ?? null,
             segmentKey: b.segmentKey,
             ministryNote: b.ministryNote ?? null,
             sortOrder: b.sortOrder ?? order,
@@ -119,11 +141,12 @@ export class DemographicsService {
         if (row.isActive) {
           const segs = row.genderSplit
             ? [
-                { key: `${row.segmentKey}_M`, label: `${row.label} (Men)` },
-                { key: `${row.segmentKey}_W`, label: `${row.label} (Women)` },
+                { key: `${row.segmentKey}_M`, label: row.maleLabel ?? 'Men' },
+                { key: `${row.segmentKey}_W`, label: row.femaleLabel ?? 'Women' },
               ]
             : [{ key: row.segmentKey, label: row.label }];
           for (const s of segs) {
+            sectionKeys.add(s.key);
             await tx.headcountSegment.upsert({
               where: { churchId_key: { churchId: user.churchId, key: s.key } },
               create: { churchId: user.churchId, key: s.key, label: s.label, kind: 'IN_PERSON' },
@@ -131,6 +154,13 @@ export class DemographicsService {
             });
           }
         }
+      }
+      const unused = [...oldSectionKeys].filter((key) => !sectionKeys.has(key));
+      if (unused.length > 0) {
+        await tx.headcountSegment.updateMany({
+          where: { churchId: user.churchId, kind: 'IN_PERSON', key: { in: unused } },
+          data: { isActive: false },
+        });
       }
       await tx.ageBracket.updateMany({
         where: { churchId: user.churchId, id: { notIn: saved } },

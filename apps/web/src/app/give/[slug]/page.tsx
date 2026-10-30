@@ -43,7 +43,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
         setChurch(data);
         if (data.funds[0]) setFundId(data.funds[0].id);
         if (data.branding?.primaryColor) document.documentElement.style.setProperty('--brand', data.branding.primaryColor);
-        document.title = `Give to ${data.name}`;
+        document.title = `Give an offering to ${data.name}`;
       })
       .catch(() => setNotFound(true));
   }, [slug]);
@@ -94,14 +94,14 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
         {church.branding?.logoDataUrl ? (
           <img src={church.branding.logoDataUrl} alt={`${church.name} logo`} style={{ height: 56, margin: '0 auto 0.5rem', display: 'block' }} />
         ) : null}
-        <h1>Give to {church.name}</h1>
+        <h1>Give an offering to {church.name}</h1>
         <p className="muted">
           {church.branding?.tagline ? `${church.branding.tagline} · ` : ''}
-          Mobile money &amp; card via Paystack. You&apos;ll get an SMS receipt.
+          Mobile money or card. You&apos;ll get a text message receipt.
         </p>
         <form className="stack" onSubmit={give}>
           <label>
-            Fund
+            What is this offering for?
             <select value={fundId} onChange={(e) => setFundId(e.target.value)} required>
               {church.funds.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -133,7 +133,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
                   void refreshQuote();
                 }}
               />
-              Cover the processing fee (so the church receives the full amount)
+              Add the processing fee so the church receives the full amount
             </span>
           </label>
           <label>
@@ -157,12 +157,12 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
             </div>
           ) : null}
           {error ? <div className="error">{error}</div> : null}
-          <button disabled={busy}>{busy ? 'Starting…' : 'Give securely'}</button>
+          <button disabled={busy}>{busy ? 'Starting…' : 'Give now'}</button>
         </form>
       </div>
       {church.givingInstructions && (church.givingInstructions.momoNumber || church.givingInstructions.bankAccount) ? (
         <div className="card" style={{ marginTop: '1rem' }}>
-          <h2 style={{ fontSize: '1rem' }}>Other ways to give</h2>
+          <h2 style={{ fontSize: '1rem' }}>Other ways to give an offering</h2>
           {church.givingInstructions.momoNumber ? (
             <p>
               <strong>MoMo{church.givingInstructions.momoMerchant ? ` (${church.givingInstructions.momoMerchant})` : ''}:</strong>{' '}
@@ -176,7 +176,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
               {church.givingInstructions.bankAccount}
             </p>
           ) : null}
-          <p className="muted" style={{ marginBottom: 0 }}>Use your name + fund as the transfer narrative. Confirmations are matched to members by phone.</p>
+          <p className="muted" style={{ marginBottom: 0 }}>Write your name and what the offering is for when you transfer. We match transfers to members by phone number.</p>
         </div>
       ) : null}
     </div>

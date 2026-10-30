@@ -2,7 +2,7 @@
 // (AES-GCM encrypted at rest, RBAC-restricted), welfare requests.
 import { Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
-import { appendAudit } from '@chms/db';
+import { appendAudit, Db } from '@chms/db';
 import { RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
@@ -104,9 +104,22 @@ export class CareService {
   }
 
   welfare(user: AuthUser) {
-    return this.tenant.run(user, (tx) =>
-      tx.welfareRequest.findMany({ where: { churchId: user.churchId }, orderBy: { createdAt: 'desc' }, take: 200 }),
-    );
+    return this.tenant.run(user, async (tx) => {
+      const rows = await tx.welfareRequest.findMany({ where: { churchId: user.churchId }, orderBy: { createdAt: 'desc' }, take: 200 });
+      const members = await this.membersById(tx, user.churchId, rows.map((r) => r.memberId));
+      return rows.map((r) => ({ ...r, member: members.get(r.memberId) ?? null }));
+    });
+  }
+
+  /** Names/phones so the care screens can open a member profile. */
+  private async membersById(tx: Db, churchId: string, ids: (string | null)[]) {
+    const unique = [...new Set(ids.filter((v): v is string => Boolean(v)))];
+    if (!unique.length) return new Map<string, { id: string; firstName: string; lastName: string; phoneE164: string | null; address: string | null; photoDataUrl: string | null }>();
+    const rows = await tx.member.findMany({
+      where: { churchId, id: { in: unique } },
+      select: { id: true, firstName: true, lastName: true, phoneE164: true, address: true, photoDataUrl: true },
+    });
+    return new Map(rows.map((r) => [r.id, r]));
   }
 
   async addWelfare(user: AuthUser, input: WelfareDto, ip?: string) {
@@ -142,8 +155,8 @@ export class CareService {
   // ---- R4.9 care queue: visits (hospital/bereavement/home) + assignments ----
 
   careTasks(user: AuthUser, opts: { status?: string; type?: string } = {}) {
-    return this.tenant.run(user, (tx) =>
-      tx.careTask.findMany({
+    return this.tenant.run(user, async (tx) => {
+      const tasks = await tx.careTask.findMany({
         where: {
           churchId: user.churchId,
           ...(opts.status ? { status: opts.status } : {}),
@@ -151,8 +164,10 @@ export class CareService {
         },
         orderBy: [{ status: 'asc' }, { dueAt: 'asc' }],
         take: 200,
-      }),
-    );
+      });
+      const members = await this.membersById(tx, user.churchId, tasks.map((t) => t.memberId));
+      return tasks.map((t) => ({ ...t, member: t.memberId ? members.get(t.memberId) ?? null : null }));
+    });
   }
 
   addCareTask(

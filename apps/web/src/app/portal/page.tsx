@@ -157,7 +157,7 @@ export default function PortalPage() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 640, paddingTop: '3vh' }}>
+    <div className="container portal-page" style={{ maxWidth: 640, paddingTop: '3vh' }}>
       <div className="card">
           <div className="spread" style={{ alignItems: 'center' }}>
             <h1 style={{ margin: 0 }}>
@@ -169,13 +169,19 @@ export default function PortalPage() {
             <span className="badge mute">{home?.member?.memberNo}</span>
           </div>
         <p style={{ margin: '4px 0' }}>Welcome, <b>{home?.member?.firstName} {home?.member?.lastName}</b></p>
-        <div className="row">
+        <nav className="portal-tabs" aria-label="Member sections">
           {(['home', 'giving', 'shifts', 'events', 'prayer'] as Tab[]).map((t) => (
-            <button key={t} className={`small ${tab === t ? '' : 'secondary'}`} onClick={() => setTab(t)}>
-              {t === 'home' ? 'Home' : t === 'giving' ? 'My giving' : t === 'shifts' ? 'My shifts' : t === 'events' ? 'Events' : 'Prayer'}
+            <button
+              key={t}
+              type="button"
+              className={tab === t ? 'on' : undefined}
+              aria-current={tab === t ? 'page' : undefined}
+              onClick={() => setTab(t)}
+            >
+              {t === 'home' ? 'Home' : t === 'giving' ? 'Offerings' : t === 'shifts' ? 'Shifts' : t === 'events' ? 'Events' : 'Prayer'}
             </button>
           ))}
-        </div>
+        </nav>
       </div>
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
       {tab === 'home' ? (
@@ -190,7 +196,7 @@ export default function PortalPage() {
             ))}
             {home && home.services.length === 0 ? <p className="muted">No upcoming services scheduled.</p> : null}
             <div className="row" style={{ marginTop: 8 }}>
-              <a className="badge ok" href={home?.links.give}>Give online →</a>
+              <a className="badge ok" href={home?.links.give}>Give an offering →</a>
               <a className="badge mute" href="/bible">Read the Bible →</a>
               <button className="small secondary" onClick={() => void exportMyData()}>Download my data</button>
             </div>
@@ -207,7 +213,7 @@ export default function PortalPage() {
           </div>
           {home?.church?.givingInstructions && (home.church.givingInstructions.momoNumber || home.church.givingInstructions.bankAccount) ? (
             <div className="card">
-              <h2>Ways to give</h2>
+              <h2>Other ways to give an offering</h2>
               {home.church.givingInstructions.momoNumber ? (
                 <p style={{ margin: '4px 0' }}>
                   <strong>MoMo{home.church.givingInstructions.momoMerchant ? ` (${home.church.givingInstructions.momoMerchant})` : ''}:</strong>{' '}
@@ -221,7 +227,7 @@ export default function PortalPage() {
                   {home.church.givingInstructions.bankAccount}
                 </p>
               ) : null}
-              <p className="muted" style={{ marginBottom: 0 }}>Add your name + fund as the narrative when you transfer.</p>
+              <p className="muted" style={{ marginBottom: 0 }}>Write your name and what the offering is for when you transfer.</p>
             </div>
           ) : null}
         </div>
@@ -230,7 +236,7 @@ export default function PortalPage() {
       {tab === 'giving' ? (
         <div className="card">
           <div className="spread">
-            <h2 style={{ margin: 0 }}>My giving</h2>
+            <h2 style={{ margin: 0 }}>My offerings</h2>
             <div className="row">
               <input style={{ width: 70 }} value={year} onChange={(e) => setYear(e.target.value)} />
               <button className="small secondary" onClick={() => void loadStatement()}>Statement {year}</button>
@@ -238,7 +244,7 @@ export default function PortalPage() {
             </div>
           </div>
           <table>
-            <thead><tr><th>Date</th><th>Fund</th><th>Amount</th><th>Ref</th></tr></thead>
+            <thead><tr><th>Date</th><th>What for</th><th>Amount</th><th>Ref</th></tr></thead>
             <tbody>
               {giving.map((g) => (
                 <tr key={g.reference}>
@@ -250,7 +256,7 @@ export default function PortalPage() {
               ))}
             </tbody>
           </table>
-          {giving.length === 0 ? <p className="muted">No gifts recorded yet.</p> : null}
+          {giving.length === 0 ? <p className="muted">No offerings recorded yet.</p> : null}
         </div>
       ) : null}
       {tab === 'shifts' ? (

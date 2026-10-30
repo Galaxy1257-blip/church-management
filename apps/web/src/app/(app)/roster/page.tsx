@@ -67,8 +67,8 @@ export default function RosterPage() {
               <td className="muted">{s.memberId.slice(0, 8)}…</td>
               <td><span className={`badge ${s.status === 'CONFIRMED' ? 'ok' : s.status === 'DECLINED' ? 'err' : 'warn'}`}>{s.status}</span></td>
               <td className="row">
-                <button className="sm" onClick={() => void respond(s.id, 'CONFIRMED')}>YES</button>
-                <button className="sm danger" onClick={() => void respond(s.id, 'DECLINED')}>NO</button>
+                <button className="small" onClick={() => void respond(s.id, 'CONFIRMED')}>YES</button>
+                <button className="small danger" onClick={() => void respond(s.id, 'DECLINED')}>NO</button>
               </td>
             </tr>
           ))}

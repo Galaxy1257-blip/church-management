@@ -4,7 +4,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { clearSession } from '../../../lib/session';
-import { MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
+import { MODULE_DEFAULTS, MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
 import {
   BUILTIN_SMS_TEMPLATES,
   DENOMINATION_PRESETS,
@@ -20,21 +20,78 @@ interface Bracket {
   minAge: number;
   maxAge: number | null;
   genderSplit: boolean;
+  maleLabel?: string | null;
+  femaleLabel?: string | null;
   segmentKey: string;
   isActive?: boolean;
 }
 
-const DEFAULT_BRACKETS: Bracket[] = [
-  { key: 'TODDLERS', label: 'Nursery & Toddlers', minAge: 0, maxAge: 4, genderSplit: false, segmentKey: 'TODDLERS' },
-  { key: 'CHILDREN', label: 'Children Ministry', minAge: 5, maxAge: 12, genderSplit: false, segmentKey: 'CHILDREN' },
-  { key: 'TEENS', label: 'Teens Chapel', minAge: 13, maxAge: 19, genderSplit: false, segmentKey: 'TEENS' },
-  { key: 'YOUNG_ADULTS', label: 'Young Adults', minAge: 20, maxAge: 35, genderSplit: false, segmentKey: 'YOUNG_ADULTS' },
-  { key: 'ADULTS', label: 'Main Sanctuary Adults', minAge: 36, maxAge: 59, genderSplit: true, segmentKey: 'ADULTS' },
-  { key: 'SENIORS', label: 'Golden Age Fellowship', minAge: 60, maxAge: null, genderSplit: false, segmentKey: 'SENIORS' },
+const SIMPLE_BRACKETS: Bracket[] = [
+  {
+    key: 'SUNDAY_SCHOOL',
+    label: 'Sunday School',
+    minAge: 0,
+    maxAge: 12,
+    genderSplit: true,
+    maleLabel: 'Sunday School (Boys)',
+    femaleLabel: 'Sunday School (Girls)',
+    segmentKey: 'SUNDAY_SCHOOL',
+  },
+  { key: 'ADULTS', label: 'Adults', minAge: 13, maxAge: null, genderSplit: true, maleLabel: 'Men', femaleLabel: 'Women', segmentKey: 'ADULTS' },
 ];
 
+// Optional detailed set for churches that want more than these four groups.
+const DETAILED_BRACKETS: Bracket[] = [
+  { key: 'TODDLERS', label: 'Nursery & Toddlers', minAge: 0, maxAge: 4, genderSplit: false, segmentKey: 'TODDLERS' },
+  { key: 'CHILDREN', label: 'Children', minAge: 5, maxAge: 12, genderSplit: false, segmentKey: 'CHILDREN' },
+  { key: 'TEENS', label: 'Teens', minAge: 13, maxAge: 19, genderSplit: false, segmentKey: 'TEENS' },
+  { key: 'YOUNG_ADULTS', label: 'Young Adults', minAge: 20, maxAge: 35, genderSplit: false, segmentKey: 'YOUNG_ADULTS' },
+  { key: 'ADULTS', label: 'Adults', minAge: 36, maxAge: 59, genderSplit: true, maleLabel: 'Men', femaleLabel: 'Women', segmentKey: 'ADULTS' },
+  { key: 'SENIORS', label: 'Seniors', minAge: 60, maxAge: null, genderSplit: false, segmentKey: 'SENIORS' },
+];
+
+// One-tap occasional events. These are NOT created by default — a church adds
+// the ones it actually runs, so no unused categories clutter the offering form.
+const SPECIAL_EVENT_PRESETS: { name: string; type: string }[] = [
+  { name: 'Church Anniversary', type: 'ANNIVERSARY' },
+  { name: 'Seed Offering', type: 'SEED' },
+  { name: 'Harvest', type: 'HARVEST' },
+  { name: 'Thanksgiving', type: 'THANKSGIVING' },
+  { name: 'First Fruits', type: 'FIRST_FRUIT' },
+];
+
+// Colour schemes. Each one is a [data-theme] block in globals.css; "night" is
+// the dark mode. The choice is remembered in this browser only.
+const THEMES: { key: string; name: string; hint: string; colors: string[] }[] = [
+  { key: 'sanctuary', name: 'Sanctuary', hint: 'Forest green & gold', colors: ['#1f4d3a', '#c08a2e', '#b4513a', '#f5efe4'] },
+  { key: 'harvest', name: 'Harvest', hint: 'Olive & wheat', colors: ['#4c5a20', '#c98a1f', '#a35427', '#f7f1df'] },
+  { key: 'ocean', name: 'Ocean', hint: 'Deep blue & teal', colors: ['#114b5f', '#1f7a8c', '#c96a44', '#eaf2f4'] },
+  { key: 'navy', name: 'Navy', hint: 'Royal blue & brass', colors: ['#1e3a5f', '#c9973f', '#9c3f2f', '#f2efe7'] },
+  { key: 'burgundy', name: 'Burgundy', hint: 'Wine red & gold', colors: ['#6b1f2e', '#c19a4b', '#a4472f', '#f7efe9'] },
+  { key: 'plum', name: 'Plum', hint: 'Aubergine & rose', colors: ['#5a2e4d', '#a8578a', '#b34a5c', '#f4ecf2'] },
+  { key: 'dawn', name: 'Dawn', hint: 'Rosewood & peach', colors: ['#7a3b3b', '#d78f5c', '#a8524f', '#fbf0eb'] },
+  { key: 'rosewood', name: 'Rosewood', hint: 'Dusty rose & gold', colors: ['#7a3545', '#c9a24a', '#9c5a3c', '#f7efec'] },
+  { key: 'meadow', name: 'Meadow', hint: 'Leafy green & lime', colors: ['#1e5c3a', '#7fae4f', '#a8622f', '#edf4ec'] },
+  { key: 'sage', name: 'Sage', hint: 'Soft green & clay', colors: ['#3f6256', '#b9793f', '#a8503e', '#f0f4ef'] },
+  { key: 'sand', name: 'Sand', hint: 'Desert sand & bronze', colors: ['#6b4f2a', '#b8802f', '#a8563a', '#f7f1e3'] },
+  { key: 'night', name: 'Night', hint: 'Dark mode', colors: ['#12100d', '#2f6b52', '#e0ac52', '#f4ede1'] },
+];
+
+const THEME_KEY = 'chms.theme';
+
+function applyTheme(key: string): void {
+  if (typeof document === 'undefined') return;
+  if (key === 'sanctuary') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = key;
+  try {
+    localStorage.setItem(THEME_KEY, key);
+  } catch {
+    /* private mode — the theme still applies for this visit */
+  }
+}
+
 export default function SettingsPage() {
-  const [brackets, setBrackets] = useState<Bracket[]>(DEFAULT_BRACKETS);
+  const [brackets, setBrackets] = useState<Bracket[]>(SIMPLE_BRACKETS);
   const [toggles, setToggles] = useState({ autoAssignHeadcount: true, autoPromote: false, capacity: 0 });
   const [gw, setGw] = useState<any>(null);
   const [dev, setDev] = useState({ enabled: false, translation: 'kjv', verse: 'John 3:16' });
@@ -53,17 +110,25 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   // grouped settings: church setup (identity/logo/policy) vs SMS vs giving vs modules
-  const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'modules'>('church');
-  // Which areas of the app this church runs (settings.modules; absent = on).
+  const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'appearance' | 'modules'>('church');
+  const [theme, setTheme] = useState('sanctuary');
+  // Which areas of the app this church runs (settings.modules; absent =
+  // shared defaults, and Worship starts switched off).
   const [modules, setModules] = useState<Record<string, boolean>>({
     people: true,
-    worship: true,
+    worship: false,
     money: true,
     reach: true,
     org: true,
   });
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved && THEMES.some((t) => t.key === saved)) setTheme(saved);
+    } catch {
+      /* ignore */
+    }
     void api<(Bracket & { isActive?: boolean })[]>('/demographics/brackets').then((b) => b.length && setBrackets(b)).catch(() => undefined);
     void api<{ autoAssignHeadcount: boolean; autoPromote: boolean; capacity: number }>('/demographics/settings').then(setToggles).catch(() => undefined);
     void api<{ source: string; config: any; presets: any }>('/settings/sms-gateway').then((r) => {
@@ -81,7 +146,7 @@ export default function SettingsPage() {
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
       if (p.smsLocales) setSmsLoc({ defaultLocale: p.smsLocales.defaultLocale ?? 'en', templates: p.smsLocales.templates ?? {} });
       if (p.denomination) { setDenomKey(p.denomination.key ?? 'DEFAULT'); setTerms(p.denomination.terms ?? null); }
-      if (p.modules) setModules(p.modules);
+      if (p.modules) setModules({ ...MODULE_DEFAULTS, ...p.modules });
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
     void api<any>('/giving/settings').then((s) => s && setFees(s)).catch(() => undefined);
@@ -93,7 +158,7 @@ export default function SettingsPage() {
       const p = await api<any>('/churches/me/profile', { method: 'POST', body: prof });
       setProf(p);
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
-      setNotice('Church profile saved — name, logo, contact and giving instructions apply across app, login and give pages.');
+      setNotice('Church profile saved — name, logo, contact and offering details apply across the app, login and giving page.');
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'profile save failed');
@@ -107,7 +172,7 @@ export default function SettingsPage() {
   async function saveModules(): Promise<void> {
     try {
       const p = await api<any>('/churches/me/profile', { method: 'POST', body: { modules } });
-      if (p.modules) setModules(p.modules);
+      if (p.modules) setModules({ ...MODULE_DEFAULTS, ...p.modules });
       setError('');
       clearSession();
       window.location.reload();
@@ -145,12 +210,21 @@ export default function SettingsPage() {
     } catch (err) { setError(err instanceof Error ? err.message : 'add failed'); }
   }
 
+  async function addEventPreset(preset: { name: string; type: string }): Promise<void> {
+    try {
+      await api('/giving/funds', { method: 'POST', body: preset });
+      setFunds(await api<any[]>('/giving/funds/all'));
+      setNotice(`"${preset.name}" added to your money categories — it now appears when recording offerings.`);
+      setError('');
+    } catch (err) { setError(err instanceof Error ? err.message : 'add failed'); }
+  }
+
   async function saveFees(e: FormEvent): Promise<void> {
     e.preventDefault();
     try {
       const body = { ...fees, feeBps: Number(fees.feeBps), feeFlatMinor: Number(fees.feeFlatMinor), feeCapMinor: fees.feeCapMinor === null || fees.feeCapMinor === '' ? null : Number(fees.feeCapMinor) };
       await api('/giving/settings', { method: 'POST', body });
-      setNotice('Giving fee model saved — applies to future online-giving quotes.');
+      setNotice('Offering fee saved — it applies to future online offerings.');
       setError('');
     } catch (err) { setError(err instanceof Error ? err.message : 'fee save failed'); }
   }
@@ -185,7 +259,7 @@ export default function SettingsPage() {
     e.preventDefault();
     try {
       await api('/churches/me/devotional', { method: 'POST', body: dev });
-      setNotice(`Verse-of-the-day ${dev.enabled ? 'ON' : 'off'} — daily 05:55 SMS to opted-in members.`);
+      setNotice(`Verse-of-the-day ${dev.enabled ? 'ON' : 'off'} — a Bible verse every day at 8pm to opted-in members.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'save failed');
     }
@@ -196,7 +270,7 @@ export default function SettingsPage() {
     try {
       await api('/demographics/brackets', { method: 'PUT', body: { brackets } });
       await api('/demographics/settings', { method: 'PUT', body: toggles });
-      setNotice('Demographics saved — headcount sections synced.');
+      setNotice('Church groups saved — attendance sections updated.');
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'save failed');
@@ -225,10 +299,11 @@ export default function SettingsPage() {
 
       <div className="seg-toggle" style={{ margin: '0.4rem 0 1rem', flexWrap: 'wrap' }} role="tablist" aria-label="Settings sections">
         {([
-          ['church', 'Church setup', 'Logo, church identity & tagline, denomination, demographics, giving instructions, retention and alerts'],
+          ['church', 'Church setup', 'Logo, church identity & tagline, denominations, church groups, offering details, retention and alerts'],
           ['sms', 'SMS setup', 'SMS gateway & sender ID, verse-of-the-day, and Twi/Ga/Ewe/Fante message templates'],
-          ['giving', 'Giving', 'Giving categories (funds) and the online-giving fee model'],
-          ['modules', 'Modules', 'Switch off the areas of the app this church does not use'],
+          ['giving', 'Offering', 'Money categories, special events (Harvest, Thanksgiving…) and online offering fees'],
+          ['appearance', 'Appearance', 'Colour themes and dark mode for this device'],
+          ['modules', 'App sections', 'Turn whole areas of the app on or off for this church'],
         ] as const).map(([key, label, hint]) => (
           <button
             key={key}
@@ -245,47 +320,87 @@ export default function SettingsPage() {
       </div>
       <p className="muted" style={{ marginTop: '-0.5rem' }}>
         {tab === 'church'
-          ? 'Logo, church identity, denomination, demographics, giving instructions, retention & alerts.'
+          ? 'Logo, church identity, denomination, church groups, offering details, retention & alerts.'
           : tab === 'sms'
             ? 'Gateway, sender, verse-of-the-day and Twi/Ga/Ewe/Fante message templates.'
             : tab === 'giving'
-              ? 'Giving categories (funds) and the online-giving fee model.'
-              : 'Switch off the areas of the app this church does not run — hidden everywhere, data untouched.'}
+              ? 'Money categories, special events like Harvest, and the online offering fee.'
+              : tab === 'appearance'
+                ? 'Pick a colour scheme or switch to dark mode. It applies to this device straight away.'
+                : 'Turn areas on or off — hidden everywhere, nothing is deleted, and you can switch them back on here.'}
       </p>
 
       <form className="card stack" onSubmit={saveAll} hidden={tab !== 'church'}>
-        <h2>Age brackets (demographics)</h2>
-        <p className="muted">Brackets drive check-in auto-sorting and headcount sections. Age recalculates from DOB in real time.</p>
+        <h2>Church groups</h2>
+        <p className="muted">
+          These groups decide how attendance is counted and where members are placed automatically. The simple set is
+          Sunday School (Boys), Sunday School (Girls), Men and Women — rename any group, split or merge them, or add your
+          own. Detailed age groups are one click away.
+        </p>
+        <div className="row">
+          <button className="small secondary" type="button" onClick={() => setBrackets(SIMPLE_BRACKETS)}>
+            Simple: Sunday School · Men · Women
+          </button>
+          <button className="small secondary" type="button" onClick={() => setBrackets(DETAILED_BRACKETS)}>
+            Detailed age groups
+          </button>
+        </div>
         {brackets.map((b, i) => (
-          <div className="row" key={b.key}>
-            <input style={{ flex: 2 }} value={b.label} onChange={(e) => upd(i, { label: e.target.value })} />
+          <div className="row" key={i}>
+            <input style={{ flex: 2 }} value={b.label} onChange={(e) => upd(i, { label: e.target.value })} placeholder="Group name" />
             <input style={{ width: 110 }} value={b.key} onChange={(e) => upd(i, { key: e.target.value, segmentKey: e.target.value })} placeholder="KEY" />
             <input style={{ width: 70 }} type="number" value={b.minAge} onChange={(e) => upd(i, { minAge: Number(e.target.value) })} />
             <span>to</span>
             <input style={{ width: 70 }} type="number" value={b.maxAge ?? ''} placeholder="∞" onChange={(e) => upd(i, { maxAge: e.target.value === '' ? null : Number(e.target.value) })} />
             <label style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={b.genderSplit} onChange={(e) => upd(i, { genderSplit: e.target.checked })} />
-              M/W split
+              Split into two
             </label>
+            {b.genderSplit ? (
+              <>
+                <input
+                  style={{ width: 170 }}
+                  value={b.maleLabel ?? 'Men'}
+                  onChange={(e) => upd(i, { maleLabel: e.target.value })}
+                  placeholder="First group name"
+                  aria-label="First split group name"
+                />
+                <input
+                  style={{ width: 170 }}
+                  value={b.femaleLabel ?? 'Women'}
+                  onChange={(e) => upd(i, { femaleLabel: e.target.value })}
+                  placeholder="Second group name"
+                  aria-label="Second split group name"
+                />
+              </>
+            ) : null}
+            <button
+              className="small secondary"
+              type="button"
+              disabled={brackets.length <= 1}
+              onClick={() => setBrackets(brackets.filter((_, idx) => idx !== i))}
+            >
+              Remove
+            </button>
           </div>
         ))}
-        <button className="secondary" type="button" onClick={() => setBrackets([...brackets, { key: `BRACKET_${brackets.length + 1}`, label: 'New bracket', minAge: 0, maxAge: null, genderSplit: false, segmentKey: `BRACKET_${brackets.length + 1}` }])}>
-          + Add bracket
+        <button className="secondary" type="button" onClick={() => setBrackets([...brackets, { key: `GROUP_${brackets.length + 1}`, label: 'New group', minAge: 0, maxAge: null, genderSplit: false, segmentKey: `GROUP_${brackets.length + 1}` }])}>
+          + Add group
         </button>
-        <h2>Toggles</h2>
+        <h2>Counting options</h2>
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={toggles.autoAssignHeadcount} onChange={(e) => setToggles({ ...toggles, autoAssignHeadcount: e.target.checked })} />
-          Auto-sort check-ins into age-bracket headcount sections
+          Place people in their group automatically when they check in
         </label>
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={toggles.autoPromote} onChange={(e) => setToggles({ ...toggles, autoPromote: e.target.checked })} />
-          Auto-promote age brackets nightly (audit-logged)
+          Move a member to the next group automatically after their birthday
         </label>
         <label>
-          Auditorium capacity (seats; 0 = no overcapacity alerts on headcount screen)
+          Seats in the church building (0 = no “almost full” warning)
           <input type="number" min={0} value={toggles.capacity} onChange={(e) => setToggles({ ...toggles, capacity: Number(e.target.value) })} />
         </label>
-        <button>Save demographics</button>
+        <button>Save groups</button>
       </form>
       <form className="card stack" onSubmit={saveGateway} hidden={tab !== 'sms'}>
         <h2>SMS gateway (provider-agnostic)</h2>
@@ -332,7 +447,7 @@ export default function SettingsPage() {
 
       <form className="card stack" onSubmit={saveDevotional} hidden={tab !== 'sms'}>
         <h2>Verse of the day (SMS)</h2>
-        <p className="muted">Daily 05:55 devotional to active, consented, non-opted-out members. Uses your chosen Bible translation.</p>
+        <p className="muted">Every day at 8pm, a short Bible verse goes by SMS to members who agreed to receive it. Uses your chosen Bible translation.</p>
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={dev.enabled} onChange={(e) => setDev({ ...dev, enabled: e.target.checked })} />
           Send daily verse-of-the-day
@@ -357,7 +472,7 @@ export default function SettingsPage() {
 
       <form className="card stack" onSubmit={saveProfile} hidden={tab !== 'church'}>
         <h2>Church profile &amp; branding</h2>
-        <p className="muted">Name, logo and primary colour show on the top bar, login, public give page and member portal. Giving instructions appear on the give page and portal home.</p>
+        <p className="muted">Name, logo and primary colour show on the top bar, login, public offering page and member portal. Offering details appear on that page and the member home.</p>
         <div className="row">
           <label style={{ flex: 2 }}>
             Church name
@@ -375,7 +490,7 @@ export default function SettingsPage() {
           </label>
           <label>
             Primary colour
-            <input type="color" value={prof.branding?.primaryColor ?? '#1e3a5f'} onChange={(e) => setProf({ ...prof, branding: { ...prof.branding, primaryColor: e.target.value } })} />
+            <input type="color" value={prof.branding?.primaryColor ?? '#1f4d3a'} onChange={(e) => setProf({ ...prof, branding: { ...prof.branding, primaryColor: e.target.value } })} />
           </label>
           <label style={{ flex: 1 }}>
             Tagline
@@ -408,7 +523,7 @@ export default function SettingsPage() {
             <input value={prof.contact?.socialUrl ?? ''} onChange={(e) => setProf({ ...prof, contact: { ...prof.contact, socialUrl: e.target.value } })} />
           </label>
         </div>
-        <h2>Giving instructions</h2>
+        <h2>Offering details (MoMo / bank)</h2>
         <div className="row">
           <label>
             MoMo merchant name
@@ -450,7 +565,7 @@ export default function SettingsPage() {
             />
           </label>
           <label>
-            Keep giving records (years)
+            Keep offering records (years)
             <input
               type="number"
               min={1}
@@ -495,8 +610,24 @@ export default function SettingsPage() {
       </form>
 
       <form className="card stack" onSubmit={addFund} hidden={tab !== 'giving'}>
-        <h2>Funds (giving categories)</h2>
-        <p className="muted">Seeded with Ghana-typical funds (Tithe, Offering, Welfare, Building, Missions, First Fruits, Thanksgiving, Harvest). Rename, deactivate or add your own — e.g. Church Anniversary, Special Seed.</p>
+        <h2>Money categories &amp; special events</h2>
+        <p className="muted">
+          These are the choices members see when they give. Offering, Tithe, Mini Harvest, Annual Harvest and Welfare are
+          ready already. Add an occasional event like a church anniversary or seed offering only when you run it — then
+          pick it when you record money.
+        </p>
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          {SPECIAL_EVENT_PRESETS.filter(
+            (p) =>
+              !funds.some(
+                (f) => f.name?.trim().toLowerCase() === p.name.toLowerCase() || f.type === p.type,
+              ),
+          ).map((p) => (
+            <button key={p.name} className="small secondary" type="button" onClick={() => void addEventPreset(p)}>
+              + {p.name}
+            </button>
+          ))}
+        </div>
         {funds.map((f) => (
           <div className="row" key={f.id}>
             <input style={{ flex: 2 }} value={f.name} onChange={(e) => setFunds(funds.map((x) => (x.id === f.id ? { ...x, name: e.target.value } : x)))} />
@@ -511,24 +642,24 @@ export default function SettingsPage() {
           </div>
         ))}
         <div className="row">
-          <input style={{ flex: 2 }} placeholder="New fund name (e.g. Church Anniversary)" value={newFund.name} onChange={(e) => setNewFund({ ...newFund, name: e.target.value })} />
+          <input style={{ flex: 2 }} placeholder="New category or event (e.g. Harvest 2027)" value={newFund.name} onChange={(e) => setNewFund({ ...newFund, name: e.target.value })} />
           <select value={newFund.type} onChange={(e) => setNewFund({ ...newFund, type: e.target.value })}>
             {['OFFERING', 'TITHE', 'WELFARE', 'BUILDING', 'MISSIONS', 'SEED', 'EVENT', 'OTHER', 'FIRST_FRUIT', 'THANKSGIVING', 'HARVEST', 'ANNIVERSARY'].map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button className="small" type="submit">+ Add fund</button>
+          <button className="small" type="submit">+ Add category</button>
         </div>
       </form>
 
       <form className="card stack" onSubmit={saveFees} hidden={tab !== 'giving'}>
-        <h2>Online giving fee model</h2>
-        <p className="muted">Paystack charges 1.95% + GHS 0.10 for local cards. Choose who absorbs the fee and cap it if you like.</p>
+        <h2>Online offering fees</h2>
+        <p className="muted">Paystack charges 1.95% + GHS 0.10 for local cards. Choose who pays that fee, and cap it if you like.</p>
         <div className="row">
           <label style={{ flex: 2 }}>
-            Fee mode
+            Who pays the fee
             <select value={fees.feeMode} onChange={(e) => setFees({ ...fees, feeMode: e.target.value })}>
-              <option value="CHURCH_ABSORBS">Church absorbs fee</option>
-              <option value="GIVER_ABSORBS">Giver pays fee (added on top)</option>
-              <option value="GIVER_CHOICE">Giver chooses at checkout</option>
+              <option value="CHURCH_ABSORBS">The church pays it</option>
+              <option value="GIVER_ABSORBS">The member pays it (added on top)</option>
+              <option value="GIVER_CHOICE">The member chooses at checkout</option>
             </select>
           </label>
           <label>
@@ -604,6 +735,37 @@ export default function SettingsPage() {
         <button>Apply preset</button>
       </form>
 
+      <div className="card stack" hidden={tab !== 'appearance'}>
+        <h2>Colour &amp; dark mode</h2>
+        <p className="muted">
+          Pick the look you like best. Night is dark mode for evening services and low light. Your choice is remembered on
+          this phone or computer — it does not change what anyone else sees.
+        </p>
+        <div className="theme-grid" role="radiogroup" aria-label="Colour theme">
+          {THEMES.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="radio"
+              aria-checked={theme === t.key}
+              className={`theme-card${theme === t.key ? ' on' : ''}`}
+              onClick={() => {
+                setTheme(t.key);
+                applyTheme(t.key);
+              }}
+            >
+              <span className="theme-swatch" aria-hidden="true">
+                {t.colors.map((c, i) => (
+                  <span key={i} style={{ background: c }} />
+                ))}
+              </span>
+              <span className="name">{t.name}</span>
+              <span className="hint">{theme === t.key ? 'In use' : t.hint}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form
         className="card stack"
         onSubmit={(e) => {
@@ -612,11 +774,11 @@ export default function SettingsPage() {
         }}
         hidden={tab !== 'modules'}
       >
-        <h2>Areas of the app</h2>
+        <h2>App sections</h2>
         <p className="muted">
-          A church that does not run a ministry should not have to look at it. Switching an area off removes it from the
-          top bar, the tab strip, the dashboard and the route guard for everyone in this church. Nothing is deleted, and
-          Settings always stays reachable so you can switch it back on.
+          Tick the areas this church uses. Anything you untick disappears from the top bar, the tabs, the dashboard and the
+          route guard for everyone here — nothing is deleted, and you can add it back any time from this page.
+          Worship starts off; tick it to bring services, check-in, serving team, media and events back.
         </p>
         {MODULE_KEYS.map((key) => (
           <label key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -633,7 +795,7 @@ export default function SettingsPage() {
             </span>
           </label>
         ))}
-        <button>Save modules</button>
+        <button>Save app sections</button>
       </form>
     </div>
   );
