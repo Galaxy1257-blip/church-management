@@ -1,0 +1,263 @@
+/* ============================================================
+   Public screens: landing page, sign in, sign up, forgot password.
+   Uses the warm-sanctuary tokens from globals.css; nothing here is
+   reused inside the signed-in app shell.
+   ============================================================ */
+
+.pub-shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* A link that looks like the app's primary button — a <Link> wrapping a
+   <button> is invalid markup and confuses keyboard users. */
+.pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.52rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background-color: var(--brand);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.12));
+  color: var(--brand-ink);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(34, 27, 21, 0.16);
+  transition: filter 0.15s ease, transform 0.06s ease, background 0.15s ease;
+  text-align: center;
+}
+.pub-btn:hover { filter: brightness(1.07); color: var(--brand-ink); }
+.pub-btn:active { transform: translateY(1px); }
+.pub-btn.ghost {
+  background-color: var(--bg-soft);
+  background-image: none;
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.pub-btn.ghost:hover { background-color: var(--secondary-hover); color: var(--ink); }
+.pub-btn.small { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.pub-btn.full { display: flex; width: 100%; }
+
+.pub-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.15rem;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.pub-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--brand);
+}
+.pub-mark i {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 7px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 0.9rem;
+}
+.pub-tag { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+.pub-links { display: flex; gap: 0.2rem; flex-wrap: wrap; }
+.pub-links a { padding: 0.35rem 0.6rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: var(--muted); }
+.pub-links a:hover { background: var(--bg-soft); color: var(--ink); }
+.pub-cta { margin-left: auto; display: flex; align-items: center; gap: 0.45rem; }
+.pub-cta a.link { font-size: 0.88rem; font-weight: 600; padding: 0.35rem 0.5rem; }
+/* On a phone the header keeps only what gets you in: brand, sign in, trial. */
+@media (max-width: 620px) {
+  .pub-links, .pub-tag { display: none; }
+  .pub-top { padding: 0.6rem 0.9rem; }
+  .pub-cta { gap: 0.2rem; }
+  .pub-cta a.link { padding: 0.3rem 0.35rem; font-size: 0.82rem; }
+  .pub-cta .pub-btn.small { padding: 0.3rem 0.55rem; font-size: 0.82rem; }
+}
+
+.pub-main { flex: 1; }
+.pub-inner { max-width: 1060px; margin: 0 auto; padding: 0 1.15rem; }
+
+/* ------------------------------------------------------------------- hero */
+.pub-hero { display: grid; gap: 2rem; padding: 2.6rem 0 1.6rem; align-items: center; }
+@media (min-width: 900px) { .pub-hero { grid-template-columns: 1.05fr 0.95fr; } }
+
+.eyebrow {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pub-hero h1 {
+  font-size: clamp(2rem, 5.2vw, 3.1rem);
+  line-height: 1.08;
+  margin: 0.7rem 0 0.8rem;
+}
+.pub-hero h1 em { font-style: italic; color: var(--brand); }
+.pub-lead { font-size: 1.03rem; color: var(--muted); max-width: 46ch; margin-bottom: 1.15rem; }
+.pub-hero-cta { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.pub-hero-cta .pub-btn { padding: 0.72rem 1.15rem; font-size: 1rem; }
+.pub-trust { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--muted); }
+.pub-trust span::before { content: '✓ '; color: var(--brand); font-weight: 700; }
+
+/* the "look inside" card, drawn with divs so it themes with the rest */
+.pub-preview {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.pub-preview-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.pub-preview-top i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--line-strong); }
+.pub-preview-top i:first-child { background: var(--accent); }
+.pub-preview-body { padding: 0.9rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.pub-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.pub-metric { border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.7rem; background: var(--stat-a); }
+.pub-metric span { display: block; font-size: 0.74rem; color: var(--muted); }
+.pub-metric strong { font-family: var(--font-display); font-size: 1.3rem; }
+.pub-metric small { display: block; font-size: 0.72rem; color: var(--brand); }
+.pub-bars { display: flex; align-items: flex-end; gap: 0.35rem; height: 62px; }
+.pub-bars i { flex: 1; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, var(--accent), var(--brand)); opacity: 0.85; }
+.pub-person { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.pub-person b { display: block; font-size: 0.9rem; }
+.pub-person small { display: block; font-size: 0.76rem; color: var(--muted); }
+.pub-note-float {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.84rem;
+}
+.pub-note-float b { font-family: var(--font-display); font-size: 1rem; }
+
+/* -------------------------------------------------------------- features */
+.pub-section { padding: 1.9rem 0; }
+.pub-section-head { max-width: 60ch; margin-bottom: 1.1rem; }
+.pub-section-head h2 { font-size: 1.5rem; margin: 0.4rem 0 0.35rem; }
+.pub-section-head p { color: var(--muted); margin: 0; }
+.pub-features { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.pub-feature {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.95rem 1rem 1.05rem;
+}
+.pub-feature .ic {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--brand);
+  margin-bottom: 0.6rem;
+}
+.pub-feature b { display: block; font-size: 1rem; margin-bottom: 0.2rem; }
+.pub-feature span { font-size: 0.88rem; color: var(--muted); }
+
+/* --------------------------------------------------------------- pricing */
+.pub-price { display: grid; gap: 0.9rem; }
+@media (min-width: 820px) { .pub-price { grid-template-columns: 0.95fr 1.05fr; align-items: start; } }
+.pub-pricecard {
+  background: var(--brand);
+  color: var(--brand-ink);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.2rem 1.25rem;
+  box-shadow: var(--shadow-md);
+}
+.pub-pricecard .eyebrow { color: var(--accent-soft); }
+.pub-amount { font-family: var(--font-display); font-size: 2.1rem; font-weight: 700; margin: 0.35rem 0 0.2rem; }
+.pub-amount small { font-size: 0.85rem; font-weight: 500; opacity: 0.85; font-family: inherit; }
+.pub-pricecard ul { margin: 0.9rem 0 1.1rem; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.42rem; }
+.pub-pricecard li { font-size: 0.9rem; padding-left: 1.15rem; position: relative; opacity: 0.94; }
+.pub-pricecard li::before { content: '✓'; position: absolute; left: 0; color: var(--accent-soft); font-weight: 700; }
+.pub-pricecard .pub-btn { background: var(--brand-ink); color: var(--brand); border-color: var(--brand-ink); width: 100%; }
+.pub-pricecard a { color: var(--brand-ink); text-decoration: underline; }
+.pub-notes { display: flex; flex-direction: column; gap: 0.7rem; }
+.pub-note { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; padding: 0.7rem 0.85rem; font-size: 0.88rem; }
+.pub-note b { display: block; margin-bottom: 0.15rem; }
+
+.pub-foot {
+  margin-top: 2rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg-soft);
+  padding: 1.15rem;
+}
+.pub-foot-inner {
+  max-width: 1060px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.pub-foot-inner b { color: var(--ink); }
+
+/* ------------------------------------------------------------------ auth */
+.pub-auth { padding: 1.9rem 0 2.6rem; }
+.auth-card { max-width: 430px; margin: 0 auto; }
+.auth-card h2 { font-size: 1.4rem; margin: 0 0 0.3rem; display: block; }
+.auth-sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 1rem; }
+.auth-card form { gap: 0.75rem; }
+.auth-card label { gap: 0.3rem; }
+.auth-card button[type='submit'] { width: 100%; padding: 0.72rem 1rem; font-size: 1rem; margin-top: 0.15rem; }
+.auth-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; font-size: 0.88rem; }
+.auth-links { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; justify-content: space-between; font-size: 0.88rem; }
+.auth-foot { text-align: center; font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0; }
+.auth-or { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.8rem; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.auth-hint { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.75rem; font-size: 0.84rem; }
+.auth-card > .auth-hint { margin-bottom: 0.9rem; }
+.auth-hint b { display: block; margin-bottom: 0.1rem; }
+.auth-tabs { display: flex; gap: 0.35rem; margin-bottom: 0.9rem; }
+.auth-tabs button { flex: 1; padding: 0.55rem 0.6rem; font-size: 0.9rem; }
+.auth-tabs button.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.auth-preview { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; text-align: center; margin: 0 0 0.9rem; }
+.auth-preview img { max-width: 74px; max-height: 74px; border-radius: 10px; }
+.auth-preview b { font-size: 1.05rem; }
+.auth-steps { display: flex; gap: 0.35rem; margin-bottom: 1rem; }
+.auth-step {
+  flex: 1;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.2rem;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--bg-soft);
+}
+.auth-step.on { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.auth-step.done { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.auth-id { font-size: 0.84rem; }
+.auth-id code { font-size: 0.82rem; background: var(--bg-soft); padding: 0.05rem 0.35rem; border-radius: 6px; }
