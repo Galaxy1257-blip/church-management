@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { MODULE_DEFAULTS, MODULE_KEYS, isModuleKey, resolveModules } from './modules';
 
-const defaults = { people: true, worship: false, money: true, reach: true, org: true };
+const defaults = {
+  people: true,
+  care: false,
+  worship: false,
+  roster: false,
+  money: true,
+  reach: true,
+  departments: false,
+  branches: false,
+};
 
 describe('resolveModules', () => {
-  it('uses the defaults when the church has no settings (Worship off)', () => {
+  it('uses the defaults when the church has no settings (opt-in areas off)', () => {
     expect(resolveModules(undefined)).toEqual(defaults);
     expect(resolveModules({})).toEqual(defaults);
     expect(MODULE_DEFAULTS).toEqual(defaults);
@@ -14,7 +23,18 @@ describe('resolveModules', () => {
     const flags = resolveModules({ modules: { money: false } });
     expect(flags.money).toBe(false);
     expect(flags.people).toBe(true);
+    expect(flags.care).toBe(false);
     expect(flags.worship).toBe(false);
+  });
+
+  it('turns opt-in sections on when the church ticks them', () => {
+    const flags = resolveModules({
+      modules: { care: true, roster: true, departments: true, branches: true },
+    });
+    expect(flags.care).toBe(true);
+    expect(flags.roster).toBe(true);
+    expect(flags.departments).toBe(true);
+    expect(flags.branches).toBe(true);
   });
 
   it('ignores unknown keys and non-object settings', () => {

@@ -36,6 +36,21 @@ describe('permissions', () => {
     expect(hasStaffAccess(permissionsForRoles(['MEMBER']))).toBe(false);
   });
 
+  it('sunday school teachers look after children and care, never money', () => {
+    const teacher = permissionsForRoles(['SUNDAY_SCHOOL']);
+    expect(hasPermission(teacher, 'care:read')).toBe(true);
+    expect(hasPermission(teacher, 'checkin:write')).toBe(true);
+    expect(hasPermission(teacher, 'members:write')).toBe(true);
+    expect(hasPermission(teacher, 'finance:read')).toBe(false);
+    expect(hasPermission(teacher, 'settings:write')).toBe(false);
+  });
+
+  it('ushers can run the care queue they are allowed to see', () => {
+    const usher = permissionsForRoles(['USHER']);
+    expect(hasPermission(usher, 'care:read')).toBe(true);
+    expect(hasPermission(usher, 'care:write')).toBe(true);
+  });
+
   it('lower leaders only get their own modules', () => {
     const usher = permissionsForRoles(['USHER']);
     expect(hasPermission(usher, 'headcount:write')).toBe(true);

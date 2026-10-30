@@ -13,7 +13,8 @@ export type RoleKey =
   | 'LEADER'
   | 'MEMBER'
   | 'ELDER'
-  | 'SECRETARY';
+  | 'SECRETARY'
+  | 'SUNDAY_SCHOOL';
 export const ROLE_KEYS: RoleKey[] = [
   'SUPER_ADMIN',
   'PASTOR',
@@ -24,6 +25,7 @@ export const ROLE_KEYS: RoleKey[] = [
   'MEMBER',
   'ELDER',
   'SECRETARY',
+  'SUNDAY_SCHOOL',
 ];
 
 export type Gender = 'MALE' | 'FEMALE';

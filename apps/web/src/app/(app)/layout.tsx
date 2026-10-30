@@ -11,7 +11,9 @@ import {
   canAccessPath,
   hasPermission,
   hasStaffAccess,
+  MODULE_LABELS,
   moduleEnabled,
+  moduleForPath,
   routeAccess,
   visibleNavGroups,
   visibleUsherNav,
@@ -90,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Everything the shell shows is derived from the permission set the API
   // returned for this session — never from a hardcoded role name.
   const perms = me.permissions;
-  const groups = visibleNavGroups(perms, me.modules);
+  const groups = visibleNavGroups(perms, me.modules, me.roles);
   // Office-delivered extras (per-church features) get one quiet entry, and only
   // when the office actually switched something on for this church.
   if ((me.extras?.length ?? 0) > 0 && hasPermission(perms, 'church:read')) {
@@ -113,12 +115,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     visibleUsherNav(perms).some(
       (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
     );
-  const denied = !usherAllowed && !canAccessPath(perms, pathname, me.modules);
-  // Which of the two possible reasons applies: a switched-off area or a missing
-  // permission. The copy below has to say the right one, or the operator will go
-  // hunting for a role that was never the problem.
+  const denied = !usherAllowed && !canAccessPath(perms, pathname, me.modules, me.roles);
+  // Which of the two possible reasons applies: a switched-off section or a
+  // missing permission/role. The copy below has to say the right one, or the
+  // operator will go hunting for a role that was never the problem.
   const area = rule ? areaForItem(rule.prefix) : null;
-  const areaOff = area ? !moduleEnabled(me.modules, area.module) : false;
+  const section = moduleForPath(pathname);
+  const areaOff = section ? !moduleEnabled(me.modules, section) : false;
+  const sectionLabel = section ? MODULE_LABELS[section].label : (area?.label ?? 'This area');
   const home = groups[0]?.items[0]?.href ?? '/dashboard';
 
   return (
@@ -140,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <h1>{areaOff ? 'Area switched off' : 'Not available for your role'}</h1>
               <p className="muted">
                 {areaOff
-                  ? `${area?.label ?? 'This area'} is switched off for ${me.church.name}. A church admin can turn it back on in Settings → App sections.`
+                  ? `${sectionLabel} is switched off for ${me.church.name}. A church admin can turn it back on in Settings → App sections.`
                   : `${rule ? rule.label : 'This page'} needs a permission your role does not have. Ask a church admin if you should have it.`}
               </p>
               <Link href={home}>Go to an area you can use</Link>

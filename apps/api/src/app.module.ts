@@ -32,8 +32,6 @@ import { ExpensesModule } from './ministry/expenses.module';
 import { CareModule } from './ministry/care.module';
 import { EventsModule } from './ministry/events.module';
 import { AnnouncementsModule } from './ministry/announcements.module';
-import { MediaModule } from './ministry/media.module';
-import { SetlistsModule } from './ministry/setlists.module';
 import { FollowupAdminModule } from './ministry/followup-admin.module';
 import { PushModule } from './ministry/push.module';
 import { ChildrenModule } from './ministry/children.module';
@@ -72,8 +70,6 @@ import { QueuesModule } from './queues/queues.module';
     CareModule,
     EventsModule,
     AnnouncementsModule,
-    MediaModule,
-    SetlistsModule,
     FollowupAdminModule,
     PushModule,
     ChildrenModule,

@@ -123,13 +123,7 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState('sanctuary');
   // Which areas of the app this church runs (settings.modules; absent =
   // shared defaults, and Worship starts switched off).
-  const [modules, setModules] = useState<Record<string, boolean>>({
-    people: true,
-    worship: false,
-    money: true,
-    reach: true,
-    org: true,
-  });
+  const [modules, setModules] = useState<Record<string, boolean>>({ ...MODULE_DEFAULTS });
 
   useEffect(() => {
     try {
@@ -338,7 +332,7 @@ export default function SettingsPage() {
               : tab === 'appearance'
                 ? 'Pick a colour scheme or switch to dark mode. It applies to this device straight away.'
                 : tab === 'modules'
-                  ? 'Turn areas on or off — hidden everywhere, nothing is deleted, and you can switch them back on here.'
+                  ? 'Tick the sections this church runs — hidden everywhere until ticked, nothing is deleted, and you can switch them back on here.'
                   : 'The monthly fee that keeps this workspace open. Pay with Paystack, or tell the office about a cash payment.'}
       </p>
 
@@ -790,7 +784,8 @@ export default function SettingsPage() {
         <p className="muted">
           Tick the areas this church uses. Anything you untick disappears from the top bar, the tabs, the dashboard and the
           route guard for everyone here — nothing is deleted, and you can add it back any time from this page.
-          Worship starts off; tick it to bring services, check-in, serving team, media and events back.
+          Care, the serving team, departments and branches start off; tick the ones you run. Care is only shown to ushers
+          and Sunday School teachers.
         </p>
         {MODULE_KEYS.map((key) => (
           <label key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

@@ -908,26 +908,6 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 .demo-legend { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.45rem; font-size: 0.8rem; color: var(--muted); }
 .demo-legend span::before { content: '■ '; color: var(--accent); }
 
-/* ---------------------------------------------------------- media/projection screen */
-.media-screen {
-  position: fixed;
-  inset: 0;
-  background: #17110c;
-  background-image: radial-gradient(900px 500px at 50% 0%, rgba(192, 138, 46, 0.16), transparent 70%);
-  color: #fffdf8;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  z-index: 100;
-}
-.media-screen .big { font-family: var(--font-display); font-size: 18vw; font-weight: 800; line-height: 1; }
-.media-screen .cols { display: flex; gap: 4vw; flex-wrap: wrap; justify-content: center; }
-.media-screen .col { text-align: center; }
-.media-screen .col .n { font-family: var(--font-display); font-size: 6vw; font-weight: 800; }
-.media-screen .col .l { opacity: 0.72; font-size: 1.4vw; text-transform: uppercase; letter-spacing: 0.12em; }
-
 /* ---------------------------------------------------------- member drawer */
 .drawer-scrim {
   position: fixed;

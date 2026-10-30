@@ -28,6 +28,7 @@ enum RoleKey {
   MEMBER
   ELDER
   SECRETARY
+  SUNDAY_SCHOOL
 }
 
 enum Gender {
@@ -1274,22 +1275,6 @@ model OtpChallenge {
   consumedAt DateTime?
 
   @@index([phoneE164, expiresAt])
-}
-
-model MediaItem {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  churchId    String   @db.Uuid
-  type        String // SERMON_AUDIO|SERMON_VIDEO|NOTES_PDF|LIVESTREAM
-  title       String
-  speaker     String?
-  preachedOn  DateTime @db.Date
-  seriesId    String?  @db.Uuid
-  externalUrl String?
-  fileKey     String?
-  durationSec Int?
-  isPublished Boolean  @default(true)
-
-  @@index([churchId, preachedOn])
 }
 
 // ------------------------------------------- follow-up engine

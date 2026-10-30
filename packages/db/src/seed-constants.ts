@@ -12,6 +12,7 @@ export const DEFAULT_ROLES: { key: RoleKey; name: string }[] = [
   // R4.7 Ghana church roles
   { key: 'ELDER', name: 'Elder' },
   { key: 'SECRETARY', name: 'Church Secretary' },
+  { key: 'SUNDAY_SCHOOL', name: 'Sunday School Teacher' },
 ];
 
 export function permissionsForRoleSeed(key: RoleKey): string[] {

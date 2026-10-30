@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-10-30 (Session O). **Self-contained**: a fresh session can
+Last updated: 2026-10-30 (Session P). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -63,14 +63,16 @@ C:\Users\HP\Desktop\church\
   fante(66), ewe(66). Non-PD extracts carry `publicDomain:false` + honest license. WEB pending (§6).
 - **Demographics**: configurable AgeBrackets (min/max/genderSplit); Member.dob + ageBracketId; check-in
   auto-sorts into bracket headcount sections; birthday promotions (manual + nightly), audit-chained.
-- **Roles**: SUPER_ADMIN('*') · FINANCE_ADMIN (money+reports) · USHER (headcount/checkin/visitors read) ·
-  FOLLOWUP_TEAM (visitors+care+sms) · LEADER (ops+media) · MEMBER (zero staff perms → companion only) ·
-  **ELDER** (R4.7: care+visitors+sms) · **SECRETARY** (R4.7: members+services+campaigns+reports) —
-  seeded by seedChurchDefaults; presets in shared/permissions.ts.
+- **Roles**: SUPER_ADMIN('*') · FINANCE_ADMIN (money+reports) · USHER (headcount/checkin/visitors+care) ·
+  FOLLOWUP_TEAM (visitors+care+sms) · LEADER (ops) · MEMBER (zero staff perms → companion only) ·
+  **ELDER** (R4.7: care+visitors+sms) · **SECRETARY** (R4.7: members+services+campaigns+reports) ·
+  **SUNDAY_SCHOOL** (Session P: members+checkin+visitors+care) —
+  seeded by seedChurchDefaults; presets in shared/permissions.ts. Media was removed entirely in
+  Session P. Care is visible only to USHER and SUNDAY_SCHOOL even though other roles may hold care:read.
 ## 4. Verification status (**`npm run db:verify` PASSED** — Session K, 22 Oct)
 - **Gate green (26/26)**: `prisma migrate deploy` (0_init) · `extras.sql` (FORCE RLS, triggers,
   hash-chained audit) · app_user + platform_user roles/grants/passwords · seed (demo church,
-  8 roles) · api tests **19 unit + 7 integration** — integration runs against a **freshly reset
+  9 roles incl. SUNDAY_SCHOOL) · api tests **19 unit + 7 integration** — integration runs against a **freshly reset
   `chms_test`** each run (`scripts/reset-test-db.mjs`, app/platform URLs via `.env`
   `DATABASE_URL_TEST`/`PLATFORM_DATABASE_URL_TEST`).
 - **Postgres = native PostgreSQL 16.11** at `C:\PostgreSQL\16` (EDB silent installer; Docker Desktop

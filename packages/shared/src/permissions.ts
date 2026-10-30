@@ -37,8 +37,6 @@ export const PERMISSIONS = [
   'settings:write',
   'care:read',
   'care:write',
-  'media:read',
-  'media:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -82,6 +80,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'checkin:write',
     'visitors:read',
     'visitors:write',
+    // Ushers run welfare and the care queue alongside the door.
+    'care:read',
+    'care:write',
   ],
   FOLLOWUP_TEAM: [
     ...READ_ONLY,
@@ -105,8 +106,6 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'giving:read',
     'campaigns:read',
     'reports:read',
-    'media:read',
-    'media:write',
   ],
   MEMBER: [],
   // R4.7 Ghana church roles: Elder (pastoral care + services) and
@@ -131,8 +130,20 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'visitors:read',
     'campaigns:read',
     'campaigns:write',
-    'media:read',
     'reports:read',
+  ],
+  // Sunday School teachers look after children: records, check-in and the care
+  // queue. They hold no finance or settings permissions.
+  SUNDAY_SCHOOL: [
+    ...READ_ONLY,
+    'members:read',
+    'members:write',
+    'headcount:write',
+    'checkin:write',
+    'visitors:read',
+    'visitors:write',
+    'care:read',
+    'care:write',
   ],
 };
 
@@ -172,6 +183,7 @@ export const ROLE_TIERS: Record<RoleKey, RoleTier> = {
   LEADER: 'DEPARTMENT',
   ELDER: 'DEPARTMENT',
   SECRETARY: 'DEPARTMENT',
+  SUNDAY_SCHOOL: 'DEPARTMENT',
   MEMBER: 'SELF',
 };
 

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { fmtDateTime, ghs } from '../../../lib/format';
-import { hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
+import { hasPermission, isCareRole, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import MemberDrawer from '../../../components/member-drawer';
 
@@ -78,6 +78,7 @@ function readLayout(): Layout {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [perms, setPerms] = useState<string[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
   const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
   const [error, setError] = useState('');
   const [layout, setLayout] = useState<Layout>({ order: DEFAULT_ORDER, hidden: [] });
@@ -94,6 +95,7 @@ export default function DashboardPage() {
         const session = await getSession();
         const granted = session.permissions;
         setPerms(granted);
+        setRoles(session.roles);
         setModules(session.modules);
         const can = (perm: string) => hasPermission(granted, perm);
         const [wallet, services, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
@@ -122,7 +124,7 @@ export default function DashboardPage() {
   const mod = (key: ModuleKey) => moduleEnabled(modules, key);
   const attendanceVisible = has('services:read') && (mod('worship') || has('headcount:write'));
   const eventsVisible = has('services:write') && mod('worship');
-  const careVisible = has('care:read') && mod('people');
+  const careVisible = has('care:read') && mod('care') && isCareRole(roles);
 
   const statCount = (attendanceVisible ? 1 : 0) + (has('reports:read') && mod('money') ? 1 : 0) + (careVisible ? 1 : 0);
 
@@ -229,7 +231,6 @@ export default function DashboardPage() {
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Sunday attendance</h2>
-              <Link href="/media">Projection →</Link>
             </div>
             {data.totals && data.totals.totals.filter((t) => t.segmentKey !== 'LIVESTREAM').length > 0 ? (
               <>

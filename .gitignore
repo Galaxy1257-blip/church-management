@@ -25,4 +25,10 @@ scripts/check-users.cjs
 .ecc/*.pid
 .ecc/proc.ids
 .ecc/gates2.err
+.ecc/*.out
+# Local image/asset caches (scraped + generated, ~130 MB; rebuild with the
+# scripts inside each folder). Keep them on disk, not in git history.
+church-asset-kit/
+church-asset-pipeline/
+vibe_images/
 

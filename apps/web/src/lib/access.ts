@@ -81,6 +81,10 @@ export interface NavItem {
   label: string;
   /** Any one of these permissions opens the page (and shows the link). */
   permissions: Permission[];
+  /** Which app-section switch hides this page (absent = the area's switch). */
+  module?: ModuleKey;
+  /** When set, only these role keys may see/open the page. */
+  roles?: readonly string[];
 }
 
 export interface NavGroup {
@@ -95,26 +99,51 @@ export interface NavGroup {
 //
 // Mirrors packages/shared/src/modules.ts (this app does not import the workspace
 // package; the access smoke test is what catches drift).
-export const MODULE_KEYS = ['people', 'worship', 'money', 'reach', 'org'] as const;
+export const MODULE_KEYS = [
+  'people',
+  'care',
+  'worship',
+  'roster',
+  'money',
+  'reach',
+  'departments',
+  'branches',
+] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
 
-/** Must match packages/shared MODULE_DEFAULTS. Worship starts switched off. */
+/**
+ * Must match packages/shared MODULE_DEFAULTS. Care, the serving rota,
+ * departments and branches are opt-in; the church ticks them in Settings.
+ */
 export const MODULE_DEFAULTS: Record<ModuleKey, boolean> = {
   people: true,
+  care: false,
   worship: false,
+  roster: false,
   money: true,
   reach: true,
-  org: true,
+  departments: false,
+  branches: false,
 };
 
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
-  people: { label: 'People', hint: 'Members, visitors, children, groups, care and follow-up' },
-  worship: { label: 'Worship', hint: 'Services, check-in, serving team, media and events' },
+  people: { label: 'People', hint: 'Members, visitors, children, groups and follow-up' },
+  care: { label: 'Care', hint: 'Care queue, prayer and welfare — only for ushers and Sunday School teachers' },
+  worship: { label: 'Worship', hint: 'Services, check-in and events' },
+  roster: { label: 'Serving team', hint: 'The serving rota for each service' },
   money: { label: 'Money', hint: 'Offerings, special events, expenses and money reports' },
   reach: { label: 'Reach', hint: 'SMS campaigns and announcements' },
-  org: { label: 'Organisation', hint: 'Departments, branches and money sent to HQ' },
+  departments: { label: 'Departments', hint: 'Church departments and their leaders' },
+  branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
 };
+
+/** Care is for the people who look after the congregation week to week. */
+export const CARE_ROLES: readonly string[] = ['USHER', 'SUNDAY_SCHOOL'];
+
+export function isCareRole(roles: readonly string[] | undefined): boolean {
+  return !!roles && roles.some((role) => CARE_ROLES.includes(role));
+}
 
 export interface NavArea {
   /** Which church-level switch hides this whole area (Settings → App sections). */
@@ -137,19 +166,18 @@ export const NAV_AREAS: NavArea[] = [
       { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
       { href: '/children', label: 'Children', permissions: ['members:write'] },
       { href: '/groups', label: 'Groups', permissions: ['members:write'] },
-      { href: '/care', label: 'Care', permissions: ['care:read'] },
+      { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
       { href: '/drip', label: 'Follow-up', permissions: ['care:read'] },
     ],
   },
   {
     module: 'worship',
     label: 'Worship',
-    hint: 'Services, check-in, serving team, media and events',
+    hint: 'Services, check-in and events',
     items: [
       { href: '/services', label: 'Services', permissions: ['services:read'] },
       { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
-      { href: '/roster', label: 'Serving team', permissions: ['members:write'] },
-      { href: '/media', label: 'Media', permissions: ['media:read'] },
+      { href: '/roster', label: 'Serving team', permissions: ['members:write'], module: 'roster' },
       { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'] },
     ],
   },
@@ -173,12 +201,12 @@ export const NAV_AREAS: NavArea[] = [
     ],
   },
   {
-    module: 'org',
+    module: 'departments',
     label: 'Organisation',
     hint: 'Departments, branches and money sent to HQ',
     items: [
-      { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write'] },
-      { href: '/branches', label: 'Branches', permissions: ['church:write', 'settings:write', 'finance:read'] },
+      { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write'], module: 'departments' },
+      { href: '/branches', label: 'Branches', permissions: ['church:write', 'settings:write', 'finance:read'], module: 'branches' },
     ],
   },
 ];
@@ -199,6 +227,8 @@ export interface AccessRule {
   prefix: string;
   permissions: Permission[];
   label: string;
+  /** When set, only these role keys may open the route. */
+  roles?: readonly string[];
 }
 
 /** Route → permissions (any one opens it). Longest matching prefix wins. */
@@ -207,12 +237,11 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/members', permissions: ['members:read'], label: 'Members' },
   { prefix: '/visitors', permissions: ['visitors:read'], label: 'Visitors' },
   { prefix: '/children', permissions: ['members:write'], label: 'Children' },
-  { prefix: '/care', permissions: ['care:read'], label: 'Care' },
+  { prefix: '/care', permissions: ['care:read'], roles: CARE_ROLES, label: 'Care' },
   { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },
   { prefix: '/services', permissions: ['services:read'], label: 'Services' },
   { prefix: '/checkin', permissions: ['checkin:write'], label: 'Check-in' },
   { prefix: '/roster', permissions: ['members:write'], label: 'Serving team' },
-  { prefix: '/media', permissions: ['media:read'], label: 'Media' },
   { prefix: '/finance', permissions: ['finance:read'], label: 'Offerings' },
   { prefix: '/campaigns', permissions: ['giving:read'], label: 'Special offerings' },
   { prefix: '/expenses', permissions: ['expenses:read'], label: 'Expenses' },
@@ -250,6 +279,29 @@ export function areaForItem(href: string): NavArea | null {
   return NAV_AREAS.find((area) => area.items.some((item) => item.href === href)) ?? null;
 }
 
+/** The switch that hides this page: its own override, else its area's module. */
+export function moduleForItem(href: string): ModuleKey | undefined {
+  for (const area of NAV_AREAS) {
+    const item = area.items.find((candidate) => candidate.href === href);
+    if (item) return item.module ?? area.module;
+  }
+  return undefined;
+}
+
+/** The module switch for the current pathname (longest matching item wins). */
+export function moduleForPath(pathname: string): ModuleKey | undefined {
+  let match: { href: string; module: ModuleKey } | null = null;
+  for (const area of NAV_AREAS) {
+    for (const item of area.items) {
+      const hit = pathname === item.href || pathname.startsWith(`${item.href}/`);
+      if (hit && (!match || item.href.length > match.href.length)) {
+        match = { href: item.href, module: item.module ?? area.module };
+      }
+    }
+  }
+  return match?.module;
+}
+
 /** The area the current pathname lives in, with its full item list. */
 export function areaForPath(pathname: string): { area: NavArea; items: NavItem[] } | null {
   for (const area of NAV_AREAS) {
@@ -262,36 +314,46 @@ export function areaForPath(pathname: string): { area: NavArea; items: NavItem[]
   return null;
 }
 
-function mayOpen(granted: readonly string[], item: NavItem): boolean {
-  return hasAnyPermission(granted, item.permissions);
+function mayOpen(granted: readonly string[], item: NavItem, roles?: readonly string[]): boolean {
+  if (!hasAnyPermission(granted, item.permissions)) return false;
+  if (item.roles && !item.roles.some((role) => roles?.includes(role))) return false;
+  return true;
 }
 
 /**
  * True when the permission set may open this route. `modules` is the church's
- * switch set: a disabled area counts as unavailable, except /settings — that is
- * where the switches live, so it must stay reachable to switch them back on.
+ * switch set: a disabled section counts as unavailable, except /settings — that
+ * is where the switches live, so it must stay reachable to switch them back on.
+ * `roles` is the signed-in role-key list, used by the few pages that name roles.
  */
 export function canAccessPath(
   granted: readonly string[],
   pathname: string,
   modules?: ModuleFlags,
+  roles?: readonly string[],
 ): boolean {
   const rule = routeAccess(pathname);
   if (!rule) return true;
   if (!hasAnyPermission(granted, rule.permissions)) return false;
+  if (rule.roles && !rule.roles.some((role) => roles?.includes(role))) return false;
   if (rule.prefix === '/settings') return true;
-  return moduleEnabled(modules, areaForItem(rule.prefix)?.module);
+  return moduleEnabled(modules, moduleForPath(pathname));
 }
 
-/** Nav groups with inaccessible items and switched-off areas removed. */
-export function visibleNavGroups(granted: readonly string[], modules?: ModuleFlags): NavGroup[] {
-  return NAV_AREAS.filter((area) => moduleEnabled(modules, area.module))
-    .map((area) => ({
-      label: area.label,
-      hint: area.hint,
-      items: area.items.filter((item) => mayOpen(granted, item)),
-    }))
-    .filter((group) => group.items.length > 0);
+/** Nav groups with inaccessible items and switched-off sections removed. */
+export function visibleNavGroups(
+  granted: readonly string[],
+  modules?: ModuleFlags,
+  roles?: readonly string[],
+): NavGroup[] {
+  return NAV_AREAS.map((area) => ({
+    label: area.label,
+    hint: area.hint,
+    items: area.items.filter(
+      (item) =>
+        moduleEnabled(modules, item.module ?? area.module) && mayOpen(granted, item, roles),
+    ),
+  })).filter((group) => group.items.length > 0);
 }
 
 /** Usher-mode links this user may open. */

@@ -162,7 +162,7 @@ export class HeadcountService {
     );
   }
 
-  /** Platform-scope totals for the public SSE stream (media screen). */
+  /** Platform-scope totals for the public SSE stream (wall display). */
   async totalsPlatform(churchId: string, serviceId: string) {
     const { platformPrisma } = await import('@chms/db');
     const segments = await platformPrisma.headcountSegment.findMany({

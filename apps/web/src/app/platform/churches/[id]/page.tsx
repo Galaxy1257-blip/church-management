@@ -27,6 +27,7 @@ const ROLE_OPTIONS = [
   { key: 'LEADER', label: 'Leader' },
   { key: 'FOLLOWUP_TEAM', label: 'Follow-up team' },
   { key: 'USHER', label: 'Usher' },
+  { key: 'SUNDAY_SCHOOL', label: 'Sunday School teacher' },
   { key: 'MEMBER', label: 'Member' },
 ];
 const METHOD_LABEL: Record<string, string> = {
@@ -339,7 +340,8 @@ function ModulesCard({
     <div className="card">
       <h2 style={{ marginTop: 0 }}>App sections</h2>
       <p className="muted">
-        Switch whole areas on or off for this church. Nothing is deleted; members can switch them back on themselves.
+        Tick the sections this church runs. Nothing is deleted; members can switch them back on themselves. Care is only
+        shown to ushers and Sunday School teachers.
       </p>
       <div className="grid cols-3">
         {MODULE_KEYS.map((key) => (

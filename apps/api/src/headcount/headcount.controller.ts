@@ -45,8 +45,8 @@ export class HeadcountController {
   }
 
   /**
-   * SSE live feed for the media/projection screen. Public by design (screen
-   * devices have no session); the serviceId must resolve to a real service.
+   * SSE live totals for a wall display. Public by design (screen devices have no
+   * session); the serviceId must resolve to a real service.
    */
   @Public()
   @Get('headcount/stream')
