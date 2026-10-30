@@ -47,7 +47,9 @@ async function bootstrap(): Promise<void> {
       if (!isAllowed) console.warn(`CORS blocked origin ${clean} (allowed: ${origins.join(', ')})`);
       callback(null, isAllowed);
     },
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    // PUT is used by settings saves (church groups, SMS gateway, offering fees);
+    // omitting it made those forms fail in the browser with "Failed to fetch".
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
   app.useGlobalPipes(
