@@ -65,6 +65,8 @@ export default function SignupPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError('Too many accounts from here. Please try again in an hour.');
+      } else if (err instanceof ApiError && err.code === 'INVALID_PHONE') {
+        setError(err.message);
       } else if (err instanceof ApiError && err.status === 403 && tab === 'new') {
         setError('That church ID is taken. Try another, like a short name for your church.');
       } else if (err instanceof ApiError && tab === 'join' && err.status === 400) {

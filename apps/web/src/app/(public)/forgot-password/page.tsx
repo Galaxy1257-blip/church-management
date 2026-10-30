@@ -82,6 +82,8 @@ export default function ForgotPasswordPage() {
         setCode('');
       } else if (err instanceof ApiError && err.status === 429) {
         setError('Too many tries. Please wait a while and start again.');
+      } else if (err instanceof ApiError && err.code === 'INVALID_PHONE') {
+        setError(err.message);
       } else {
         setError('Could not change the password. Please try again.');
       }

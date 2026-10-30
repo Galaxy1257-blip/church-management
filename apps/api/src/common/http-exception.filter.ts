@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import { PhoneError } from '@chms/shared';
 
 /** HTTP status → stable machine code for the shared ApiErrorBody contract. */
 const STATUS_CODES: Record<number, string> = {
@@ -80,6 +81,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
             : 'database rejected the request';
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) message = 'internal server error';
       this.logger.error(`${req.method} ${req.url} -> ${status} [${exception.code}]: ${exception.message}`);
+    } else if (exception instanceof PhoneError) {
+      // Bad phone input is the caller's mistake, not a server fault. Its message
+      // is user-facing, so it can go back as-is.
+      status = HttpStatus.BAD_REQUEST;
+      code = 'INVALID_PHONE';
+      message = exception.message;
     } else if (exception instanceof Error) {
       // The old code echoed exception.message with a 500 status. Anything that
       // reaches here is unexpected, so the client gets the generic body and the

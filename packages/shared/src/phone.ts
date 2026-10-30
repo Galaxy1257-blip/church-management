@@ -15,16 +15,17 @@ const NON_DIGITS = /[\s\-().]/g;
 /**
  * Normalise a Ghanaian mobile number to E.164.
  * Accepts: "0241234567", "241234567", "233241234567", "+233 24 123 4567",
- * "00233241234567", "(0) 24 123 4567".
+ * "00233241234567", "(0) 24 123 4567", and the very common "+233 024 123 4567"
+ * where the trunk 0 is kept behind the country code.
  * Throws PhoneError for anything that is not a valid GH mobile number.
  */
 export function normalizeGhPhone(input: string): string {
   if (typeof input !== 'string' || input.trim() === '') {
-    throw new PhoneError('phone number is required');
+    throw new PhoneError('Enter a phone number.');
   }
   let raw = input.trim().replace(NON_DIGITS, '');
   if (raw.startsWith('00')) raw = '+' + raw.slice(2);
-  if (!/^\+?\d+$/.test(raw)) throw new PhoneError(`invalid phone characters in "${input}"`);
+  if (!/^\+?\d+$/.test(raw)) throw new PhoneError('That does not look like a phone number.');
 
   let national: string;
   if (raw.startsWith('+233')) {
@@ -37,11 +38,15 @@ export function normalizeGhPhone(input: string): string {
     national = raw;
   }
 
+  // People write their number the way they dial it, so "+233 024 123 4567"
+  // arrives here with the trunk 0 still attached. Drop it.
+  if (national.length === 10 && national.startsWith('0')) national = national.slice(1);
+
   if (national.length !== 9) {
-    throw new PhoneError(`Ghana mobile numbers have 9 digits after country code, got ${national.length} in "${input}"`);
+    throw new PhoneError('A Ghana mobile number has 10 digits, like 024 000 0000.');
   }
   if (!/^[25]/.test(national)) {
-    throw new PhoneError(`"${input}" is not a Ghana mobile number (must start 2 or 5 after +233)`);
+    throw new PhoneError('A Ghana mobile number starts with 02 or 05, like 024 000 0000.');
   }
   return `+233${national}`;
 }

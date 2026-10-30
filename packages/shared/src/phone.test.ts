@@ -12,6 +12,12 @@ describe('normalizeGhPhone', () => {
     expect(normalizeGhPhone('(0) 24 123 4567')).toBe('+233241234567');
     expect(normalizeGhPhone('055 123 4567')).toBe('+233551234567');
     expect(normalizeGhPhone(' 024-123-4567 ')).toBe('+233241234567');
+    // The trunk 0 kept behind the country code — how people type it on the
+    // sign-in screen, whose placeholder starts with +233.
+    expect(normalizeGhPhone('+233 024 123 4567')).toBe('+233241234567');
+    expect(normalizeGhPhone('+2330241234567')).toBe('+233241234567');
+    expect(normalizeGhPhone('2330241234567')).toBe('+233241234567');
+    expect(normalizeGhPhone('002330241234567')).toBe('+233241234567');
   });
 
   it('rejects invalid numbers', () => {

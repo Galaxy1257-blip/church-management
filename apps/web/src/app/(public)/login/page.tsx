@@ -61,8 +61,16 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError('Too many tries. Please wait a minute and try again.');
+      } else if (err instanceof ApiError && err.code === 'INVALID_PHONE') {
+        setError(err.message);
       } else if (mode === 'password') {
-        setError('We could not sign you in. Check the church ID, phone number and password.');
+        // The church ID is remembered between visits, so name the church the
+        // form is pointing at — a stale ID otherwise looks like a bad password.
+        setError(
+          church
+            ? `We could not sign you in to ${church.name}. Check your phone number and password.`
+            : 'We could not find that church. Check the Church ID.',
+        );
       } else {
         setError('That code did not work. Ask for a new one.');
       }
