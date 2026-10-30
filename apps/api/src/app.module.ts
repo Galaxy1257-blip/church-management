@@ -5,6 +5,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { EnvModule } from './env.module';
 import { BootCheckService } from './common/boot-check';
 import { JwtAuthGuard, PermissionsGuard } from './common/guards';
+import { BillingGuard } from './billing/billing.guard';
+import { BillingModule } from './billing/billing.module';
 import { TenantService } from './common/tenant';
 import { HealthController } from './health.controller';
 import { AuthController } from './auth/auth.controller';
@@ -47,6 +49,7 @@ import { QueuesModule } from './queues/queues.module';
     ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
     JwtModule.register({ global: true }),
     QueuesModule,
+    BillingModule,
     ChurchesModule,
     MembersModule,
     ServicesModule,
@@ -85,6 +88,7 @@ import { QueuesModule } from './queues/queues.module';
     BootCheckService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: BillingGuard },
   ],
 })
 export class AppModule {}

@@ -15,6 +15,7 @@ import { ServicesService } from '../src/services/services.service';
 import { HeadcountService } from '../src/headcount/headcount.service';
 import { GivingService } from '../src/giving/giving.service';
 import { MockPaymentProvider } from '../src/platform/payment-provider';
+import { BillingService } from '../src/billing/billing.service';
 import { SmsService } from '../src/sms/sms.service';
 import { SmsDispatcher } from '../src/sms/sms-dispatcher';
 import { WebhooksService } from '../src/webhooks/webhooks.service';
@@ -338,6 +339,67 @@ d('integration', () => {
     ).rejects.toThrow(/invalid or expired code/);
     const burnt = await platformPrisma.otpChallenge.findUniqueOrThrow({ where: { id: challenge.id } });
     expect(burnt.consumedAt).not.toBeNull();
+  });
+
+  it('billing: grace pauses, Paystack settles once and unlocks the church', async () => {
+    const church = await makeChurch(`itb-${Date.now()}`);
+    const billing = new BillingService(fakeEnv, new MockPaymentProvider(fakeEnv));
+    // 20 days ago: trial long over, no payment -> past the 7-day grace.
+    const lapsed = await platformPrisma.church.update({
+      where: { id: church.user.churchId },
+      data: { trialEndsAt: new Date(Date.now() - 20 * 86_400_000), paidUntil: null, billingPausedAt: null },
+    });
+    const before = await billing.status(church.user);
+    expect(before.state).toBe('paused');
+    expect(before.locked).toBe(true);
+
+    const checkout = await billing.checkout(church.user);
+    expect(checkout.reference.startsWith('sub_')).toBe(true);
+    expect(checkout.authorizationUrl).toContain('/give/mock-pay?ref=');
+    expect(checkout.amountMinor).toBe(lapsed.monthlyFeeMinor);
+
+    const event = {
+      id: `evt_sub_${Date.now()}`,
+      event: 'charge.success',
+      data: { reference: checkout.reference, amount: lapsed.monthlyFeeMinor, currency: 'GHS' },
+    };
+    expect(await billing.handlePaystackEvent(event)).toEqual({ status: 'settled' });
+    expect(await billing.handlePaystackEvent(event)).toEqual({ status: 'duplicate' });
+
+    const after = await billing.status(church.user);
+    expect(after.locked).toBe(false);
+    expect(after.state).toBe('active');
+    const row = await billing.findByReference(checkout.reference);
+    expect(row?.status).toBe('PAID');
+    // One row per church per period: a second checkout now targets the next month.
+    const next = await billing.checkout(church.user);
+    expect(next.period).not.toBe(checkout.period);
+    await platformPrisma.subscriptionPayment.update({ where: { id: next.paymentId }, data: { status: 'CANCELLED' } });
+  });
+
+  it('billing: a cash claim waits for the office and cannot extend twice', async () => {
+    const church = await makeChurch(`itc-${Date.now()}`);
+    const billing = new BillingService(fakeEnv, new MockPaymentProvider(fakeEnv));
+    await platformPrisma.church.update({
+      where: { id: church.user.churchId },
+      data: { trialEndsAt: new Date(Date.now() - 20 * 86_400_000), paidUntil: null },
+    });
+
+    const claim = await billing.claimCash(church.user, { method: 'CASH', note: 'paid at the office' });
+    expect(claim.awaitingConfirmation).toBe(true);
+    expect((await billing.status(church.user)).locked).toBe(true); // not paid yet
+
+    // audit_event.actor_id is a uuid column, so platform staff are uuidv7 too.
+    const staff = { id: uuidv7(), name: 'Support' };
+    const paid = await billing.confirmCash(claim.id, staff);
+    expect(paid.status).toBe('PAID');
+    const status = await billing.status(church.user);
+    expect(status.locked).toBe(false);
+
+    const again = await billing.confirmCash(claim.id, staff);
+    expect(again.status).toBe('PAID');
+    const churchRow = await platformPrisma.church.findUniqueOrThrow({ where: { id: church.user.churchId } });
+    expect(churchRow.paidUntil?.getTime()).toBe(status.coveredUntil?.getTime());
   });
 });
 

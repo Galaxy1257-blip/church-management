@@ -7,6 +7,7 @@ import { seedChurchDefaults } from '@chms/db';
 import { normalizeGhPhone, denominationPreset, isModuleKey, resolveModules, type ModuleKey } from '@chms/shared';
 import { uuidv7 } from '@chms/shared';
 import { timingSafeEqualStr } from '../common/crypto';
+import { trialEndsAt } from '../billing/billing.logic';
 import type { Env } from '../env';
 
 export interface CreateChurchInput {
@@ -51,6 +52,9 @@ export class ChurchesService {
             slug,
             pastorDisplayName: input.pastorDisplayName ?? null,
             timezone: input.timezone ?? 'Africa/Accra',
+            // Every new church starts with two weeks free; after that the
+            // monthly subscription (plus grace) keeps the workspace open.
+            trialEndsAt: trialEndsAt(new Date()),
           },
         });
       } catch (e) {

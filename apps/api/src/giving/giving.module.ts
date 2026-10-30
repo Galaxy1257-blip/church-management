@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingModule } from '../billing/billing.module';
 import { TenantService } from '../common/tenant';
 import { PAYMENT_PROVIDER, paymentProviderFactory } from '../platform/payment-provider';
 import { QueuesModule } from '../queues/queues.module';
@@ -7,7 +8,7 @@ import { GivingService } from './giving.service';
 import { GivingController } from './giving.controller';
 
 @Module({
-  imports: [QueuesModule],
+  imports: [QueuesModule, BillingModule],
   providers: [
     TenantService,
     GivingService,

@@ -14,6 +14,7 @@ import { platformPrisma as prisma, withPlatform, withTenant } from '@chms/db';
 import { normalizeGhPhone, permissionsForRoles, resolveDataScope, resolveModules, RoleKey, localizedSmsBody } from '@chms/shared';
 import type { Env } from '../env';
 import { AuthUser } from '../common/guards';
+import { deriveBilling } from '../billing/billing.logic';
 import { timingSafeEqualStr } from '../common/crypto';
 import { allocateMemberNo } from '../common/member-no';
 import { SmsDispatcher } from '../sms/sms-dispatcher';
@@ -354,18 +355,41 @@ export class AuthService {
     AuthUser & {
       church: { name: string; slug: string; branding: unknown };
       modules: Record<string, boolean>;
+      billing: { state: string; locked: boolean; coveredUntil: Date | null; locksAt: Date | null; amountMinor: number };
     }
   > {
     const user = await this.loadUser(churchId, userId);
     const church = await prisma.church.findUniqueOrThrow({
       where: { id: churchId },
-      select: { name: true, slug: true, settings: true },
+      select: {
+        name: true,
+        slug: true,
+        settings: true,
+        monthlyFeeMinor: true,
+        graceDays: true,
+        trialEndsAt: true,
+        paidUntil: true,
+        billingExempt: true,
+      },
     });
     const settings = (church.settings ?? {}) as Record<string, unknown>;
     const branding = settings.branding ?? null;
     // Which areas of the app this church has switched on (settings.modules).
     // Sent with the session so the shell can hide whole areas without a round trip.
-    return { ...user, church: { name: church.name, slug: church.slug, branding }, modules: resolveModules(settings) };
+    const bill = deriveBilling(church, new Date());
+    return {
+      ...user,
+      church: { name: church.name, slug: church.slug, branding },
+      modules: resolveModules(settings),
+      // The shell shows the lock screen from this without a second request.
+      billing: {
+        state: bill.state,
+        locked: bill.locked,
+        coveredUntil: bill.coveredUntil,
+        locksAt: bill.locksAt,
+        amountMinor: church.monthlyFeeMinor,
+      },
+    };
   }
 }
 

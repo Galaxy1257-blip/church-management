@@ -4,6 +4,7 @@ import type { Permission } from '@chms/shared';
 export const PERMISSIONS_KEY = 'chms:permissions';
 export const PUBLIC_KEY = 'chms:public';
 export const AUTHENTICATED_KEY = 'chms:authenticated';
+export const BILLING_EXEMPT_KEY = 'chms:billing-exempt';
 
 /** Default-deny: every HTTP handler must carry this or @Public(). */
 export const RequirePermissions = (...permissions: Permission[]) => SetMetadata(PERMISSIONS_KEY, permissions);
@@ -18,5 +19,11 @@ export const Authenticated = () => SetMetadata(AUTHENTICATED_KEY, true);
 
 /** Mark a route as intentionally public (login, webhooks, health). Still audited where sensitive. */
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
+
+/**
+ * Reachable even when the church's subscription is paused: billing status,
+ * checkout and cash claims are how a locked church gets back in.
+ */
+export const BillingExempt = () => SetMetadata(BILLING_EXEMPT_KEY, true);
 
 export const RouteInfo = applyDecorators;

@@ -11,6 +11,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
+import { BillingModule } from '../billing/billing.module';
+import { BillingService } from '../billing/billing.service';
 import { Public } from '../common/decorators';
 import { Env } from '../env';
 import { GivingModule } from '../giving/giving.module';
@@ -27,6 +29,7 @@ export class DevController {
   constructor(
     @Inject('ENV') private readonly env: Env,
     private readonly giving: GivingService,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -44,10 +47,14 @@ export class DevController {
     }
     if (!body?.reference) throw new BadRequestException('reference required');
 
+    const success = body.success !== false;
+    if (body.reference.startsWith('sub_')) {
+      return this.billing.completeMock(body.reference, success);
+    }
+
     const txRow = await this.giving.findByReference(body.reference);
     if (!txRow) throw new BadRequestException('unknown reference');
 
-    const success = body.success !== false;
     const event = {
       id: `mock_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       event: success ? 'charge.success' : 'charge.failed',
@@ -70,7 +77,7 @@ export class DevController {
 }
 
 @Module({
-  imports: [GivingModule],
+  imports: [GivingModule, BillingModule],
   controllers: [DevController],
 })
 export class DevModule {}

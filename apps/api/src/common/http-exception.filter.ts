@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 const STATUS_CODES: Record<number, string> = {
   400: 'BAD_REQUEST',
   401: 'UNAUTHORIZED',
+  402: 'BILLING_LOCKED',
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT',
@@ -49,6 +50,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         } else if (typeof b.message === 'string') {
           message = b.message;
         }
+        // Structured context (e.g. billing dates on a 402) is safe to pass on;
+        // 5xx details are still stripped below.
+        if (b.details !== undefined) details = b.details;
         if (typeof b.error === 'string') code = b.error;
       }
       code = STATUS_CODES[status] ?? code;

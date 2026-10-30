@@ -15,6 +15,7 @@ import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
 import { Public, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
+import { BillingService } from '../billing/billing.service';
 import { GivingService, paystackSecret, verifyPaystackSignature } from './giving.service';
 import { Env } from '../env';
 
@@ -35,6 +36,7 @@ class InitializeDto extends QuoteDto {
 export class GivingController {
   constructor(
     private readonly giving: GivingService,
+    private readonly billing: BillingService,
     @Inject('ENV') private readonly env: Env,
   ) {}
 
@@ -105,6 +107,12 @@ export class GivingController {
       throw new UnauthorizedException('invalid paystack signature');
     }
     const event = JSON.parse(raw.toString('utf8'));
+    // One Paystack account, one webhook URL. Subscription charges use the
+    // sub_ reference prefix so they reach the billing engine instead of giving.
+    const reference = event?.data?.reference;
+    if (typeof reference === 'string' && reference.startsWith('sub_')) {
+      return this.billing.handlePaystackEvent(event);
+    }
     return this.giving.handlePaystackEvent(event);
   }
 }
