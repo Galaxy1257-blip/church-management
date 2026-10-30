@@ -17,6 +17,16 @@ describe('deriveBilling', () => {
     expect(snap).toMatchObject({ state: 'exempt', locked: false });
   });
 
+  it('applies a support lock even when paid up or exempt', () => {
+    const paid = deriveBilling(
+      { billingLocked: true, paidUntil: day('2026-12-01'), trialEndsAt: day('2026-12-01'), graceDays: 7 },
+      now,
+    );
+    expect(paid).toMatchObject({ state: 'paused', locked: true });
+    const exempt = deriveBilling({ billingLocked: true, billingExempt: true }, now);
+    expect(exempt.locked).toBe(true);
+  });
+
   it('treats churches that predate billing as grandfathered', () => {
     const snap = deriveBilling({ graceDays: 7 }, now);
     expect(snap).toMatchObject({ state: 'grandfathered', locked: false, coveredUntil: null });

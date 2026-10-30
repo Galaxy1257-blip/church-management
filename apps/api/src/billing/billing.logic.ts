@@ -10,6 +10,8 @@ export interface BillingDates {
   paidUntil?: Date | null;
   graceDays?: number | null;
   billingExempt?: boolean | null;
+  /** Support override from the platform office; wins over every date. */
+  billingLocked?: boolean | null;
 }
 
 export interface BillingSnapshot {
@@ -25,6 +27,16 @@ export interface BillingSnapshot {
 }
 
 export function deriveBilling(church: BillingDates, now: Date): BillingSnapshot {
+  if (church.billingLocked) {
+    return {
+      state: 'paused',
+      locked: true,
+      coveredUntil: church.paidUntil ?? church.trialEndsAt ?? null,
+      locksAt: null,
+      daysLeft: 0,
+      graceDaysLeft: 0,
+    };
+  }
   if (church.billingExempt) {
     return { state: 'exempt', locked: false, coveredUntil: null, locksAt: null, daysLeft: 0, graceDaysLeft: 0 };
   }

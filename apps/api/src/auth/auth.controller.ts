@@ -33,6 +33,10 @@ class RefreshDto {
   @IsString() refreshToken!: string;
 }
 
+class HandoffDto {
+  @IsString() token!: string;
+}
+
 // Every unauthenticated route carries a bucket: without one, /auth/login is an
 // offline bcrypt-cracking oracle and /auth/otp/request is a way to spend the
 // church's SMS credits from a loop.
@@ -91,6 +95,18 @@ export class AuthController {
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  /**
+   * Platform office "open as this church user": a 90-second single-use link,
+   * exchanged here for a short access token (no refresh token).
+   */
+  @Public()
+  @RateLimit({ key: 'handoff:ip', limit: 20, windowMs: 5 * 60_000 })
+  @Post('handoff')
+  @HttpCode(200)
+  handoff(@Body() dto: HandoffDto) {
+    return this.auth.exchangeHandoff(dto.token);
   }
 
   @Public()

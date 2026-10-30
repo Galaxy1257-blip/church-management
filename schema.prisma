@@ -282,6 +282,9 @@ model Church {
   paidUntil          DateTime?
   billingPausedAt    DateTime?
   billingExempt      Boolean  @default(false)
+  // Support override: the platform office can lock/unlock a workspace
+  // regardless of the dates (e.g. a dispute, or a comped month).
+  billingLocked      Boolean  @default(false)
   billingEmail       String?
   billingPhone       String?
   billingNote        String?

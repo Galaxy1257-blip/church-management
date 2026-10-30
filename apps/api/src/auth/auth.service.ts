@@ -82,8 +82,8 @@ export class AuthService {
     };
   }
 
-  private async issueTokens(user: AuthUser): Promise<TokenPair> {
-    const accessClaims: AccessClaims = {
+  private accessClaims(user: AuthUser): AccessClaims {
+    return {
       sub: user.userId,
       cid: user.churchId,
       name: user.name,
@@ -94,6 +94,10 @@ export class AuthService {
       scp: user.scope,
       aud: 'access',
     };
+  }
+
+  private async issueTokens(user: AuthUser): Promise<TokenPair> {
+    const accessClaims = this.accessClaims(user);
     const accessToken = await this.jwt.signAsync(accessClaims, {
       secret: this.env.JWT_SECRET,
       expiresIn: this.env.ACCESS_TOKEN_TTL_SEC,
@@ -328,6 +332,41 @@ export class AuthService {
     if (outcome.kind === 'reused') throw new UnauthorizedException('refresh token reuse detected');
     if (outcome.kind === 'invalid') throw new UnauthorizedException('invalid refresh token');
     return outcome.tokens;
+  }
+
+  // One-time handoff links signed by the platform office. In-process memory is
+  // enough for a 90-second single-use window on a single API instance.
+  private readonly handoffUsed = new Map<string, number>();
+
+  /**
+   * Exchange a platform-office handoff link for an access token. No refresh
+   * token: support sessions end with the access token and never persist.
+   */
+  async exchangeHandoff(token: string): Promise<{ accessToken: string; expiresInSec: number }> {
+    let claims: { sub: string; cid: string; jti: string };
+    try {
+      claims = await this.jwt.verifyAsync(token, {
+        secret: this.env.JWT_SECRET,
+        audience: 'handoff',
+        maxAge: '120s',
+      });
+    } catch {
+      throw new UnauthorizedException('handoff link is invalid or expired');
+    }
+    const now = Date.now();
+    for (const [key, at] of this.handoffUsed) {
+      if (now - at > 180_000) this.handoffUsed.delete(key);
+    }
+    if (this.handoffUsed.has(claims.jti)) throw new UnauthorizedException('handoff link was already used');
+    this.handoffUsed.set(claims.jti, now);
+
+    const user = await this.loadUser(claims.cid, claims.sub);
+    await this.touchLogin(user.churchId, user.userId);
+    const accessToken = await this.jwt.signAsync(this.accessClaims(user), {
+      secret: this.env.JWT_SECRET,
+      expiresIn: this.env.ACCESS_TOKEN_TTL_SEC,
+    });
+    return { accessToken, expiresInSec: this.env.ACCESS_TOKEN_TTL_SEC };
   }
 
   async logout(refreshToken: string): Promise<void> {

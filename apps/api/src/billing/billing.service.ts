@@ -35,6 +35,7 @@ type ChurchBillingRow = {
   paidUntil: Date | null;
   billingPausedAt: Date | null;
   billingExempt: boolean;
+  billingLocked: boolean;
   billingEmail: string | null;
   billingPhone: string | null;
   billingNote: string | null;
@@ -51,6 +52,7 @@ const CHURCH_BILLING_SELECT = {
   paidUntil: true,
   billingPausedAt: true,
   billingExempt: true,
+  billingLocked: true,
   billingEmail: true,
   billingPhone: true,
   billingNote: true,
@@ -74,7 +76,7 @@ export class BillingService {
     if (hit && Date.now() - hit.at < 30_000) return hit.snap;
     const church = await prisma.church.findUnique({
       where: { id: churchId },
-      select: { trialEndsAt: true, paidUntil: true, graceDays: true, billingExempt: true },
+      select: { trialEndsAt: true, paidUntil: true, graceDays: true, billingExempt: true, billingLocked: true },
     });
     // A missing church is not a billing problem; let the route answer with 404.
     const snap = church
@@ -85,8 +87,13 @@ export class BillingService {
     return snap;
   }
 
-  private forget(churchId: string): void {
+  /** Drop a cached lock state (call after any office-side billing change). */
+  invalidate(churchId: string): void {
     this.cache.delete(churchId);
+  }
+
+  private forget(churchId: string): void {
+    this.invalidate(churchId);
   }
 
   private webOrigin(): string {
@@ -121,6 +128,7 @@ export class BillingService {
       billingEmail: church.billingEmail,
       billingPhone: church.billingPhone,
       billingNote: church.billingNote,
+      billingLocked: church.billingLocked,
       /** What the next payment would cover, when one is needed. */
       nextPeriod: plan?.period ?? null,
       coverageEndsAt: snap.coveredUntil,

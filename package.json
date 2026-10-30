@@ -23,6 +23,7 @@
     "db:migrate:deploy": "prisma migrate deploy --schema schema.prisma",
     "db:extras": "node packages/db/dist/apply-extras.js",
     "db:appuser": "node packages/db/dist/create-roles.js",
+    "platform:admin": "node scripts/seed-platform-admin.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "db:verify": "node scripts/verify-stack.mjs",
     "bible:fetch": "node scripts/fetch-bible.mjs",

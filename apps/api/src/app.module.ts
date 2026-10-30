@@ -7,6 +7,7 @@ import { BootCheckService } from './common/boot-check';
 import { JwtAuthGuard, PermissionsGuard } from './common/guards';
 import { BillingGuard } from './billing/billing.guard';
 import { BillingModule } from './billing/billing.module';
+import { PlatformOfficeModule } from './platform-office/platform.module';
 import { TenantService } from './common/tenant';
 import { HealthController } from './health.controller';
 import { AuthController } from './auth/auth.controller';
@@ -50,6 +51,7 @@ import { QueuesModule } from './queues/queues.module';
     JwtModule.register({ global: true }),
     QueuesModule,
     BillingModule,
+    PlatformOfficeModule,
     ChurchesModule,
     MembersModule,
     ServicesModule,
