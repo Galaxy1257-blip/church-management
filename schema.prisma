@@ -39,6 +39,7 @@ enum Gender {
 // these accounts never belong to a tenant and must not pass church guards.
 enum PlatformRole {
   OWNER
+  ONBOARDER
   SUPPORT
 }
 
@@ -1266,6 +1267,8 @@ model OtpChallenge {
   churchId   String    @db.Uuid
   phoneE164  String
   codeHash   String
+  /// 'login' | 'passwordReset' — a code is only redeemed by the flow that sent it.
+  purpose    String    @default("login")
   attempts   Int       @default(0)
   expiresAt  DateTime
   consumedAt DateTime?

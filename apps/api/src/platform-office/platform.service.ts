@@ -16,15 +16,20 @@ import { appendAudit, platformPrisma as prisma, withPlatform } from '@chms/db';
 import {
   MODULE_DEFAULTS,
   normalizeGhPhone,
+  parseCsv,
+  parseCustomFeatures,
   permissionsForRoles,
   resolveModules,
+  rowsToObjects,
   uuidv7,
+  type CustomFeature,
   type ModuleKey,
   type RoleKey,
 } from '@chms/shared';
 import { BillingService } from '../billing/billing.service';
 import { deriveBilling } from '../billing/billing.logic';
 import { ChurchesService } from '../churches/churches.service';
+import { buildImportPreview, insertImportRows, type ImportPreview, type ImportRowInput } from '../members/members-import.service';
 import type { Env } from '../env';
 import type { PlatformActor } from './platform.guard';
 
@@ -116,7 +121,99 @@ export class PlatformService {
     );
   }
 
-  // --------------------------------------------------------------- overview
+  // --------------------------------------------------------------- the team
+  /**
+   * Office staff. Only an owner sees or changes this list; onboarders are
+   * created here and sign in with their own email, never a church login.
+   */
+  listStaff(actor: PlatformActor) {
+    this.ownerOnly(actor);
+    return prisma.platformUser.findMany({
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, email: true, role: true, isActive: true, lastLoginAt: true, createdAt: true },
+    });
+  }
+
+  async createStaff(
+    actor: PlatformActor,
+    input: { name: string; email: string; password: string; role?: string },
+  ) {
+    this.ownerOnly(actor);
+    const email = input.email.trim().toLowerCase();
+    const role = this.staffRole(input.role);
+    if (input.password.length < 10) throw new BadRequestException('password must be at least 10 characters');
+    if (!input.name.trim()) throw new BadRequestException('name is required');
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    try {
+      const created = await prisma.platformUser.create({
+        data: { id: uuidv7(), name: input.name.trim(), email, passwordHash, role },
+        select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      });
+      return created;
+    } catch (e) {
+      if ((e as { code?: string }).code === 'P2002') {
+        throw new ConflictException('someone in the office already uses that email');
+      }
+      throw e;
+    }
+  }
+
+  async updateStaff(
+    actor: PlatformActor,
+    staffId: string,
+    patch: { name?: string; role?: string; isActive?: boolean },
+  ) {
+    this.ownerOnly(actor);
+    const staff = await prisma.platformUser.findUnique({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('staff member not found');
+    if (staffId === actor.id && patch.isActive === false) {
+      throw new BadRequestException('you cannot disable your own account');
+    }
+    if (staffId === actor.id && patch.role && patch.role.toUpperCase() !== 'OWNER') {
+      throw new BadRequestException('you cannot remove your own owner access');
+    }
+    if (staff.role === 'OWNER' && (patch.isActive === false || (patch.role && patch.role.toUpperCase() !== 'OWNER'))) {
+      const otherOwners = await prisma.platformUser.count({
+        where: { role: 'OWNER', isActive: true, id: { not: staffId } },
+      });
+      if (otherOwners === 0) throw new BadRequestException('the office needs at least one active owner');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (patch.name !== undefined) {
+      if (!patch.name.trim()) throw new BadRequestException('name is required');
+      data.name = patch.name.trim();
+    }
+    if (patch.role !== undefined) data.role = this.staffRole(patch.role);
+    if (patch.isActive !== undefined) data.isActive = patch.isActive;
+
+    return prisma.platformUser.update({
+      where: { id: staffId },
+      data: data as never,
+      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+    });
+  }
+
+  async resetStaffPassword(actor: PlatformActor, staffId: string, password: string) {
+    this.ownerOnly(actor);
+    if (password.length < 10) throw new BadRequestException('password must be at least 10 characters');
+    const staff = await prisma.platformUser.findUnique({ where: { id: staffId }, select: { id: true } });
+    if (!staff) throw new NotFoundException('staff member not found');
+    const passwordHash = await bcrypt.hash(password, 12);
+    await prisma.platformUser.update({ where: { id: staffId }, data: { passwordHash } });
+    return { ok: true };
+  }
+
+  /** Owners are seeded from the command line; the office can only make onboarders/support. */
+  private staffRole(value: string | undefined): 'ONBOARDER' | 'SUPPORT' {
+    const role = (value ?? 'ONBOARDER').trim().toUpperCase();
+    if (role !== 'ONBOARDER' && role !== 'SUPPORT') {
+      throw new BadRequestException('role must be ONBOARDER or SUPPORT');
+    }
+    return role;
+  }
+
+  // -------------------------------------------------------------- overview
   async overview() {
     const now = new Date();
     const churches = await prisma.church.findMany({ select: CHURCH_SELECT });
@@ -189,6 +286,7 @@ export class PlatformService {
           daysLeft: snap.daysLeft,
           graceDaysLeft: snap.graceDaysLeft,
           amountMinor: c.monthlyFeeMinor,
+          billingDay: c.billingDay,
           billingLocked: c.billingLocked,
           billingExempt: c.billingExempt,
         },
@@ -242,6 +340,7 @@ export class PlatformService {
         pastorDisplayName: church.pastorDisplayName,
         modules: resolveModules(settings),
         moduleDefaults: MODULE_DEFAULTS,
+        customFeatures: parseCustomFeatures(settings.customFeatures).features,
         billing: await this.billing.present(church, new Date()),
         billingEmail: church.billingEmail,
         billingPhone: church.billingPhone,
@@ -283,6 +382,7 @@ export class PlatformService {
       name?: string;
       pastorDisplayName?: string | null;
       modules?: Partial<Record<ModuleKey, boolean>>;
+      customFeatures?: Partial<CustomFeature>[];
       monthlyFeeMinor?: number;
       billingDay?: number;
       graceDays?: number;
@@ -322,13 +422,20 @@ export class PlatformService {
     for (const key of ['monthlyFeeMinor', 'billingDay', 'graceDays', 'billingExempt', 'billingLocked'] as const) {
       if (patch[key] !== undefined) data[key] = patch[key];
     }
+    const nextSettings: Record<string, unknown> = { ...currentSettings };
     if (patch.modules) {
       const modules = { ...((currentSettings.modules as Record<string, boolean>) ?? {}) };
       for (const [key, on] of Object.entries(patch.modules)) {
         if (on !== undefined) modules[key] = on;
       }
-      data.settings = { ...currentSettings, modules };
+      nextSettings.modules = modules;
     }
+    if (patch.customFeatures !== undefined) {
+      const parsed = parseCustomFeatures(patch.customFeatures);
+      if (parsed.error) throw new BadRequestException(parsed.error);
+      nextSettings.customFeatures = parsed.features;
+    }
+    if (patch.modules || patch.customFeatures !== undefined) data.settings = nextSettings;
     if (patch.billingLocked === true) data.billingPausedAt = new Date();
     if (patch.billingLocked === false) data.billingPausedAt = null;
 
@@ -500,6 +607,53 @@ export class PlatformService {
       name: user.name,
       expiresInSec: 90,
     };
+  }
+
+  // ---------------------------------------------------------- member import
+  /**
+   * Onboarding often starts with "here is my list". Preview runs the exact same
+   * row rules as the church's own import screen; nothing is written until the
+   * office confirms the rows it wants.
+   */
+  async previewMembers(churchId: string, csvText: string): Promise<ImportPreview> {
+    const church = await prisma.church.findUnique({ where: { id: churchId }, select: { id: true } });
+    if (!church) throw new NotFoundException('church not found');
+    let parsed: ReturnType<typeof parseCsv>;
+    try {
+      parsed = parseCsv(csvText);
+    } catch (e) {
+      throw new BadRequestException(e instanceof Error ? e.message : 'invalid CSV');
+    }
+    const existing = await prisma.member.findMany({
+      where: { churchId, deletedAt: null },
+      select: { phoneE164: true, memberNo: true },
+    });
+    const phones = new Set<string>();
+    const nos = new Set<string>();
+    for (const m of existing) {
+      if (m.phoneE164) phones.add(m.phoneE164);
+      nos.add(m.memberNo);
+    }
+    return buildImportPreview(rowsToObjects(parsed), phones, nos);
+  }
+
+  async confirmMembers(actor: PlatformActor, churchId: string, rows: ImportRowInput[], ip?: string) {
+    const church = await prisma.church.findUnique({ where: { id: churchId }, select: { id: true } });
+    if (!church) throw new NotFoundException('church not found');
+    if (!Array.isArray(rows) || rows.length === 0) throw new BadRequestException('no rows to import');
+    if (rows.length > 5000) throw new BadRequestException('import limited to 5000 rows per call');
+    return withPlatform(async (tx) => {
+      const { imported, failures } = await insertImportRows(tx, churchId, rows);
+      await appendAudit(tx, {
+        churchId,
+        actorId: actor.id,
+        action: 'platform.member.import',
+        entity: 'ImportJob',
+        after: { requested: rows.length, imported, failed: failures.length, by: actor.email },
+        ip,
+      });
+      return { imported, failed: failures.length, failures };
+    });
   }
 
   // --------------------------------------------------------------- payments

@@ -16,8 +16,8 @@ export const SMS_LOCALE_LABELS: Record<SmsLocale, string> = {
   fante: 'Fante',
 };
 
-export type SmsTemplateKey = 'receipt' | 'nudge' | 'otp' | 'portalOtp' | 'devotional' | 'funeral';
-export const SMS_TEMPLATE_KEYS: SmsTemplateKey[] = ['receipt', 'nudge', 'otp', 'portalOtp', 'devotional', 'funeral'];
+export type SmsTemplateKey = 'receipt' | 'nudge' | 'otp' | 'portalOtp' | 'passwordReset' | 'devotional' | 'funeral';
+export const SMS_TEMPLATE_KEYS: SmsTemplateKey[] = ['receipt', 'nudge', 'otp', 'portalOtp', 'passwordReset', 'devotional', 'funeral'];
 
 /** Placeholders each template may use (shown in the admin editor). */
 export const SMS_TEMPLATE_VARS: Record<SmsTemplateKey, string> = {
@@ -25,6 +25,7 @@ export const SMS_TEMPLATE_VARS: Record<SmsTemplateKey, string> = {
   nudge: '{name} {amount} {churchName} {retryLink}',
   otp: '{code} {ttlMinutes}',
   portalOtp: '{code} {ttlMinutes}',
+  passwordReset: '{code} {ttlMinutes}',
   devotional: '{text} {ref} {translation} {churchName}',
   funeral: '{churchName} {title} {body}',
 };
@@ -34,6 +35,7 @@ export const BUILTIN_SMS_TEMPLATES: Record<SmsTemplateKey, string> = {
   nudge: 'Hi {name}, your gift of {amount} to {churchName} did not complete. Tap {retryLink} to try again.',
   otp: 'Your login code is {code}. Valid {ttlMinutes} minutes. Never share it.',
   portalOtp: 'Your portal login code is {code}. Valid {ttlMinutes} minutes.',
+  passwordReset: 'Password reset code: {code}. Valid {ttlMinutes} minutes. If you did not ask for this, ignore this message.',
   devotional: '"{text}" — {ref} ({translation}) — {churchName}',
   // R4.6 funeral/one-week announcement copy (admins paste into campaigns).
   funeral: '{churchName}: {title}. {body}',

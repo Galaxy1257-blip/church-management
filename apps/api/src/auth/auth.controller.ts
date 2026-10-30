@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
-import { Authenticated, Public } from '../common/decorators';
+import { Authenticated, BillingExempt, Public } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { AuthService } from './auth.service';
@@ -33,6 +33,26 @@ class RefreshDto {
   @IsString() refreshToken!: string;
 }
 
+class ForgotDto {
+  @IsString() churchSlug!: string;
+  @IsString() phoneE164!: string;
+}
+
+class ResetDto {
+  @IsString() churchSlug!: string;
+  @IsString() phoneE164!: string;
+  @IsString() @MinLength(4) code!: string;
+  @IsString() @MinLength(6) password!: string;
+}
+
+class RegisterChurchDto {
+  @IsString() @MinLength(2) churchName!: string;
+  @IsString() @MinLength(2) churchSlug!: string;
+  @IsString() @MinLength(2) name!: string;
+  @IsString() phoneE164!: string;
+  @IsString() @MinLength(6) password!: string;
+}
+
 class HandoffDto {
   @IsString() token!: string;
 }
@@ -41,6 +61,7 @@ class HandoffDto {
 // offline bcrypt-cracking oracle and /auth/otp/request is a way to spend the
 // church's SMS credits from a loop.
 @Controller('auth')
+@BillingExempt()
 @UseGuards(RateLimitGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -62,6 +83,37 @@ export class AuthController {
   @HttpCode(200)
   signup(@Body() dto: SignupDto) {
     return this.auth.signup(dto);
+  }
+
+  @Public()
+  @RateLimit([
+    { key: 'register:ip', limit: 3, windowMs: 60 * 60_000 },
+    { key: 'register:phone', limit: 2, windowMs: 60 * 60_000, byPhone: true },
+  ])
+  @Post('register-church')
+  @HttpCode(200)
+  registerChurch(@Body() dto: RegisterChurchDto) {
+    return this.auth.registerChurch(dto);
+  }
+
+  @Public()
+  @RateLimit([
+    { key: 'reset:request:phone', limit: 3, windowMs: 60 * 60_000, byPhone: true },
+    { key: 'reset:request:ip', limit: 10, windowMs: 60 * 60_000 },
+  ])
+  @Post('password/forgot')
+  @HttpCode(202)
+  async forgotPassword(@Body() dto: ForgotDto) {
+    await this.auth.forgotPassword(dto);
+    return { accepted: true }; // always 202: no user enumeration
+  }
+
+  @Public()
+  @RateLimit({ key: 'reset:verify', limit: 10, windowMs: 10 * 60_000, byPhone: true })
+  @Post('password/reset')
+  @HttpCode(204)
+  async resetPassword(@Body() dto: ResetDto) {
+    await this.auth.resetPassword(dto);
   }
 
   @Public()

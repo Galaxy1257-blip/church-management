@@ -23,8 +23,8 @@ if (password.length < 10) {
   console.error('PLATFORM_ADMIN_PASSWORD must be at least 10 characters');
   process.exit(1);
 }
-if (role !== 'OWNER' && role !== 'SUPPORT') {
-  console.error('PLATFORM_ADMIN_ROLE must be OWNER or SUPPORT');
+if (role !== 'OWNER' && role !== 'ONBOARDER' && role !== 'SUPPORT') {
+  console.error('PLATFORM_ADMIN_ROLE must be OWNER, ONBOARDER or SUPPORT');
   process.exit(1);
 }
 

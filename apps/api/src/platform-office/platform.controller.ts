@@ -44,6 +44,7 @@ class UpdateChurchDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() pastorDisplayName?: string | null;
   @IsOptional() @IsObject() modules?: Record<string, boolean>;
+  @IsOptional() @IsArray() @IsObject({ each: true }) customFeatures?: Record<string, unknown>[];
   @IsOptional() @IsInt() @Min(1) monthlyFeeMinor?: number;
   @IsOptional() @IsInt() @Min(1) @Max(28) billingDay?: number;
   @IsOptional() @IsInt() @Min(0) @Max(60) graceDays?: number;
@@ -76,6 +77,31 @@ class PasswordDto {
 
 class RolesDto {
   @IsArray() roleKeys!: string[];
+}
+
+class CreateStaffDto {
+  @IsString() @MinLength(2) name!: string;
+  @IsEmail() email!: string;
+  @IsString() @MinLength(10) password!: string;
+  @IsOptional() @IsString() role?: string;
+}
+
+class UpdateStaffDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() role?: string;
+  @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+class StaffPasswordDto {
+  @IsString() @MinLength(10) password!: string;
+}
+
+class ImportPreviewDto {
+  @IsString() csvText!: string;
+}
+
+class ImportConfirmDto {
+  @IsArray() rows!: Record<string, string>[];
 }
 
 /** Sign-in for OmniLabs staff. Separate audience, separate table, separate UI. */
@@ -118,52 +144,62 @@ export class PlatformOfficeController {
     return req.platformUser!;
   }
 
+  @Public()
   @Get('overview')
   overview() {
     return this.platform.overview();
   }
 
+  @Public()
   @Get('churches')
   churches(@Query('q') q?: string) {
     return this.platform.listChurches(q);
   }
 
+  @Public()
   @Post('churches')
   createChurch(@Req() req: PlatformRequest, @Body() dto: CreateChurchDto) {
     return this.platform.createChurch(this.actor(req), dto, req.ip);
   }
 
+  @Public()
   @Get('churches/:id')
   church(@Param('id') id: string) {
     return this.platform.getChurch(id);
   }
 
+  @Public()
   @Patch('churches/:id')
   updateChurch(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: UpdateChurchDto) {
     return this.platform.updateChurch(this.actor(req), id, dto, req.ip);
   }
 
+  @Public()
   @Get('users')
   users(@Query('churchId') churchId?: string) {
     return this.platform.listUsers(churchId);
   }
 
+  @Public()
   @Post('users')
   createUser(@Req() req: PlatformRequest, @Body() dto: CreateUserDto) {
     return this.platform.createUser(this.actor(req), dto, req.ip);
   }
 
+  @Public()
   @Patch('users/:id')
   updateUser(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.platform.updateUser(this.actor(req), id, dto, req.ip);
   }
 
+  @Public()
   @Post('users/:id/password')
   @HttpCode(200)
   resetPassword(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: PasswordDto) {
     return this.platform.resetPassword(this.actor(req), id, dto.password, req.ip);
   }
 
+  @Public()
   @Post('users/:id/roles')
   @HttpCode(200)
   roles(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: RolesDto) {
@@ -171,23 +207,68 @@ export class PlatformOfficeController {
   }
 
   /** Opens a church as this user in a new tab (single-use 90s link). */
+  @Public()
   @Post('users/:id/impersonate')
   @HttpCode(200)
   impersonate(@Req() req: PlatformRequest, @Param('id') id: string) {
     return this.platform.impersonate(this.actor(req), id, req.ip);
   }
 
+  // ------------------------------------------------------------------ team
+  @Public()
+  @Get('staff')
+  staff(@Req() req: PlatformRequest) {
+    return this.platform.listStaff(this.actor(req));
+  }
+
+  @Public()
+  @Post('staff')
+  createStaff(@Req() req: PlatformRequest, @Body() dto: CreateStaffDto) {
+    return this.platform.createStaff(this.actor(req), dto);
+  }
+
+  @Public()
+  @Patch('staff/:id')
+  updateStaff(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: UpdateStaffDto) {
+    return this.platform.updateStaff(this.actor(req), id, dto);
+  }
+
+  @Public()
+  @Post('staff/:id/password')
+  @HttpCode(200)
+  staffPassword(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: StaffPasswordDto) {
+    return this.platform.resetStaffPassword(this.actor(req), id, dto.password);
+  }
+
+  // ------------------------------------------------------------ member import
+  @Public()
+  @Post('churches/:id/members/preview')
+  @HttpCode(200)
+  previewMembers(@Param('id') id: string, @Body() dto: ImportPreviewDto) {
+    return this.platform.previewMembers(id, dto.csvText);
+  }
+
+  @Public()
+  @Post('churches/:id/members/confirm')
+  @HttpCode(200)
+  confirmMembers(@Req() req: PlatformRequest, @Param('id') id: string, @Body() dto: ImportConfirmDto) {
+    return this.platform.confirmMembers(this.actor(req), id, dto.rows as never, req.ip);
+  }
+
+  @Public()
   @Get('payments')
   payments(@Query('status') status?: string) {
     return this.platform.listPayments(status);
   }
 
+  @Public()
   @Post('payments/:id/confirm')
   @HttpCode(200)
   confirmPayment(@Req() req: PlatformRequest, @Param('id') id: string) {
     return this.platform.confirmPayment(this.actor(req), id, req.ip);
   }
 
+  @Public()
   @Post('payments/:id/cancel')
   @HttpCode(200)
   cancelPayment(@Req() req: PlatformRequest, @Param('id') id: string) {

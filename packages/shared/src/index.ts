@@ -8,6 +8,7 @@ export * from './uuid';
 export * from './enums';
 export * from './permissions';
 export * from './modules';
+export * from './custom-features';
 export * from './datetime';
 export * from './age';
 export * from './types';

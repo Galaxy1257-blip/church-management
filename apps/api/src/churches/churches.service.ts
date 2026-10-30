@@ -10,8 +10,7 @@ import { timingSafeEqualStr } from '../common/crypto';
 import { trialEndsAt } from '../billing/billing.logic';
 import type { Env } from '../env';
 
-export interface CreateChurchInput {
-  platformKey: string;
+export interface SelfServeChurchInput {
   name: string;
   slug: string;
   pastorDisplayName?: string;
@@ -19,17 +18,38 @@ export interface CreateChurchInput {
   admin: { name: string; phoneE164: string; password: string };
 }
 
+export interface CreateChurchInput extends SelfServeChurchInput {
+  platformKey: string;
+}
+
+export interface CreatedChurch {
+  churchId: string;
+  slug: string;
+  userId: string;
+}
+
 @Injectable()
 export class ChurchesService {
   constructor(@Inject('ENV') private readonly env: Env) {}
 
-  create(input: CreateChurchInput): Promise<{ churchId: string; slug: string }> {
+  create(input: CreateChurchInput): Promise<CreatedChurch> {
     // Constant-time compare: a plain !== leaks the matching prefix length of a
     // platform-wide key through response timing.
     if (!timingSafeEqualStr(input.platformKey, this.env.PLATFORM_SIGNUP_KEY)) {
       throw new ForbiddenException('invalid platform key');
     }
+    return this.insert(input);
+  }
+
+  /** Sign-up "Create a new church": no platform key, same 14-day trial start. */
+  createSelfServe(input: SelfServeChurchInput): Promise<CreatedChurch> {
+    return this.insert(input);
+  }
+
+  private async insert(input: SelfServeChurchInput): Promise<CreatedChurch> {
     const phone = normalizeGhPhone(input.admin.phoneE164);
+    const name = input.name.trim().replace(/\s+/g, ' ');
+    if (name.length < 2) throw new BadRequestException('church name is required');
     // Church id: normalized (lowercase, URL-safe) and guaranteed unique —
     // "Demo", "demo " and "demo!" all collapse to the same id.
     const slug = input.slug
@@ -37,18 +57,18 @@ export class ChurchesService {
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/^-+|-+$/g, '');
-    if (slug.length < 2) throw new ForbiddenException('church id must be at least 2 characters (letters, digits, dashes)');
+    if (slug.length < 2) throw new BadRequestException('church id must be at least 2 characters (letters, digits, dashes)');
     const churchId = uuidv7();
     const userId = uuidv7();
 
-    return withPlatform(async (tx) => {
+    await withPlatform(async (tx) => {
       const taken = await tx.church.findFirst({ where: { slug } });
       if (taken) throw new ForbiddenException(`church id "${slug}" is already taken`);
       try {
         await tx.church.create({
           data: {
             id: churchId,
-            name: input.name,
+            name,
             slug,
             pastorDisplayName: input.pastorDisplayName ?? null,
             timezone: input.timezone ?? 'Africa/Accra',
@@ -83,14 +103,12 @@ export class ChurchesService {
         action: 'church.create',
         entity: 'Church',
         entityId: churchId,
-        after: { name: input.name, slug: input.slug },
+        after: { name, slug },
       });
-      return { churchId, slug: input.slug };
-    }).then(async (result) => {
-      // Seed defaults in a fresh tenant tx (seedChurchDefaults opens its own).
-      await seedChurchDefaults(result.churchId, userId);
-      return result;
     });
+    // Seed defaults in a fresh tenant tx (seedChurchDefaults opens its own).
+    await seedChurchDefaults(churchId, userId);
+    return { churchId, slug, userId };
   }
 
   async getPublicBySlug(slug: string) {
