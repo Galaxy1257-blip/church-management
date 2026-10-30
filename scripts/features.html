@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ChMS - Church Management System: Complete Features Specification</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+    @bottom-center {
+      content: counter(page);
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.6;
+    font-size: 13.5px;
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    font-size: 24px;
+    color: #0f172a;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-size: 16px;
+    color: #1e40af;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 14px;
+    color: #334155;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+  p {
+    margin: 6px 0;
+  }
+  ul {
+    margin: 6px 0 10px 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+  hr {
+    border: 0;
+    height: 1px;
+    background: #cbd5e1;
+    margin: 16px 0;
+  }
+  code {
+    background-color: #f1f5f9;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    color: #0f172a;
+  }
+  strong {
+    color: #0f172a;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12.5px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  th {
+    background: #f8fafc;
+    color: #0f172a;
+    font-weight: 600;
+  }
+  tr:nth-child(even) td {
+    background: #fcfdfe;
+  }
+</style>
+</head>
+<body>
+<h1>ChMS - Church Management System: Complete Features Specification</h1>
+<p>A modern, full-stack, enterprise-grade Church Management System tailored for African and international churches, featuring offline-first Sunday operations, Paystack Mobile Money integration, automated SMS/WhatsApp drip workflows, and multilingual Scripture support.</p>
+<h2>1. Executive Overview & Architecture</h2>
+<ul>
+  <li><strong>Multi-Tenant with Strict Isolation</strong>: Enforces PostgreSQL Row-Level Security (RLS) per church tenant. One church can never access another church's records.</li>
+  <li><strong>Modern Hybrid Cloud & Local Capability</strong>:</li>
+  <li><strong>Frontend</strong>: Next.js 15 App Router Progressive Web App (PWA) with responsive design for desktop, tablet, and mobile.</li>
+  <li><strong>Backend</strong>: NestJS 11 modular TypeScript API with JWT token rotation and default-deny permission gates.</li>
+  <li><strong>Database</strong>: PostgreSQL 16 (with custom migrations, triggers, audit logging, and RLS roles).</li>
+  <li><strong>Queues</strong>: Redis & BullMQ for reliable asynchronous tasks, SMS dispatches, and drip timelines.</li>
+  <li><strong>Offline Sync</strong>: Dexie-backed indexed storage with <code>/sync/batch</code> conflict resolution for unstable connectivity.</li>
+</ul>
+<h2>2. Membership & People Management</h2>
+<ul>
+  <li><strong>Complete Member Profiles</strong>: Full demographic tracking including full name, phone (Ghana E.164 normalized), email, date of birth, gender, marital status, residential address, digital address, and profession.</li>
+  <li><strong>Member Lifecycle & Statuses</strong>: Track members across life stages (<em>First-Timer</em>, <em>New Convert</em>, <em>Active Member</em>, <em>Inactive</em>, <em>Transferred</em>).</li>
+  <li><strong>Tagging & Dynamic Segmentation</strong>: Tag members by interest, age bracket, ministry, or custom labels for targeted follow-up and bulk messaging.</li>
+  <li><strong>CSV Bulk Import</strong>: Smart CSV importer with duplicate phone detection, dry-run validation, and downloadable error files.</li>
+  <li><strong>Household & Family Grouping</strong>: Group family members under a single household with designated heads of household and emergency contacts.</li>
+</ul>
+<h2>3. Sunday Services & Usher Attendance (Offline-First)</h2>
+<ul>
+  <li><strong>Service Management</strong>: Schedule Sunday services, mid-week services, vigils, and conferences with customizable service templates.</li>
+  <li><strong>Offline-First Usher Headcount</strong>:</li>
+  <li>Ushers can count attendance section-by-section (Men, Women, Children, Visitors, Online).</li>
+  <li>Works 100% offline in airplane mode or during network outages using local client outbox queues; auto-syncs when signal returns.</li>
+  <li><strong>Member Check-In</strong>: Quick search or QR code scanning for verified physical attendance tracking.</li>
+  <li><strong>Real-time Attendance Analytics</strong>: Compare weekly attendance patterns, service-by-service breakdowns, and seasonal attendance trends.</li>
+</ul>
+<h2>4. Digital Giving & Paystack Mobile Money</h2>
+<ul>
+  <li><strong>Ghana Mobile Money (MoMo) & Card Processing</strong>: Native integration with Paystack supporting MTN MoMo, Telecel Cash, AT Money, Visa, and Mastercard.</li>
+  <li><strong>Pesewa-Level Financial Precision</strong>: All transactions handled in integer minor currency units (pesewas/cents) to eliminate floating-point rounding errors.</li>
+  <li><strong>Public Giving Portal (<code>/give</code>)</strong>: Clean, mobile-friendly giving page for members and diaspora supporters with zero app login required.</li>
+  <li><strong>Designated Funds</strong>: Direct giving to Tithes, General Offering, Building Projects, Missions, Thanksgiving, or Pastor's Appreciation.</li>
+  <li><strong>Fee Gross-Up Option</strong>: Donors can choose to absorb processing fees so the church receives the exact intended donation amount.</li>
+  <li><strong>Instant Automated Receipts</strong>: Automatic SMS and email receipts dispatched via secure HMAC webhooks with compare-and-set idempotency.</li>
+</ul>
+<h2>5. Finance, Pledges & Expense Management</h2>
+<ul>
+  <li><strong>Multi-Fund Ledger</strong>: Real-time balances and tracking across operating funds, capital accounts, and mission funds.</li>
+  <li><strong>Cash & Cheque Batch Counting</strong>: Dual-counter sign-off and separate supervisor approval workflow for Sunday physical collections.</li>
+  <li><strong>Pledges & Capital Campaigns</strong>: Set target amounts, track fulfillment milestones, and send automated pledge reminder messages.</li>
+  <li><strong>Expense Tracking & Approval Workflow</strong>:</li>
+  <li>Submit department expense requests with digital receipt attachments.</li>
+  <li>Multi-tier approval workflow (<em>Pending</em>, <em>Approved</em>, <em>Rejected</em>, <em>Disbursed</em>).</li>
+  <li><strong>Audit Logs</strong>: Tamper-evident ledger tracking for all financial modifications, adjustments, and approvals.</li>
+</ul>
+<h2>6. Smart SMS & Communication Engine</h2>
+<ul>
+  <li><strong>Multi-Gateway Adapter</strong>: Native support for Ghana SMS providers (cSMS V3, Hubtel, Arkesel) with automatic fallback and local sandbox mock modes.</li>
+  <li><strong>Sender ID Management</strong>: Send branded SMS under the church's registered Sender ID.</li>
+  <li><strong>SMS Credit Wallet & Ledger</strong>: Real-time SMS balance tracking, usage history, threshold alerts (500 / 100 / 0 credits), and online Paystack credit top-up.</li>
+  <li><strong>Personalized SMS Templates</strong>: Dynamic placeholder tags (<code>{{name}}</code>, <code>{{church}}</code>, <code>{{service_time}}</code>, <code>{{pledge_balance}}</code>).</li>
+  <li><strong>Opt-Out Compliance</strong>: Automatic unsubscribe keyword (<code>STOP</code>) processing to respect recipient preferences.</li>
+  <li><strong>Delivery Reports (DLR)</strong>: Live tracking of sent, delivered, undelivered, and failed SMS messages.</li>
+</ul>
+<h2>7. Automated Follow-Up & Drip Retention Workflows</h2>
+<ul>
+  <li><strong>Visual Workflow Builder</strong>: Multi-step automated sequences triggered upon visitor intake or salvation commitments.</li>
+  <li><strong>Scheduled Timeline Steps</strong>: Deliver welcome messages, check-in prompts, invitations, and devotional content over days or weeks.</li>
+  <li><strong>Quiet Hours Guard</strong>: Prevents messages from sending during late-night hours; automatically queues them for delivery the next morning.</li>
+  <li><strong>Two-Way Reply Tracking</strong>: Automatically halts automated follow-ups when a visitor responds, instantly assigning a follow-up pastor or worker.</li>
+  <li><strong>Care Tasks</strong>: Automatically generates follow-up phone call and home visit tasks for the visitation team.</li>
+</ul>
+<h2>8. Pastoral Care, Counseling & Prayer Wall</h2>
+<ul>
+  <li><strong>Pastoral Counseling Records</strong>: Encrypted counseling session logs restricted to authorized pastoral staff.</li>
+  <li><strong>Interactive Prayer Wall</strong>: Collect prayer requests from members and the public with moderation tools (<em>Public</em>, <em>Ministry-Only</em>, <em>Private</em>).</li>
+  <li><strong>Welfare & Compassion Ministry</strong>: Record and track welfare requests, benevolent fund disbursements, and support cases.</li>
+  <li><strong>Hospital & Home Visitation Tracking</strong>: Assign visitors, log visit outcomes, and schedule reminders.</li>
+</ul>
+<h2>9. Children’s Ministry & Dual-Ticket Security Check-In</h2>
+<ul>
+  <li><strong>Dual-Ticket Security Check-In</strong>: Generates matching physical/digital security pickup codes for child and parent.</li>
+  <li><strong>Secure Child Checkout</strong>: Verifies child pickup against parent credentials and emergency contact authorization.</li>
+  <li><strong>Medical & Allergy Alerts</strong>: Highlight allergies, dietary restrictions, and special medical conditions on check-in tags.</li>
+  <li><strong>Room Capacity & Ratios</strong>: Track child-to-teacher safety ratios in Sunday school classrooms.</li>
+</ul>
+<h2>10. Groups, Cells & Fellowships</h2>
+<ul>
+  <li><strong>Cell / Small Group Network</strong>: Organize church members into home cells, fellowships, and ministry departments.</li>
+  <li><strong>Leader Portals</strong>: Cell leaders can view their rosters, record weekly meeting attendance, and submit group reports.</li>
+  <li><strong>Geographical Mapping</strong>: Group branches and cell zones by neighborhood or digital address.</li>
+</ul>
+<h2>11. Volunteer Rosters & Ministry Duty Scheduling</h2>
+<ul>
+  <li><strong>Ministry Scheduling</strong>: Schedule worship team, ushers, tech crew, media team, and children's workers for upcoming services.</li>
+  <li><strong>RSVP Confirmation</strong>: Automated SMS/WhatsApp notifications allowing volunteers to confirm (<em>YES</em>) or decline (<em>NO</em>) shifts.</li>
+  <li><strong>Conflict & Over-Scheduling Detection</strong>: Alerts if a volunteer is assigned to overlapping roles or services.</li>
+  <li><strong>Substitute Matching</strong>: One-click reassignment to pre-qualified backups when a volunteer declines.</li>
+</ul>
+<h2>12. Events, RSVPs & Calendars</h2>
+<ul>
+  <li><strong>Church Event Calendar</strong>: Schedule conferences, revivals, retreats, workshops, and youth events.</li>
+  <li><strong>Public & Member RSVP</strong>: Track event registrations, seat reservations, and meal preferences.</li>
+  <li><strong>Ticket & Badge Generation</strong>: Issue digital confirmation passes for special entrance events.</li>
+</ul>
+<h2>13. Media, Songs & Worship Planning</h2>
+<ul>
+  <li><strong>Sermon & Media Archive</strong>: Publish audio recordings, video links, sermon notes, and study guides.</li>
+  <li><strong>Song Lyric & Chord Library</strong>: Searchable database of worship songs with CCLI licensing compliance flags.</li>
+  <li><strong>Worship Setlists</strong>: Create orders of service setlists, assign keys/tempo, and link lyrics for screen projectors and musicians.</li>
+</ul>
+<h2>14. Multilingual Offline Scripture / Bible Companion</h2>
+<ul>
+  <li><strong>Multi-Translation Engine</strong>: Built-in offline Scripture reader and cross-reference search engine (<code>/bible</code>).</li>
+  <li><strong>Pre-bundled Translations</strong>:</li>
+  <li><strong>English</strong>: King James Version (KJV), American Standard Version (ASV).</li>
+  <li><strong>Akuapem Twi</strong>: Full 66-book Old and New Testament with phonetic characters (<code>ɔ</code>, <code>ɛ</code>).</li>
+  <li><strong>Asante Twi</strong>: Complete 66 books, 1,189 chapters, 31,102 verses.</li>
+  <li><strong>Fante</strong>: Complete 66 books, 31,051 verses.</li>
+  <li><strong>Ga</strong>: Complete 66 books, 31,090 verses.</li>
+  <li><strong>Ewe</strong>: Complete 66 books, local translation.</li>
+  <li><strong>Search & Copy</strong>: Chapter-by-chapter reading, keyword search across all local translations, and one-click copy verse references.</li>
+</ul>
+<h2>15. Public Outreach, Flyers & Member Self-Service Portal</h2>
+<ul>
+  <li><strong>Social Media Flyer Generator (<code>/flyers</code>)</strong>: Instantly generate clean, branded service announcement graphics and sermon flyers.</li>
+  <li><strong>Public Visitor Registration (<code>/public/:slug/visitors</code>)</strong>: QR code link on flyers allowing first-time guests to register from their phones upon arrival.</li>
+  <li><strong>Member Self-Service Portal (<code>/portal</code>)</strong>:</li>
+  <li>Passwordless phone OTP login.</li>
+  <li>View personal giving history and download official annual tax statements (PDF).</li>
+  <li>View assigned volunteer shifts and RSVP to church events.</li>
+  <li>Submit prayer requests and update personal contact information.</li>
+</ul>
+<h2>16. Multi-Branch & Denominational Hierarchy</h2>
+<ul>
+  <li><strong>Multi-Campus / Multi-Branch Management</strong>: Centralized headquarters oversight with branch-level operational autonomy.</li>
+  <li><strong>Member Branch Transfers</strong>: Seamless transfer of member history, giving records, and pastoral notes between church campuses.</li>
+  <li><strong>Role-Based Access Control (RBAC)</strong>: Fine-grained permissions (<em>Super Admin</em>, <em>Branch Pastor</em>, <em>Finance Admin</em>, <em>Usher Lead</em>, <em>Counselor</em>, <em>Media Volunteer</em>).</li>
+</ul>
+
+</body>
+</html>
