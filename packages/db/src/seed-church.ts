@@ -187,7 +187,7 @@ export async function seedChurchDefaults(churchId: string, actorId: string | nul
           churchId,
           name: 'Sunday Service',
           rrule: 'FREQ=WEEKLY;BYDAY=SU',
-          startTime: '09:00',
+          startTime: '07:30',
           segmentIds: segments.map((s) => s.id),
         },
       });
