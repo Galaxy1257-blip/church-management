@@ -3,6 +3,40 @@
 **Read first in a new session.** Repo-level context lives in `../STATE.md` and
 `../LOGS.md`; this file is the ECC gate journal.
 
+## Session P — CLOSED (31 Oct 2026, `7105d44` + `d25d67e`)
+
+**Task:** class-scoped Sunday School care, and a weekly service that opens and closes check-in by
+itself (Sunday 07:30–12:00 unless a Sunday is ticked "no church").
+
+**Committed:** `7105d44` care follows the class (migration 10, ccb/ccs claims, class scope in
+`care.module.ts`, office assignment, My-class chip, dashboard events-switch fix); `d25d67e` the
+automatic Sunday service. Docs in the commit after. All gates were green on the combined tree before
+each commit: typecheck 0 · eslint 0 · shared 83/83 · api 73/73 · `check:secrets` clean ·
+access-smoke + modules-drift ALL CHECKS PASSED.
+
+**Where this stopped — resume here:**
+
+1. **The web dev server is returning 500 on every route.** Cause: this session ran `next build` in
+   `apps/web` while another session's `next dev` (PID was 7716 on :3000) held the same `.next`
+   directory, and the build was killed halfway. **Fix:** kill the :3000 listener, `rm -rf apps/web/.next`,
+   `npm run dev:web` (`.next` is gitignored and regenerates). **Never run `next build` in this repo
+   while a dev server is live — the two share `.next`.**
+2. **Still open on the Sunday School side, owner's call:** `SUNDAY_SCHOOL` holds only
+   `church:read care:read care:write`, so a teacher cannot open `/children` even though the switch
+   hint says "Sunday School teachers use this", and cannot run the check-in desk (`checkin:write`).
+   Either the hint or the preset is wrong — the recommendation given was to add `checkin:write`
+   scoped to the class and keep the directory closed. `.ecc/access-smoke.mts` asserts
+   "SUNDAY_SCHOOL: no check-in", so changing it is a deliberate decision, not an oversight.
+3. **Not started:** task #3 — trim the dashboard to four cards behind a "Show more cards" line
+   (`apps/web/src/app/(app)/dashboard/page.tsx`).
+4. **Demo data left as found:** Care switch off, teacher class cleared, `serviceSchedule` at Sunday
+   07:30–12:00 with no skips, `worship` at the `false` the other session had it at.
+3. **Verified:** all gates green on the combined tree (typecheck 0, eslint 0, shared 83/83, api 73/73,
+   `check:secrets` clean, access-smoke + modules-drift pass) and the browser at 390×844 — including
+   the **My class** chip, which the other session confirmed rendering for +233240000110 after I had
+   to stop.
+**Task list:** #13 (outreach brainstorm) still pending; #30 and #31 are closed with the two commits.
+
 ## Session O — CLOSED (30 Oct 2026, `3d4049f`)
 
 **Task:** owner round 2 — subscriptions, public site, platform office, onboarder console and

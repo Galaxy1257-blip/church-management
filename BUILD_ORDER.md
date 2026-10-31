@@ -191,6 +191,15 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
 - [x] Per-church extra tools (`settings.customFeatures`): office editor + church-side `/extras` nav group
 - [x] Member CSV import from the office: preview with duplicates/errors, then confirm
 - [x] "Open as" handoff (90-second single-use link) for support work inside a church
+- [x] App sections: only members, services, offerings and news are on for a new church; care, serving
+      team, events, children, groups, follow-up, special offerings, expenses, SMS, departments and
+      branches are switches the church ticks in Settings (Media deleted outright)
+- [x] Care scoped to the class: ushers see the whole queue, a Sunday School teacher sees only the class
+      the office assigns them (`User.careClassBracketId` + segment, carried as token claims); no class
+      means an empty list, and welfare/moderation stay closed
+- [x] Automatic Sunday service: the weekly service creates itself, opens check-in at 07:30 and closes
+      at 12:00 (both editable), and a Sunday ticked "no church" never opens — reconciled on every read
+      of `/services`, so no scheduler is involved
 - [ ] Owner follow-ups — awaiting the next list
 
 ## Explicitly NOT recommended now (rebuild risk — already covered)

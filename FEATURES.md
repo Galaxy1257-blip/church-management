@@ -29,6 +29,7 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 ## 3. Sunday Services & Usher Attendance (Offline-First)
 
 * **Service Management**: Schedule Sunday services, mid-week services, vigils, and conferences with customizable service templates.
+* **Automatic Sunday Service**: the week's service creates itself, opens check-in at the starting time and closes it at the ending time — Sunday 07:30–12:00 out of the box, with any Sunday ticked "no church" so nothing opens and nobody is counted. Nobody has to press Start.
 * **Offline-First Usher Headcount**:
   * Ushers can count attendance section-by-section (Men, Women, Children, Visitors, Online).
   * Works 100% offline in airplane mode or during network outages using local client outbox queues; auto-syncs when signal returns.
@@ -84,6 +85,7 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 ## 8. Pastoral Care, Counseling & Prayer Wall
 
 * **Pastoral Counseling Records**: Encrypted counseling session logs restricted to authorized pastoral staff.
+* **Who Sees Care**: the Care area is switched on per church in Settings and opens only for ushers and Sunday School teachers. An usher sees the whole church queue; a teacher sees only the class assigned to them in the office — their own children's visits, tasks and counselling notes, and nothing about anyone else. A teacher with no class assigned yet sees an empty list, not the church. Welfare and moderation stay closed to them.
 * **Interactive Prayer Wall**: Collect prayer requests from members and the public with moderation tools (*Public*, *Ministry-Only*, *Private*).
 * **Welfare & Compassion Ministry**: Record and track welfare requests, benevolent fund disbursements, and support cases.
 * **Hospital & Home Visitation Tracking**: Assign visitors, log visit outcomes, and schedule reminders.
@@ -124,11 +126,11 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 
 ---
 
-## 13. Media, Songs & Worship Planning
+## 13. Worship Planning (removed)
 
-* **Sermon & Media Archive**: Publish audio recordings, video links, sermon notes, and study guides.
-* **Song Lyric & Chord Library**: Searchable database of worship songs with CCLI licensing compliance flags.
-* **Worship Setlists**: Create orders of service setlists, assign keys/tempo, and link lyrics for screen projectors and musicians.
+* The media archive, song library and setlist pages were deleted: no church in the demo used them,
+  and they were the reason the Worship area looked crowded on day one. Sermon audio, videos and
+  orders of service now go out as **News** announcements instead.
 
 ---
 

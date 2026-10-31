@@ -859,3 +859,54 @@ afterwards. New shared tests for the extras validator. Dev owner account recreat
 **Known gaps / operator notes:** a handoff session has no refresh token by design, so a hard reload
 while "Open as" lands back on `/login`; Paystack is still the mock flow until live keys are set; the
 office needs at least one active OWNER, so keep one outside the test accounts; docs updated here.
+
+## 2026-10-31 — Session P: class-scoped care and a service that opens itself
+
+**Request (owner, two parts):** (1) **"let only ushers or sunday school teachers see ''care'' when
+enabled"** — and, when asked how much of the church a teacher should see, **"Their Sunday School
+class"**; (2) **"i noticed there was a ''service'' and it seems someone has to signal that church is
+starting make it automatic every sunday like 7:30 to 12 unless specified that no church on particular
+day."**
+
+**Shipped (`7105d44` class-scoped care, `d25d67e` the automatic service; the section switches
+themselves are `353c79a` and the 15-switch settings page is `279f3fb`, both from the parallel session):**
+
+- **Care follows the class, not the church.** Migration `10_sunday_school_class` adds
+  `User.careClassBracketId` + `careClassSegment`; the access token carries them as `ccb`/`ccs`.
+  `care.module.ts` resolves a scope for anyone without `members:read`: their own bracket (plus the
+  boys/girls half when the class is split) and nothing else — the class queue, class overview,
+  counselling notes and care tasks are all filtered to those member ids, and a task opened on a
+  child outside the class is a 400 rather than a quiet leak. A teacher with no class yet gets an
+  empty queue and a plain-English instruction to see the office; before this fix they inherited the
+  whole-church list, which was the privacy hole this change exists to close. Welfare and moderation
+  stay permission-gated, so a teacher gets 403 on both. The platform office can set the class on a
+  staff row, and the sidebar chip now reads **My class** instead of **Whole church** for a teacher.
+- **Sunday opens the doors by itself.** New shared `service-schedule.ts` holds the model
+  (`enabled`, `weekday`, `startTime`, `endTime`, `name`, `skipDates`) and `serviceWindowState()`;
+  defaults are Sunday 07:30–12:00, stored in `Church.settings.serviceSchedule` so no migration was
+  needed. `GET /services` reconciles today against that window before it answers — creating the
+  service at the opening time, flipping SCHEDULED to OPEN, closing it at the end, and creating
+  nothing at all on a ticked "no church" Sunday. Because the reconcile rides the read that the
+  dashboard, check-in and services pages already make, no scheduler or worker change is required.
+  Closed services never reopen. `GET/PUT /services/schedule` (`services:read` / `services:write`)
+  serves the settings view with the next eight Sundays labelled and flagged; the Services page shows
+  one **Automatic service** card with the name, opening and closing times and the skip list. The
+  seeded Sunday template moved from 09:00 to 07:30 to match.
+
+**Verification:** API — class of 6 children returned to the teacher and only those 6; task list
+class-only; welfare 403; moderation 403; task on an outside child 400; task on a class child 201
+(test row deleted); unassigned teacher got an empty class and empty queue. Schedule — an OPEN service
+appeared at the window start, auto-closed after the end, nothing was created on a skipped date, and
+defaults came back intact. Browser at 390×844 — teacher nav is Dashboard + Care only, queue names are
+not clickable, the visit form's child picker lists the class, no welfare card and no moderation
+controls; the admin Services card saved "no church on Sun 1 Nov", it survived a reload and the API
+confirmed `skipDates: ["2026-11-01"]`, then it was unticked again.
+
+**Gates:** typecheck 0 (5 workspaces) · eslint 0 · shared 83/83 · api 73/73 · worker no tests ·
+`check:secrets` clean · `.ecc/access-smoke.mts` and `.ecc/modules-drift.mts` both ALL CHECKS PASSED.
+One eslint error came in with `279f3fb` (a `react-hooks/exhaustive-deps` disable comment in
+`expenses/page.tsx` for a rule this flat config never registers) and was removed here.
+
+**Left as found:** the demo church's Care switch is back off, the demo teacher's class assignment is
+cleared, and the service schedule is Sunday 07:30–12:00 with no skip dates. `services`/`children`/
+`groups`/`expenses` module flags were returned to the values the other session had them at.
