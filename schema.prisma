@@ -325,6 +325,11 @@ model User {
   passwordHash String?
   totpSecret   String?
   memberId     String?   @db.Uuid
+  // Sunday School teachers are scoped to one class: an age bracket plus a
+  // gender segment (ALL, MALE, FEMALE). Soft FK -> AgeBracket, like
+  // Member.ageBracketId, so a branch/bracket edit cannot orphan the user.
+  careClassBracketId String? @db.Uuid
+  careClassSegment   String?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
 

@@ -36,19 +36,36 @@ describe('permissions', () => {
     expect(hasStaffAccess(permissionsForRoles(['MEMBER']))).toBe(false);
   });
 
-  it('sunday school teachers look after children and care, never money', () => {
+  it('sunday school teachers get the care queue for their class and nothing else', () => {
     const teacher = permissionsForRoles(['SUNDAY_SCHOOL']);
     expect(hasPermission(teacher, 'care:read')).toBe(true);
-    expect(hasPermission(teacher, 'checkin:write')).toBe(true);
-    expect(hasPermission(teacher, 'members:write')).toBe(true);
+    expect(hasPermission(teacher, 'care:write')).toBe(true);
+    // No directory, no check-in, no publishing to the wall, no welfare or money.
+    expect(hasPermission(teacher, 'members:read')).toBe(false);
+    expect(hasPermission(teacher, 'members:write')).toBe(false);
+    expect(hasPermission(teacher, 'checkin:write')).toBe(false);
+    expect(hasPermission(teacher, 'visitors:read')).toBe(false);
+    expect(hasPermission(teacher, 'care:moderate')).toBe(false);
+    expect(hasPermission(teacher, 'welfare:read')).toBe(false);
     expect(hasPermission(teacher, 'finance:read')).toBe(false);
     expect(hasPermission(teacher, 'settings:write')).toBe(false);
   });
 
-  it('ushers can run the care queue they are allowed to see', () => {
+  it('ushers can run the care queue they are allowed to see, but not welfare', () => {
     const usher = permissionsForRoles(['USHER']);
     expect(hasPermission(usher, 'care:read')).toBe(true);
     expect(hasPermission(usher, 'care:write')).toBe(true);
+    expect(hasPermission(usher, 'care:moderate')).toBe(true);
+    expect(hasPermission(usher, 'welfare:read')).toBe(false);
+    expect(hasPermission(usher, 'welfare:write')).toBe(false);
+  });
+
+  it('welfare stays with follow-up, elders, finance and the pastor', () => {
+    for (const role of ['FOLLOWUP_TEAM', 'ELDER', 'FINANCE_ADMIN', 'PASTOR'] as const) {
+      const perms = permissionsForRoles([role]);
+      expect(hasPermission(perms, 'welfare:read')).toBe(true);
+      expect(hasPermission(perms, 'welfare:write')).toBe(true);
+    }
   });
 
   it('lower leaders only get their own modules', () => {

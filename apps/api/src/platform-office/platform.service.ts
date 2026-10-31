@@ -297,7 +297,7 @@ export class PlatformService {
   async getChurch(churchId: string) {
     const church = await prisma.church.findUnique({ where: { id: churchId }, select: CHURCH_SELECT });
     if (!church) throw new NotFoundException('church not found');
-    const [memberCount, users, payments, auditRows] = await Promise.all([
+    const [memberCount, users, payments, auditRows, classes] = await Promise.all([
       prisma.member.count({ where: { churchId, deletedAt: null } }),
       prisma.user.findMany({
         where: { churchId },
@@ -309,6 +309,8 @@ export class PlatformService {
           email: true,
           isActive: true,
           lastLoginAt: true,
+          careClassBracketId: true,
+          careClassSegment: true,
           roles: { select: { role: { select: { key: true, name: true } } } },
         },
       }),
@@ -329,6 +331,18 @@ export class PlatformService {
       >`SELECT id, action, entity, entity_id, actor_id, created_at
           FROM audit_event WHERE church_id = ${churchId}::uuid
           ORDER BY seq DESC LIMIT 20`,
+      prisma.ageBracket.findMany({
+        where: { churchId, isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { minAge: 'asc' }],
+        select: {
+          id: true,
+          key: true,
+          label: true,
+          genderSplit: true,
+          maleLabel: true,
+          femaleLabel: true,
+        },
+      }),
     ]);
     const settings = (church.settings ?? {}) as Record<string, unknown>;
     return {
@@ -351,6 +365,7 @@ export class PlatformService {
         ...u,
         roles: u.roles.map((r) => r.role),
       })),
+      classes,
       payments,
       audit: auditRows.map((r) => ({ ...r, id: String(r.id) })),
     };
@@ -474,9 +489,43 @@ export class PlatformService {
     return users.map((u) => ({ ...u, roles: u.roles.map((r) => r.role) }));
   }
 
+  /**
+   * A Sunday School teacher is scoped to one class. Validate the bracket against
+   * this church (never accept an id from another tenant) and only allow a gender
+   * segment when the bracket is actually split.
+   */
+  private async careClassData(
+    churchId: string,
+    bracketId: string | null | undefined,
+    segment: string | null | undefined,
+  ): Promise<{ careClassBracketId: string | null; careClassSegment: string | null }> {
+    if (!bracketId) return { careClassBracketId: null, careClassSegment: null };
+    const bracket = await prisma.ageBracket.findFirst({
+      where: { id: bracketId, churchId, isActive: true },
+      select: { id: true, genderSplit: true },
+    });
+    if (!bracket) throw new BadRequestException('that class does not belong to this church');
+    const value = (segment ?? 'ALL').trim().toUpperCase();
+    if (!['ALL', 'MALE', 'FEMALE'].includes(value)) {
+      throw new BadRequestException('class segment must be ALL, MALE or FEMALE');
+    }
+    if (!bracket.genderSplit && value !== 'ALL') {
+      throw new BadRequestException('this class is not split into boys and girls');
+    }
+    return { careClassBracketId: bracket.id, careClassSegment: value };
+  }
+
   async createUser(
     actor: PlatformActor,
-    input: { churchId: string; name: string; phoneE164: string; password: string; roleKeys?: string[] },
+    input: {
+      churchId: string;
+      name: string;
+      phoneE164: string;
+      password: string;
+      roleKeys?: string[];
+      careClassBracketId?: string | null;
+      careClassSegment?: string | null;
+    },
     ip?: string,
   ) {
     const church = await prisma.church.findUnique({ where: { id: input.churchId }, select: { id: true } });
@@ -486,6 +535,12 @@ export class PlatformService {
     const roleKeys = (input.roleKeys?.length ? input.roleKeys : ['MEMBER']) as RoleKey[];
     const roles = await prisma.role.findMany({ where: { churchId: input.churchId, key: { in: roleKeys } } });
     if (roles.length !== new Set(roleKeys).size) throw new BadRequestException('unknown role for this church');
+    if (input.careClassBracketId && !roleKeys.includes('SUNDAY_SCHOOL')) {
+      throw new BadRequestException('pick the Sunday School teacher role before assigning a class');
+    }
+    const careClass = roleKeys.includes('SUNDAY_SCHOOL')
+      ? await this.careClassData(input.churchId, input.careClassBracketId, input.careClassSegment)
+      : { careClassBracketId: null, careClassSegment: null };
 
     const passwordHash = await bcrypt.hash(input.password, 10);
     const id = uuidv7();
@@ -497,6 +552,7 @@ export class PlatformService {
           name: input.name.trim(),
           phoneE164: phone,
           passwordHash,
+          ...careClass,
           roles: { create: roles.map((r) => ({ roleId: r.id })) },
         },
       });
@@ -510,14 +566,22 @@ export class PlatformService {
       name: input.name,
       phone,
       roles: roleKeys,
+      ...careClass,
     }, undefined, ip);
-    return { id, name: input.name, phoneE164: phone, roles: roles.map((r) => r.key) };
+    return { id, name: input.name, phoneE164: phone, roles: roles.map((r) => r.key), ...careClass };
   }
 
   async updateUser(
     actor: PlatformActor,
     userId: string,
-    patch: { name?: string; phoneE164?: string; isActive?: boolean; email?: string | null },
+    patch: {
+      name?: string;
+      phoneE164?: string;
+      isActive?: boolean;
+      email?: string | null;
+      careClassBracketId?: string | null;
+      careClassSegment?: string | null;
+    },
     ip?: string,
   ) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, churchId: true } });
@@ -527,10 +591,21 @@ export class PlatformService {
     if (patch.phoneE164 !== undefined) data.phoneE164 = normalizeGhPhone(patch.phoneE164);
     if (patch.email !== undefined) data.email = patch.email;
     if (patch.isActive !== undefined) data.isActive = patch.isActive;
+    if (patch.careClassBracketId !== undefined || patch.careClassSegment !== undefined) {
+      Object.assign(data, await this.careClassData(user.churchId, patch.careClassBracketId, patch.careClassSegment));
+    }
     const updated = await prisma.user.update({
       where: { id: userId },
       data: data as never,
-      select: { id: true, name: true, phoneE164: true, email: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        phoneE164: true,
+        email: true,
+        isActive: true,
+        careClassBracketId: true,
+        careClassSegment: true,
+      },
     });
     // A deactivated user must not keep a working session.
     if (patch.isActive === false) {

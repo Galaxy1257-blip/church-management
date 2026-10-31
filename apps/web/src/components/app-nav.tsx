@@ -89,7 +89,13 @@ export default function AppNav({
       .filter((group) => group.items.length > 0);
   }, [groups, query]);
 
-  const roleLabel = `${describeRoles(me.roles)} · ${SCOPE_LABEL[me.scope ?? 'ALL']}`;
+  // A Sunday School teacher with a class sees only that class, so the chip
+  // should not claim "Whole church".
+  const scopeLabel =
+    me.careClassBracketId && !hasPermission(me.permissions, 'members:read')
+      ? 'My class'
+      : SCOPE_LABEL[me.scope ?? 'ALL'];
+  const roleLabel = `${describeRoles(me.roles)} · ${scopeLabel}`;
   const logo = me.church.branding?.logoDataUrl;
 
   return (

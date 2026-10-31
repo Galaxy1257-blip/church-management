@@ -37,6 +37,13 @@ export const PERMISSIONS = [
   'settings:write',
   'care:read',
   'care:write',
+  // Approving a request onto the public prayer wall is a separate job from
+  // writing one: Sunday School teachers log requests but do not publish them.
+  'care:moderate',
+  // Welfare carries money, so it is not part of the care queue. Follow-up,
+  // elders, finance and the pastor handle it; ushers and teachers do not.
+  'welfare:read',
+  'welfare:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -72,6 +79,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'campaigns:write',
     'reports:read',
     'audit:read',
+    // Finance approves welfare payments, so it can read and decide them.
+    'welfare:read',
+    'welfare:write',
   ],
   USHER: [
     ...READ_ONLY,
@@ -80,9 +90,10 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'checkin:write',
     'visitors:read',
     'visitors:write',
-    // Ushers run welfare and the care queue alongside the door.
+    // Ushers run the care queue and the prayer wall alongside the door.
     'care:read',
     'care:write',
+    'care:moderate',
   ],
   FOLLOWUP_TEAM: [
     ...READ_ONLY,
@@ -93,6 +104,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'sms:send',
     'care:read',
     'care:write',
+    'care:moderate',
+    'welfare:read',
+    'welfare:write',
   ],
   LEADER: [
     ...READ_ONLY,
@@ -117,6 +131,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'visitors:write',
     'care:read',
     'care:write',
+    'care:moderate',
+    'welfare:read',
+    'welfare:write',
     'sms:read',
     'sms:send',
     'campaigns:read',
@@ -132,19 +149,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'campaigns:write',
     'reports:read',
   ],
-  // Sunday School teachers look after children: records, check-in and the care
-  // queue. They hold no finance or settings permissions.
-  SUNDAY_SCHOOL: [
-    ...READ_ONLY,
-    'members:read',
-    'members:write',
-    'headcount:write',
-    'checkin:write',
-    'visitors:read',
-    'visitors:write',
-    'care:read',
-    'care:write',
-  ],
+  // Sunday School teachers see ONE thing: the care queue for the class the
+  // office assigned to them. No member directory, no welfare (it carries
+  // money), no check-in, no finance or settings. The Care section itself is an
+  // opt-in switch, so a new church has to turn it on before this role is useful.
+  SUNDAY_SCHOOL: ['church:read', 'care:read', 'care:write'],
 };
 
 export function permissionsForRoles(roles: readonly RoleKey[]): Permission[] {

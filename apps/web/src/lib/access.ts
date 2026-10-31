@@ -49,6 +49,9 @@ export interface SessionUser {
   roles: string[];
   permissions: string[];
   scope?: DataScope;
+  /** Sunday School class this person looks after, when one is assigned. */
+  careClassBracketId?: string | null;
+  careClassSegment?: string | null;
   /** Which areas this church has switched on (settings.modules). */
   modules?: ModuleFlags;
   /** Extras the platform office added for this church alone. */

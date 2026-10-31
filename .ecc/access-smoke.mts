@@ -6,6 +6,7 @@ import {
   CARE_ROLES,
   MODULE_DEFAULTS,
   MODULE_KEYS,
+  MODULE_LABELS,
   NAV_AREAS,
   ROUTE_ACCESS,
   areaForPath,
@@ -89,11 +90,17 @@ for (const role of Object.keys(ROLE_PERMISSIONS) as (keyof typeof ROLE_PERMISSIO
     );
     check('USHER: rides the usher rail', usher.length > 0);
     check('USHER: sees Care when it is switched on', canAccessPath(perms, '/care', ALL_ON, roles));
+    check('USHER: welfare is not part of care', !perms.includes('welfare:read'));
   }
   if (role === 'SUNDAY_SCHOOL') {
     check('SUNDAY_SCHOOL: sees Care when switched on', canAccessPath(perms, '/care', ALL_ON, roles));
-    check('SUNDAY_SCHOOL: check-in reachable', canAccessPath(perms, '/checkin', ALL_ON, roles));
-    check('SUNDAY_SCHOOL: finance blocked', !canAccessPath(perms, '/finance', ALL_ON, roles));
+    check('SUNDAY_SCHOOL: no check-in', !canAccessPath(perms, '/checkin', ALL_ON, roles));
+    check('SUNDAY_SCHOOL: no member directory', !canAccessPath(perms, '/members', ALL_ON, roles));
+    check('SUNDAY_SCHOOL: no follow-up plans', !canAccessPath(perms, '/drip', ALL_ON, roles));
+    check(
+      'SUNDAY_SCHOOL: care only, never welfare',
+      perms.length === 3 && perms.includes('care:read') && perms.includes('care:write') && !perms.includes('welfare:read'),
+    );
   }
   if (role === 'ELDER' || role === 'FOLLOWUP_TEAM') {
     check(`${role}: Care hidden even with care:read`, !canAccessPath(perms, '/care', ALL_ON, roles));
@@ -135,9 +142,23 @@ check('per-item switches resolve', moduleForPath('/care') === 'care' && moduleFo
 check('departments and branches are separate switches', moduleForPath('/org') === 'departments' && moduleForPath('/branches') === 'branches');
 
 // New sections start off; ticking one reveals only that page.
-for (const key of ['care', 'roster', 'departments', 'branches'] as const) {
+for (const key of [
+  'care',
+  'roster',
+  'events',
+  'children',
+  'groups',
+  'followup',
+  'special_offerings',
+  'expenses',
+  'sms',
+  'departments',
+  'branches',
+] as const) {
   check(`${key} defaults off`, MODULE_DEFAULTS[key] === false && !moduleEnabled(undefined, key));
 }
+check('the four week-carrying areas default on', MODULE_DEFAULTS.people && MODULE_DEFAULTS.worship && MODULE_DEFAULTS.money && MODULE_DEFAULTS.reach);
+check('every module key has a label and a default', MODULE_KEYS.every((k) => k in MODULE_DEFAULTS && k in MODULE_LABELS));
 check('care off closes its route', !canAccessPath(su, '/care', { ...ALL_ON, care: false }, ['USHER']));
 check('care on opens it for ushers', canAccessPath(su, '/care', { ...ALL_ON, care: true }, ['USHER']));
 check('roster on opens it', canAccessPath(su, '/roster', { ...ALL_ON, roster: true }, ['LEADER']));

@@ -99,7 +99,19 @@ export interface PlatformChurchUser {
   email: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
+  /** Sunday School teachers are scoped to this class. */
+  careClassBracketId: string | null;
+  careClassSegment: string | null;
   roles: { key: string; name: string }[];
+}
+
+export interface PlatformClass {
+  id: string;
+  key: string;
+  label: string;
+  genderSplit: boolean;
+  maleLabel: string | null;
+  femaleLabel: string | null;
 }
 
 export interface PlatformPayment {
@@ -134,6 +146,7 @@ export interface PlatformChurchDetail {
   };
   members: number;
   users: PlatformChurchUser[];
+  classes: PlatformClass[];
   payments: PlatformPayment[];
   audit: {
     id: string;

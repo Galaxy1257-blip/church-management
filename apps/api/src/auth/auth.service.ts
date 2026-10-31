@@ -50,6 +50,9 @@ interface AccessClaims {
   perms: string[];
   bid: string[];
   scp: string;
+  /** Sunday School class (age bracket + segment); null for everyone else. */
+  ccb?: string | null;
+  ccs?: string | null;
   aud: 'access';
 }
 
@@ -93,6 +96,8 @@ export class AuthService {
       permissions: permissionsForRoles(roles),
       branchIds,
       scope: resolveDataScope(roles, branchIds),
+      careClassBracketId: user.careClassBracketId,
+      careClassSegment: user.careClassSegment,
     };
   }
 
@@ -106,6 +111,8 @@ export class AuthService {
       perms: user.permissions,
       bid: user.branchIds,
       scp: user.scope,
+      ccb: user.careClassBracketId ?? null,
+      ccs: user.careClassSegment ?? null,
       aud: 'access',
     };
   }

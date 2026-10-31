@@ -23,6 +23,10 @@ export interface AuthUser {
   branchIds: string[];
   /** ALL (whole church) | BRANCH (assigned branches) | SELF | NONE. */
   scope: DataScope;
+  /** Sunday School teachers only see the class the office assigned. */
+  careClassBracketId?: string | null;
+  /** ALL | MALE | FEMALE within that class. */
+  careClassSegment?: string | null;
 }
 
 export interface AuthedRequest extends Request {
@@ -40,6 +44,9 @@ interface AccessClaims {
   bid: string[];
   /** Added with role tiers; older tokens omit it and are derived from roles. */
   scp?: DataScope;
+  /** Care class (Sunday School teacher); older tokens omit it. */
+  ccb?: string | null;
+  ccs?: string | null;
   aud: string;
 }
 
@@ -85,6 +92,8 @@ export class JwtAuthGuard implements CanActivate {
         // Tokens minted before role tiers existed have no `scp`; derive it so a
         // deployment never mislabels a pastor as branch-scoped.
         scope: claims.scp ?? resolveDataScope(roles as RoleKey[], branchIds),
+        careClassBracketId: claims.ccb ?? null,
+        careClassSegment: claims.ccs ?? null,
       };
       return true;
     } catch {

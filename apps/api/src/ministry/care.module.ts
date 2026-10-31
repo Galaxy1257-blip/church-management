@@ -1,8 +1,9 @@
 // Pastoral care: prayer requests (moderated wall), counseling notes
 // (AES-GCM encrypted at rest, RBAC-restricted), welfare requests.
-import { Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
+import { hasPermission } from '@chms/shared';
 import { RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
@@ -30,10 +31,63 @@ class WelfareDto {
 export class CareService {
   constructor(private readonly tenant: TenantService) {}
 
+  /**
+   * A Sunday School teacher's care world is the one class the office assigned.
+   * Anyone who can already read the member directory (pastor, usher, elder,
+   * follow-up) is not narrowed: their role is church-wide, even if a class was
+   * left on the user record. A care-only role with no class assigned is still
+   * class-scoped — an empty queue, never "everyone".
+   */
+  private classScope(
+    user: AuthUser,
+  ): { bracketId: string | null; segment: 'ALL' | 'MALE' | 'FEMALE' } | null {
+    if (hasPermission(user.permissions, 'members:read')) return null;
+    const segment =
+      user.careClassSegment === 'MALE' || user.careClassSegment === 'FEMALE' ? user.careClassSegment : 'ALL';
+    return { bracketId: user.careClassBracketId ?? null, segment };
+  }
+
+  private classMemberWhere(user: AuthUser, scope: { bracketId: string; segment: 'ALL' | 'MALE' | 'FEMALE' }) {
+    return {
+      churchId: user.churchId,
+      deletedAt: null,
+      ageBracketId: scope.bracketId,
+      ...(scope.segment === 'MALE'
+        ? { gender: 'MALE' as const }
+        : scope.segment === 'FEMALE'
+          ? { gender: 'FEMALE' as const }
+          : {}),
+    };
+  }
+
+  private async classMemberIds(
+    tx: Db,
+    user: AuthUser,
+    scope: { bracketId: string | null; segment: 'ALL' | 'MALE' | 'FEMALE' },
+  ): Promise<string[]> {
+    const bracketId = scope.bracketId;
+    if (!bracketId) return [];
+    const rows = await tx.member.findMany({ where: this.classMemberWhere(user, { ...scope, bracketId }), select: { id: true } });
+    return rows.map((r) => r.id);
+  }
+
   prayers(user: AuthUser, opts: { wall?: boolean } = {}) {
+    const scope = this.classScope(user);
     return this.tenant.run(user, (tx) =>
       tx.prayerRequest.findMany({
-        where: { churchId: user.churchId, ...(opts.wall ? { shareToWall: true, moderation: 'APPROVED' } : {}) },
+        // The public wall is for everyone. Everything else on the wall is the
+        // teacher's own request; a whole-church feed stays with the care team.
+        where: opts.wall
+          ? { churchId: user.churchId, shareToWall: true, moderation: 'APPROVED' }
+          : scope
+            ? {
+                churchId: user.churchId,
+                OR: [
+                  { shareToWall: true, moderation: 'APPROVED' },
+                  { submittedBy: user.userId },
+                ],
+              }
+            : { churchId: user.churchId },
         orderBy: { createdAt: 'desc' },
         take: 200,
       }),
@@ -45,6 +99,7 @@ export class CareService {
       const p = await tx.prayerRequest.create({
         data: {
           churchId: user.churchId,
+          submittedBy: user.userId,
           body: input.body,
           isAnonymous: input.isAnonymous ?? false,
           shareToWall: input.shareToWall ?? false,
@@ -66,7 +121,17 @@ export class CareService {
   }
 
   async addCounseling(user: AuthUser, input: CounselingDto, ip?: string) {
+    const scope = this.classScope(user);
     return this.tenant.run(user, async (tx) => {
+      const bracketId = scope?.bracketId ?? null;
+      if (scope) {
+        if (!bracketId) throw new BadRequestException('Your Sunday School class is not set up yet — ask your church office.');
+        const subject = await tx.member.findFirst({
+          where: { id: input.subjectId, ...this.classMemberWhere(user, { ...scope, bracketId }) },
+          select: { id: true },
+        });
+        if (!subject) throw new BadRequestException('That child is not in your class.');
+      }
       const enc = await encryptNote(tx, user.churchId, input.body);
       const n = await tx.counselingNote.create({
         data: {
@@ -154,11 +219,39 @@ export class CareService {
 
   // ---- R4.9 care queue: visits (hospital/bereavement/home) + assignments ----
 
-  careTasks(user: AuthUser, opts: { status?: string; type?: string } = {}) {
+  /** The teacher's class and the children they may log a visit for. */
+  classOverview(user: AuthUser) {
+    const scope = this.classScope(user);
+    const bracketId = scope?.bracketId ?? null;
+    if (!scope || !bracketId) return Promise.resolve({ className: null as string | null, members: [] });
     return this.tenant.run(user, async (tx) => {
+      const bracket = await tx.ageBracket.findFirst({ where: { id: bracketId, churchId: user.churchId } });
+      const members = await tx.member.findMany({
+        where: this.classMemberWhere(user, { ...scope, bracketId }),
+        select: { id: true, firstName: true, lastName: true },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+      });
+      const fallback = scope.segment === 'MALE' ? 'Boys' : scope.segment === 'FEMALE' ? 'Girls' : 'My class';
+      const className = bracket
+        ? scope.segment === 'MALE'
+          ? bracket.maleLabel ?? `${bracket.label} (Boys)`
+          : scope.segment === 'FEMALE'
+            ? bracket.femaleLabel ?? `${bracket.label} (Girls)`
+            : bracket.label
+        : fallback;
+      return { className, members };
+    });
+  }
+
+  careTasks(user: AuthUser, opts: { status?: string; type?: string } = {}) {
+    const scope = this.classScope(user);
+    return this.tenant.run(user, async (tx) => {
+      const classIds = scope ? await this.classMemberIds(tx, user, scope) : null;
+      if (classIds && classIds.length === 0) return [];
       const tasks = await tx.careTask.findMany({
         where: {
           churchId: user.churchId,
+          ...(classIds ? { memberId: { in: classIds } } : {}),
           ...(opts.status ? { status: opts.status } : {}),
           ...(opts.type ? { type: opts.type } : {}),
         },
@@ -187,8 +280,18 @@ export class CareService {
       'MISSING_MEMBER', 'CALL_REQUESTED', 'TASK_STEP',
     ];
     if (!allowed.includes(input.type)) throw new Error(`bad task type ${input.type}`);
+    const scope = this.classScope(user);
     return this.tenant.run(user, async (tx) => {
-      if (input.memberId) {
+      const bracketId = scope?.bracketId ?? null;
+      if (scope) {
+        if (!bracketId) throw new BadRequestException('Your Sunday School class is not set up yet — ask your church office.');
+        if (!input.memberId) throw new BadRequestException('Pick a child from your class.');
+        const child = await tx.member.findFirst({
+          where: { id: input.memberId, ...this.classMemberWhere(user, { ...scope, bracketId }) },
+          select: { id: true },
+        });
+        if (!child) throw new BadRequestException('That child is not in your class.');
+      } else if (input.memberId) {
         const m = await tx.member.findFirst({ where: { id: input.memberId, churchId: user.churchId, deletedAt: null } });
         if (!m) throw new Error('member not found');
       }
@@ -214,9 +317,16 @@ export class CareService {
     patch: { status?: string; assignedTo?: string | null; note?: string; dueAt?: string },
     ip?: string,
   ) {
+    const scope = this.classScope(user);
     return this.tenant.run(user, async (tx) => {
       const t = await tx.careTask.findFirst({ where: { id, churchId: user.churchId } });
       if (!t) throw new Error('care task not found');
+      if (scope) {
+        const classIds = await this.classMemberIds(tx, user, scope);
+        if (!t.memberId || !classIds.includes(t.memberId)) {
+          throw new BadRequestException('That task is not in your class.');
+        }
+      }
       const updated = await tx.careTask.update({
         where: { id },
         data: {
@@ -248,7 +358,7 @@ export class CareController {
     return this.svc.addPrayer(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('care:write')
+  @RequirePermissions('care:moderate')
   @Post('prayer/:id/moderate')
   moderate(@Req() req: AuthedRequest, @Param('id') id: string, @Body('approve') approve: boolean) {
     return this.svc.moderatePrayer(req.user!, id, approve !== false);
@@ -266,25 +376,31 @@ export class CareController {
     return this.svc.listCounseling(req.user!, subjectId);
   }
 
-  @RequirePermissions('care:read')
+  @RequirePermissions('welfare:read')
   @Get('welfare')
   welfare(@Req() req: AuthedRequest) {
     return this.svc.welfare(req.user!);
   }
 
-  @RequirePermissions('care:write')
+  @RequirePermissions('welfare:write')
   @Post('welfare')
   addWelfare(@Req() req: AuthedRequest, @Body() dto: WelfareDto) {
     return this.svc.addWelfare(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('care:write')
+  @RequirePermissions('welfare:write')
   @Post('welfare/:id/decide')
   decideWelfare(@Req() req: AuthedRequest, @Param('id') id: string, @Body('status') status: 'APPROVED' | 'DECLINED') {
     return this.svc.decideWelfare(req.user!, id, status, req.ip);
   }
 
   // ---- R4.9 care queue (visits + assignments + missing-member follow-ups) ----
+
+  @RequirePermissions('care:read')
+  @Get('care/class')
+  classOverview(@Req() req: AuthedRequest) {
+    return this.svc.classOverview(req.user!);
+  }
 
   @RequirePermissions('care:read')
   @Get('tasks')

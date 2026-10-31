@@ -62,6 +62,8 @@ class CreateUserDto {
   @IsString() phoneE164!: string;
   @IsString() @MinLength(6) password!: string;
   @IsOptional() @IsArray() roleKeys?: string[];
+  @IsOptional() @IsString() careClassBracketId?: string | null;
+  @IsOptional() @IsString() careClassSegment?: string | null;
 }
 
 class UpdateUserDto {
@@ -69,6 +71,8 @@ class UpdateUserDto {
   @IsOptional() @IsString() phoneE164?: string;
   @IsOptional() @IsString() email?: string | null;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsString() careClassBracketId?: string | null;
+  @IsOptional() @IsString() careClassSegment?: string | null;
 }
 
 class PasswordDto {

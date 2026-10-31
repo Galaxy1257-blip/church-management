@@ -104,7 +104,7 @@ export default function DashboardPage() {
           can('reports:read') ? api<DashboardData['byFund']>('/finance/reports/by-fund').catch(() => []) : Promise.resolve([]),
           can('visitors:read') ? api<DashboardData['visitors']>('/visitors').catch(() => []) : Promise.resolve([]),
           can('reports:read') ? api<DashboardData['bySunday']>('/finance/reports/by-sunday').catch(() => []) : Promise.resolve([]),
-          can('care:read') ? api<DashboardData['churn']>('/members/meta/churn').catch(() => []) : Promise.resolve([]),
+          can('care:read') && can('members:read') ? api<DashboardData['churn']>('/members/meta/churn').catch(() => []) : Promise.resolve([]),
           can('care:read') ? api<DashboardData['tasks']>('/tasks').catch(() => []) : Promise.resolve([]),
           can('services:write') ? api<DashboardData['events']>('/events').catch(() => []) : Promise.resolve([]),
           can('campaigns:read') ? api<DashboardData['announcements']>('/announcements').catch(() => []) : Promise.resolve([]),
@@ -123,8 +123,13 @@ export default function DashboardPage() {
   const has = (perm: string) => hasPermission(perms, perm);
   const mod = (key: ModuleKey) => moduleEnabled(modules, key);
   const attendanceVisible = has('services:read') && (mod('worship') || has('headcount:write'));
-  const eventsVisible = has('services:write') && mod('worship');
+  // /events sits behind its own switch now, not the Services one — reading
+  // worship here used to offer a card the church had switched off.
+  const eventsVisible = has('services:write') && mod('events');
   const careVisible = has('care:read') && mod('care') && isCareRole(roles);
+  // The member directory drives the churn list and the profile drawer; a
+  // class-scoped teacher gets the care queue but neither of those.
+  const canOpenProfile = has('members:read');
 
   const statCount = (attendanceVisible ? 1 : 0) + (has('reports:read') && mod('money') ? 1 : 0) + (careVisible ? 1 : 0);
 
@@ -143,7 +148,7 @@ export default function DashboardPage() {
   }
   if (careVisible) {
     allowed.add('care');
-    allowed.add('churn');
+    if (canOpenProfile) allowed.add('churn');
   }
   if (eventsVisible) allowed.add('events');
   if (has('campaigns:read') && mod('reach')) allowed.add('news');
@@ -198,7 +203,7 @@ export default function DashboardPage() {
                   <div className="label">Offering last Sunday ({data.bySunday[0]?.count ?? 0} entries)</div>
                 </div>
               ) : null}
-              {careVisible ? (
+              {careVisible && canOpenProfile ? (
                 <div className="card stat">
                   <div className="value">{data.churn.length}</div>
                   <div className="label">Members to check on (60-day)</div>
@@ -351,9 +356,15 @@ export default function DashboardPage() {
                         {t.type.replace(/_/g, ' ').toLowerCase()}
                       </span>
                       {t.memberId ? (
-                        <button type="button" className="name link-button" style={{ fontWeight: 500, fontSize: '0.9rem', flex: 1 }} onClick={() => setOpenMemberId(t.memberId!)}>
-                          {t.member ? `${t.member.firstName} ${t.member.lastName}` : t.note ?? 'Open member'}
-                        </button>
+                        canOpenProfile ? (
+                          <button type="button" className="name link-button" style={{ fontWeight: 500, fontSize: '0.9rem', flex: 1 }} onClick={() => setOpenMemberId(t.memberId!)}>
+                            {t.member ? `${t.member.firstName} ${t.member.lastName}` : t.note ?? 'Open member'}
+                          </button>
+                        ) : (
+                          <span className="name" style={{ fontWeight: 500, fontSize: '0.9rem', flex: 1 }}>
+                            {t.member ? `${t.member.firstName} ${t.member.lastName}` : 'A child in your class'}
+                          </span>
+                        )
                       ) : (
                         <span className="name" style={{ fontWeight: 500, fontSize: '0.9rem' }}>{t.note ?? 'Task'}</span>
                       )}
@@ -501,7 +512,7 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
-      {openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
+      {canOpenProfile && openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   type ImportPreview,
   type PlatformChurchDetail,
   type PlatformChurchUser,
+  type PlatformClass,
   type PlatformPayment,
 } from '../../../../lib/platform';
 
@@ -27,7 +28,7 @@ const ROLE_OPTIONS = [
   { key: 'LEADER', label: 'Leader' },
   { key: 'FOLLOWUP_TEAM', label: 'Follow-up team' },
   { key: 'USHER', label: 'Usher' },
-  { key: 'SUNDAY_SCHOOL', label: 'Sunday School teacher' },
+  { key: 'SUNDAY_SCHOOL', label: 'Sunday School teacher (Care only)' },
   { key: 'MEMBER', label: 'Member' },
 ];
 const METHOD_LABEL: Record<string, string> = {
@@ -44,6 +45,36 @@ const PAYMENT_TONE: Record<string, string> = {
 
 function stateLabel(state: string): string {
   return STATE_COPY[state as BillingState]?.label ?? state;
+}
+
+/** "Sunday School (Boys)" for a split class, the plain label otherwise. */
+function classLabel(cls: PlatformClass, segment: string | null): string {
+  if (segment === 'MALE') return cls.maleLabel ?? `${cls.label} (Boys)`;
+  if (segment === 'FEMALE') return cls.femaleLabel ?? `${cls.label} (Girls)`;
+  return cls.label;
+}
+
+function classValue(bracketId: string | null, segment: string | null): string {
+  return bracketId ? `${bracketId}:${segment ?? 'ALL'}` : '';
+}
+
+function splitClass(value: string): { careClassBracketId: string | null; careClassSegment: string | null } {
+  if (!value) return { careClassBracketId: null, careClassSegment: null };
+  const [id, segment] = value.split(':');
+  return { careClassBracketId: id, careClassSegment: segment || 'ALL' };
+}
+
+/** One option per child group; a split bracket also offers the whole class. */
+function classOptions(classes: PlatformClass[]): { value: string; label: string }[] {
+  return classes.flatMap((cls) =>
+    cls.genderSplit
+      ? [
+          { value: `${cls.id}:ALL`, label: `${cls.label} — all children` },
+          { value: `${cls.id}:MALE`, label: classLabel(cls, 'MALE') },
+          { value: `${cls.id}:FEMALE`, label: classLabel(cls, 'FEMALE') },
+        ]
+      : [{ value: `${cls.id}:ALL`, label: cls.label }],
+  );
 }
 
 export default function PlatformChurchPage() {
@@ -152,6 +183,8 @@ export default function PlatformChurchPage() {
           <UsersCard
             churchId={id}
             users={data.users}
+            classes={data.classes}
+            careOn={data.church.modules.care ?? data.church.moduleDefaults.care ?? false}
             busy={busy}
             run={run}
           />
@@ -662,11 +695,15 @@ function MembersImportCard({
 function UsersCard({
   churchId,
   users,
+  classes,
+  careOn,
   busy,
   run,
 }: {
   churchId: string;
   users: PlatformChurchUser[];
+  classes: PlatformClass[];
+  careOn: boolean;
   busy: boolean;
   run: (fn: () => Promise<unknown>, message: string) => Promise<void>;
 }) {
@@ -674,6 +711,12 @@ function UsersCard({
   const [adding, setAdding] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', phoneE164: '', password: '' });
   const [addRoles, setAddRoles] = useState<string[]>(['MEMBER']);
+  const [addClass, setAddClass] = useState('');
+
+  // The teacher role only exists for a church that runs the Care section.
+  const roleOptions = ROLE_OPTIONS.filter((role) => role.key !== 'SUNDAY_SCHOOL' || careOn);
+  const addWantsTeacher = addRoles.includes('SUNDAY_SCHOOL');
+  const options = classOptions(classes);
 
   function toggleRole(list: string[], key: string): string[] {
     return list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
@@ -685,13 +728,25 @@ function UsersCard({
       () =>
         platformApi('/platform/users', {
           method: 'POST',
-          body: { churchId, ...addForm, roleKeys: addRoles.length ? addRoles : ['MEMBER'] },
+          body: {
+            churchId,
+            ...addForm,
+            roleKeys: addRoles.length ? addRoles : ['MEMBER'],
+            ...(addWantsTeacher ? splitClass(addClass) : {}),
+          },
         }),
       'User created. Give them the temporary password in person.',
     );
     setAddForm({ name: '', phoneE164: '', password: '' });
     setAddRoles(['MEMBER']);
+    setAddClass('');
     setAdding(false);
+  }
+
+  function assignedClass(user: PlatformChurchUser): string | null {
+    if (!user.roles.some((r) => r.key === 'SUNDAY_SCHOOL')) return null;
+    const cls = user.careClassBracketId ? classes.find((c) => c.id === user.careClassBracketId) : null;
+    return cls ? classLabel(cls, user.careClassSegment) : 'No class assigned';
   }
 
   async function impersonate(user: PlatformChurchUser): Promise<void> {
@@ -751,7 +806,7 @@ function UsersCard({
             />
           </label>
           <div className="row">
-            {ROLE_OPTIONS.map((role) => (
+            {roleOptions.map((role) => (
               <label key={role.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <input
                   type="checkbox"
@@ -762,8 +817,27 @@ function UsersCard({
               </label>
             ))}
           </div>
+          {addWantsTeacher ? (
+            <label>
+              Which class does this teacher look after?
+              <select value={addClass} onChange={(e) => setAddClass(e.target.value)} required>
+                <option value="">Choose a class</option>
+                {options.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <span className="muted" style={{ fontSize: '0.78rem' }}>
+                They will only see the Care queue for the children in this class.
+              </span>
+            </label>
+          ) : null}
+          {!careOn ? (
+            <p className="muted" style={{ margin: 0 }}>
+              Sunday School teachers appear here once Care is switched on under App sections.
+            </p>
+          ) : null}
           <div className="row">
-            <button disabled={busy}>Create user</button>
+            <button disabled={busy || (addWantsTeacher && !addClass)}>Create user</button>
             <button type="button" className="secondary" onClick={() => setAdding(false)}>
               Cancel
             </button>
@@ -798,7 +872,12 @@ function UsersCard({
                     {user.email ? <div className="muted" style={{ fontSize: '0.75rem' }}>{user.email}</div> : null}
                   </td>
                   <td>{user.phoneE164}</td>
-                  <td style={{ fontSize: '0.82rem' }}>{user.roles.map((r) => r.name).join(', ') || '—'}</td>
+                  <td style={{ fontSize: '0.82rem' }}>
+                    {user.roles.map((r) => r.name).join(', ') || '—'}
+                    {assignedClass(user) ? (
+                      <div className="muted" style={{ fontSize: '0.75rem' }}>{assignedClass(user)}</div>
+                    ) : null}
+                  </td>
                   <td>{user.lastLoginAt ? fmtDateTime(user.lastLoginAt) : 'Never'}</td>
                   <td>
                     <div className="row" style={{ flexWrap: 'nowrap' }}>
@@ -823,7 +902,14 @@ function UsersCard({
       )}
 
       {selected ? (
-        <UserEditor user={selected} busy={busy} run={run} onClose={() => setSelected(null)} />
+        <UserEditor
+          user={selected}
+          classes={classes}
+          careOn={careOn}
+          busy={busy}
+          run={run}
+          onClose={() => setSelected(null)}
+        />
       ) : null}
     </div>
   );
@@ -831,11 +917,15 @@ function UsersCard({
 
 function UserEditor({
   user,
+  classes,
+  careOn,
   busy,
   run,
   onClose,
 }: {
   user: PlatformChurchUser;
+  classes: PlatformClass[];
+  careOn: boolean;
   busy: boolean;
   run: (fn: () => Promise<unknown>, message: string) => Promise<void>;
   onClose: () => void;
@@ -843,10 +933,30 @@ function UserEditor({
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email ?? '');
   const [roles, setRoles] = useState<string[]>(user.roles.map((r) => r.key));
+  const [careClass, setCareClass] = useState(classValue(user.careClassBracketId, user.careClassSegment));
   const [password, setPassword] = useState('');
+
+  // Keep the existing teacher role visible even if Care has since been switched off.
+  const roleOptions = ROLE_OPTIONS.filter(
+    (role) => role.key !== 'SUNDAY_SCHOOL' || careOn || roles.includes('SUNDAY_SCHOOL'),
+  );
+  const wantsTeacher = roles.includes('SUNDAY_SCHOOL');
+  const options = classOptions(classes);
 
   function toggleRole(key: string): void {
     setRoles(roles.includes(key) ? roles.filter((k) => k !== key) : [...roles, key]);
+  }
+
+  async function saveRoles(): Promise<void> {
+    await run(async () => {
+      await platformApi(`/platform/users/${user.id}/roles`, { method: 'POST', body: { roleKeys: roles } });
+      if (!roles.includes('SUNDAY_SCHOOL')) {
+        await platformApi(`/platform/users/${user.id}`, {
+          method: 'PATCH',
+          body: { careClassBracketId: null, careClassSegment: null },
+        });
+      }
+    }, 'Roles saved.');
   }
 
   return (
@@ -908,7 +1018,7 @@ function UserEditor({
           <div>
             <div className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Roles</div>
             <div className="row" style={{ marginTop: '0.3rem' }}>
-              {ROLE_OPTIONS.map((role) => (
+              {roleOptions.map((role) => (
                 <label key={role.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <input type="checkbox" checked={roles.includes(role.key)} onChange={() => toggleRole(role.key)} />
                   {role.label}
@@ -920,16 +1030,45 @@ function UserEditor({
               className="secondary"
               style={{ marginTop: '0.5rem' }}
               disabled={busy || roles.length === 0}
-              onClick={() =>
-                void run(
-                  () => platformApi(`/platform/users/${user.id}/roles`, { method: 'POST', body: { roleKeys: roles } }),
-                  'Roles saved.',
-                )
-              }
+              onClick={() => void saveRoles()}
             >
               Save roles
             </button>
           </div>
+
+          {wantsTeacher ? (
+            <div>
+              <div className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Care class</div>
+              <div className="row" style={{ marginTop: '0.3rem' }}>
+                <select value={careClass} onChange={(e) => setCareClass(e.target.value)} style={{ flex: 1 }}>
+                  <option value="">No class assigned</option>
+                  {options.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="secondary small"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () =>
+                        platformApi(`/platform/users/${user.id}`, {
+                          method: 'PATCH',
+                          body: splitClass(careClass),
+                        }),
+                      'Care class saved.',
+                    )
+                  }
+                >
+                  Save class
+                </button>
+              </div>
+              <p className="muted" style={{ margin: '0.3rem 0 0', fontSize: '0.78rem' }}>
+                They only see the Care queue for this class. With no class, the queue stays empty.
+              </p>
+            </div>
+          ) : null}
 
           <label>
             New password (they are signed out everywhere)
