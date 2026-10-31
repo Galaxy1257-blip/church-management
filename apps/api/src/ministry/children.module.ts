@@ -16,11 +16,11 @@ export class ChildrenService {
   async checkInChild(user: AuthUser, input: { serviceId: string; childId: string; guardianId: string }, ip?: string) {
     return this.tenant.run(user, async (tx) => {
       const child = await tx.member.findFirst({ where: { id: input.childId, churchId: user.churchId, deletedAt: null } });
-      if (!child) throw new Error('child not found');
+      if (!child) throw new BadRequestException('that child is not in this church');
       const guardian = await tx.memberGuardian.findFirst({
         where: { childId: input.childId, guardianId: input.guardianId, canPickup: true },
       });
-      if (!guardian) throw new Error('guardian is not authorised to drop off this child');
+      if (!guardian) throw new BadRequestException('that adult is not on the pickup list for this child');
       const tagNo = `T${randomInt(100000, 999999)}`;
       const pickupCode = String(randomInt(0, 1_000_000)).padStart(6, '0');
       const row = await tx.childCheckIn.upsert({
@@ -35,7 +35,16 @@ export class ChildrenService {
           pickupCodeHash: createHash('sha256').update(pickupCode).digest('hex'),
           checkedInAt: new Date(),
         },
-        update: { checkedOutAt: null, checkedOutBy: null, codeAttempts: 0 },
+        // A child released and brought back in the same service gets a fresh tag
+        // and code: the row is reused, so keeping the old hash here would print a
+        // ticket that no longer opens the door.
+        update: {
+          tagNo,
+          pickupCodeHash: createHash('sha256').update(pickupCode).digest('hex'),
+          checkedOutAt: null,
+          checkedOutBy: null,
+          codeAttempts: 0,
+        },
       });
       await appendAudit(tx, { churchId: user.churchId, actorId: user.userId, action: 'child.checkin', entity: 'ChildCheckIn', entityId: row.id, ip });
       return { id: row.id, tagNo, pickupCode }; // shown/printed once
@@ -152,12 +161,12 @@ export class ChildrenService {
       const row = await tx.childCheckIn.findFirst({
         where: { churchId: user.churchId, childId, serviceId, checkedOutAt: null },
       });
-      if (!row) throw new Error('no active check-in for this child');
-      if (row.codeAttempts >= 5) throw new Error('too many failed code attempts; see the pastor');
+      if (!row) throw new BadRequestException('that child is not checked in right now');
+      if (row.codeAttempts >= 5) throw new BadRequestException('too many wrong codes - check the child in again to reset it');
       const ok = createHash('sha256').update(code.trim()).digest('hex') === row.pickupCodeHash;
       if (!ok) {
         await tx.childCheckIn.update({ where: { id: row.id }, data: { codeAttempts: { increment: 1 } } });
-        throw new Error('invalid pickup code');
+        throw new BadRequestException('that pickup code is not right');
       }
       const guardianOk = row.guardianId === (await Promise.resolve(row.guardianId));
       await tx.childCheckIn.update({

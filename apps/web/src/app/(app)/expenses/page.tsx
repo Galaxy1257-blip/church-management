@@ -69,7 +69,6 @@ export default function ExpensesPage() {
   }
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
   async function submit(e: FormEvent): Promise<void> {
