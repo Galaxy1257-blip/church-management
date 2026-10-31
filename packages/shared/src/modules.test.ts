@@ -3,11 +3,18 @@ import { MODULE_DEFAULTS, MODULE_KEYS, isModuleKey, resolveModules } from './mod
 
 const defaults = {
   people: true,
-  care: false,
-  worship: false,
-  roster: false,
+  worship: true,
   money: true,
   reach: true,
+  care: false,
+  roster: false,
+  events: false,
+  children: false,
+  groups: false,
+  followup: false,
+  special_offerings: false,
+  expenses: false,
+  sms: false,
   departments: false,
   branches: false,
 };
@@ -24,17 +31,36 @@ describe('resolveModules', () => {
     expect(flags.money).toBe(false);
     expect(flags.people).toBe(true);
     expect(flags.care).toBe(false);
-    expect(flags.worship).toBe(false);
+    expect(flags.worship).toBe(true);
   });
 
   it('turns opt-in sections on when the church ticks them', () => {
     const flags = resolveModules({
-      modules: { care: true, roster: true, departments: true, branches: true },
+      modules: {
+        care: true,
+        roster: true,
+        events: true,
+        children: true,
+        groups: true,
+        followup: true,
+        special_offerings: true,
+        expenses: true,
+        sms: true,
+        departments: true,
+        branches: true,
+      },
     });
-    expect(flags.care).toBe(true);
-    expect(flags.roster).toBe(true);
-    expect(flags.departments).toBe(true);
-    expect(flags.branches).toBe(true);
+    for (const key of MODULE_KEYS) {
+      if (MODULE_DEFAULTS[key]) expect(flags[key]).toBe(true);
+    }
+    expect(flags.children).toBe(true);
+    expect(flags.expenses).toBe(true);
+  });
+
+  it('lets a church switch one of the always-on areas off', () => {
+    const flags = resolveModules({ modules: { worship: false } });
+    expect(flags.worship).toBe(false);
+    expect(flags.people).toBe(true);
   });
 
   it('ignores unknown keys and non-object settings', () => {
@@ -45,7 +71,7 @@ describe('resolveModules', () => {
 
   it('re-enables a module when the flag is true again', () => {
     expect(resolveModules({ modules: { money: false, reach: true } }).reach).toBe(true);
-    expect(resolveModules({ modules: { worship: true } }).worship).toBe(true);
+    expect(resolveModules({ modules: { expenses: true } }).expenses).toBe(true);
   });
 
   it('always returns every known key', () => {

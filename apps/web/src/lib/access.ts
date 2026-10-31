@@ -101,11 +101,18 @@ export interface NavGroup {
 // package; the access smoke test is what catches drift).
 export const MODULE_KEYS = [
   'people',
-  'care',
   'worship',
-  'roster',
   'money',
   'reach',
+  'care',
+  'roster',
+  'events',
+  'children',
+  'groups',
+  'followup',
+  'special_offerings',
+  'expenses',
+  'sms',
   'departments',
   'branches',
 ] as const;
@@ -113,27 +120,44 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
 
 /**
- * Must match packages/shared MODULE_DEFAULTS. Care, the serving rota,
- * departments and branches are opt-in; the church ticks them in Settings.
+ * Must match packages/shared MODULE_DEFAULTS. The first four carry the week —
+ * directory, service, offering, news — and everything after them is opt-in.
  */
 export const MODULE_DEFAULTS: Record<ModuleKey, boolean> = {
   people: true,
-  care: false,
-  worship: false,
-  roster: false,
+  worship: true,
   money: true,
   reach: true,
+  care: false,
+  roster: false,
+  events: false,
+  children: false,
+  groups: false,
+  followup: false,
+  special_offerings: false,
+  expenses: false,
+  sms: false,
   departments: false,
   branches: false,
 };
 
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
-  people: { label: 'People', hint: 'Members, visitors, children, groups and follow-up' },
-  care: { label: 'Care', hint: 'Care queue, prayer and welfare — only for ushers and Sunday School teachers' },
-  worship: { label: 'Worship', hint: 'Services, check-in and events' },
-  roster: { label: 'Serving team', hint: 'The serving rota for each service' },
-  money: { label: 'Money', hint: 'Offerings, special events, expenses and money reports' },
-  reach: { label: 'Reach', hint: 'SMS campaigns and announcements' },
+  people: { label: 'Members & visitors', hint: 'The directory, visitors and giving history' },
+  worship: { label: 'Services', hint: 'The service list and Sunday attendance' },
+  money: { label: 'Offerings', hint: 'Sunday giving and the money reports' },
+  reach: { label: 'News', hint: 'Announcements the congregation sees' },
+  care: {
+    label: 'Care',
+    hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',
+  },
+  roster: { label: 'Serving team', hint: 'Who serves on the rota each service' },
+  events: { label: 'Events', hint: 'Event pages and the people who say they are coming' },
+  children: { label: 'Children', hint: 'Child records, plus check-in and pickup codes. Sunday School teachers use this.' },
+  groups: { label: 'Groups & cells', hint: 'Cell groups and ministries, with the people in each' },
+  followup: { label: 'Follow-up', hint: 'Automatic messages to visitors after a service' },
+  special_offerings: { label: 'Special offerings', hint: 'Harvest, building fund and other one-off appeals' },
+  expenses: { label: 'Expenses', hint: 'Record spending, see the month total, send a summary as a PDF' },
+  sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
 };
@@ -160,43 +184,44 @@ export const NAV_AREAS: NavArea[] = [
   {
     module: 'people',
     label: 'People',
-    hint: 'Members, visitors, children, groups, care and follow-up',
+    hint: 'Members, visitors and the people pages this church switched on',
     items: [
       { href: '/members', label: 'Members', permissions: ['members:read'] },
       { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
-      { href: '/children', label: 'Children', permissions: ['members:write'] },
-      { href: '/groups', label: 'Groups', permissions: ['members:write'] },
+      { href: '/children', label: 'Children', permissions: ['members:write'], module: 'children' },
+      { href: '/groups', label: 'Groups', permissions: ['members:write'], module: 'groups' },
       { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
-      { href: '/drip', label: 'Follow-up', permissions: ['care:read'] },
+      // Follow-up plans are for the visitor team, not a care-only teacher.
+      { href: '/drip', label: 'Follow-up', permissions: ['visitors:read'], module: 'followup' },
     ],
   },
   {
     module: 'worship',
     label: 'Worship',
-    hint: 'Services, check-in and events',
+    hint: 'Services and the attendance count',
     items: [
       { href: '/services', label: 'Services', permissions: ['services:read'] },
       { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
       { href: '/roster', label: 'Serving team', permissions: ['members:write'], module: 'roster' },
-      { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'] },
+      { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'], module: 'events' },
     ],
   },
   {
     module: 'money',
     label: 'Money',
-    hint: 'Offerings, special events, expenses and reports',
+    hint: 'Offerings and the money pages this church switched on',
     items: [
       { href: '/finance', label: 'Offerings', permissions: ['finance:read'] },
-      { href: '/campaigns', label: 'Special offerings', permissions: ['giving:read'] },
-      { href: '/expenses', label: 'Expenses', permissions: ['expenses:read'] },
+      { href: '/campaigns', label: 'Special offerings', permissions: ['giving:read'], module: 'special_offerings' },
+      { href: '/expenses', label: 'Expenses', permissions: ['expenses:read'], module: 'expenses' },
     ],
   },
   {
     module: 'reach',
     label: 'Reach',
-    hint: 'SMS campaigns and announcements',
+    hint: 'News to the congregation',
     items: [
-      { href: '/sms', label: 'SMS', permissions: ['sms:read'] },
+      { href: '/sms', label: 'SMS', permissions: ['sms:read'], module: 'sms' },
       { href: '/announcements', label: 'News', permissions: ['campaigns:read'] },
     ],
   },
@@ -246,7 +271,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/campaigns', permissions: ['giving:read'], label: 'Special offerings' },
   { prefix: '/expenses', permissions: ['expenses:read'], label: 'Expenses' },
   { prefix: '/events', permissions: ['services:write', 'members:write'], label: 'Events' },
-  { prefix: '/drip', permissions: ['care:read'], label: 'Follow-up' },
+  { prefix: '/drip', permissions: ['visitors:read'], label: 'Follow-up' },
   { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },
   { prefix: '/announcements', permissions: ['campaigns:read'], label: 'News' },
   { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },

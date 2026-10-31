@@ -1,5 +1,5 @@
 // Expense ledger with approval workflow (deacon/board flow).
-import { Body, Controller, Get, Injectable, Module, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit } from '@chms/db';
 import { RequirePermissions } from '../common/decorators';
@@ -67,6 +67,61 @@ export class ExpensesService {
       return updated;
     });
   }
+
+  /**
+   * One month, totalled. The ledger above is capped at 200 rows, so the monthly
+   * figures a treasurer reads out (or sends on WhatsApp) have to come from a
+   * query instead of being added up in the browser from a truncated list.
+   */
+  async summary(user: AuthUser, month?: string) {
+    const now = new Date();
+    const wanted = /^\d{4}-\d{2}$/.test(month ?? '') ? (month as string) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const [year, mm] = wanted.split('-').map(Number);
+    const from = new Date(Date.UTC(year, mm - 1, 1));
+    const to = new Date(Date.UTC(year, mm, 1));
+
+    const rows = await this.tenant.run(user, (tx) =>
+      tx.expense.findMany({
+        where: { churchId: user.churchId, spentOn: { gte: from, lt: to } },
+        include: { category: { select: { name: true } } },
+        orderBy: { spentOn: 'asc' },
+      }),
+    );
+
+    const byCategory = new Map<string, { name: string; approvedMinor: number; pendingMinor: number; count: number }>();
+    let approvedMinor = 0;
+    let pendingMinor = 0;
+    const approved: typeof rows = [];
+    for (const row of rows) {
+      const bucket = byCategory.get(row.categoryId) ?? { name: row.category.name, approvedMinor: 0, pendingMinor: 0, count: 0 };
+      bucket.count += 1;
+      if (row.status === 'APPROVED') {
+        bucket.approvedMinor += row.amountMinor;
+        approvedMinor += row.amountMinor;
+        approved.push(row);
+      } else if (row.status === 'SUBMITTED') {
+        bucket.pendingMinor += row.amountMinor;
+        pendingMinor += row.amountMinor;
+      }
+      byCategory.set(row.categoryId, bucket);
+    }
+
+    const label = from.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    return {
+      month: wanted,
+      label,
+      approvedMinor,
+      pendingMinor,
+      categories: [...byCategory.values()].sort((a, b) => b.approvedMinor - a.approvedMinor),
+      items: approved.map((row) => ({
+        spentOn: row.spentOn.toISOString(),
+        category: row.category.name,
+        payee: row.payee,
+        amountMinor: row.amountMinor,
+        note: row.note,
+      })),
+    };
+  }
 }
 
 @Controller('expenses')
@@ -77,6 +132,12 @@ export class ExpensesController {
   @Get()
   list(@Req() req: AuthedRequest) {
     return this.svc.list(req.user!);
+  }
+
+  @RequirePermissions('expenses:read')
+  @Get('summary')
+  summary(@Req() req: AuthedRequest, @Query('month') month?: string) {
+    return this.svc.summary(req.user!, month);
   }
 
   @RequirePermissions('expenses:read')

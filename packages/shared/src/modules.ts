@@ -9,11 +9,18 @@
 // role could not otherwise read — it just stops showing whole areas of the app.
 export const MODULE_KEYS = [
   'people',
-  'care',
   'worship',
-  'roster',
   'money',
   'reach',
+  'care',
+  'roster',
+  'events',
+  'children',
+  'groups',
+  'followup',
+  'special_offerings',
+  'expenses',
+  'sms',
   'departments',
   'branches',
 ] as const;
@@ -23,29 +30,50 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Record<ModuleKey, boolean>;
 
 /**
- * Areas a new church starts with. Care, the serving rota, departments and
- * branches are opt-in: most churches do not run all four, so they stay hidden
- * until the church ticks them in Settings → App sections. Worship has always
- * started off for the same reason.
+ * What a new church starts with. The four above the line carry the week: the
+ * directory, the service, the offering and the news. Everything below it is
+ * opt-in, because most churches do not run all of it — they tick what they use
+ * in Settings → App sections and the rest never appears.
  */
 export const MODULE_DEFAULTS: ModuleFlags = {
   people: true,
-  care: false,
-  worship: false,
-  roster: false,
+  worship: true,
   money: true,
   reach: true,
+  care: false,
+  roster: false,
+  events: false,
+  children: false,
+  groups: false,
+  followup: false,
+  special_offerings: false,
+  expenses: false,
+  sms: false,
   departments: false,
   branches: false,
 };
 
+/**
+ * `hint` is what the church reads in Settings, so it has to say what appears
+ * when the box is ticked — in the words a treasurer or a pastor would use.
+ */
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
-  people: { label: 'People', hint: 'Members, visitors, children, groups and follow-up' },
-  care: { label: 'Care', hint: 'Care queue, prayer and welfare — only for ushers and Sunday School teachers' },
-  worship: { label: 'Worship', hint: 'Services, check-in and events' },
-  roster: { label: 'Serving team', hint: 'The serving rota for each service' },
-  money: { label: 'Money', hint: 'Giving, funds, expenses and finance reports' },
-  reach: { label: 'Reach', hint: 'SMS campaigns and announcements' },
+  people: { label: 'Members & visitors', hint: 'The directory, visitors and giving history' },
+  worship: { label: 'Services', hint: 'The service list and Sunday attendance' },
+  money: { label: 'Offerings', hint: 'Sunday giving and the money reports' },
+  reach: { label: 'News', hint: 'Announcements the congregation sees' },
+  care: {
+    label: 'Care',
+    hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',
+  },
+  roster: { label: 'Serving team', hint: 'Who serves on the rota each service' },
+  events: { label: 'Events', hint: 'Event pages and the people who say they are coming' },
+  children: { label: 'Children', hint: 'Child records, plus check-in and pickup codes. Sunday School teachers use this.' },
+  groups: { label: 'Groups & cells', hint: 'Cell groups and ministries, with the people in each' },
+  followup: { label: 'Follow-up', hint: 'Automatic messages to visitors after a service' },
+  special_offerings: { label: 'Special offerings', hint: 'Harvest, building fund and other one-off appeals' },
+  expenses: { label: 'Expenses', hint: 'Record spending, see the month total, send a summary as a PDF' },
+  sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
 };

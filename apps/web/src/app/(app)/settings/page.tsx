@@ -121,9 +121,14 @@ export default function SettingsPage() {
   // grouped settings: church setup (identity/logo/policy) vs SMS vs giving vs modules
   const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'appearance' | 'modules' | 'billing'>('church');
   const [theme, setTheme] = useState('sanctuary');
-  // Which areas of the app this church runs (settings.modules; absent =
-  // shared defaults, and Worship starts switched off).
+  // Which areas of the app this church runs (settings.modules; absent key =
+  // the shared default for that area).
   const [modules, setModules] = useState<Record<string, boolean>>({ ...MODULE_DEFAULTS });
+  // Listed as "every church" versus "opt-in", the way the office thinks about it.
+  const coreKeys = MODULE_KEYS.filter((key) => MODULE_DEFAULTS[key]);
+  const extraKeys = MODULE_KEYS.filter((key) => !MODULE_DEFAULTS[key]);
+  const usedCount = MODULE_KEYS.filter((key) => modules[key] !== false).length;
+  const unusedCount = MODULE_KEYS.length - usedCount;
 
   useEffect(() => {
     try {
@@ -782,27 +787,55 @@ export default function SettingsPage() {
       >
         <h2>App sections</h2>
         <p className="muted">
-          Tick the areas this church uses. Anything you untick disappears from the top bar, the tabs, the dashboard and the
-          route guard for everyone here — nothing is deleted, and you can add it back any time from this page.
-          Care, the serving team, departments and branches start off; tick the ones you run. Care is only shown to ushers
-          and Sunday School teachers.
+          Tick the areas this church uses. Anything you untick disappears from the menu, the tabs and the dashboard for
+          everyone here — nothing is deleted, and you can add it back any time from this page. Each line says what you will
+          see when you tick it.
         </p>
-        {MODULE_KEYS.map((key) => (
-          <label key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={modules[key] !== false}
-              onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
-            />
-            <span>
-              <strong>{MODULE_LABELS[key].label}</strong>{' '}
-              <span className="muted" style={{ fontSize: '0.85rem' }}>
-                {MODULE_LABELS[key].hint}
-              </span>
-            </span>
-          </label>
-        ))}
+        <p className="muted">
+          You are using <b>{usedCount}</b> of {MODULE_KEYS.length}. The other {unusedCount} are listed below, waiting for
+          the day your church runs them.
+        </p>
+        {[
+          {
+            title: 'Part of every week',
+            keys: coreKeys,
+            blurb: 'These are on for a new church. Untick one only if your church truly does not use it.',
+          },
+          {
+            title: 'Add when your church runs it',
+            keys: extraKeys,
+            blurb: 'These start off, so a new church sees a short menu. Tick the ones you actually run.',
+          },
+        ].map((group) =>
+          group.keys.length === 0 ? null : (
+            <div key={group.title} className="stack">
+              <h3 style={{ margin: 0 }}>{group.title}</h3>
+              <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+                {group.blurb}
+              </p>
+              {group.keys.map((key) => (
+                <label key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={modules[key] !== false}
+                    onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
+                  />
+                  <span>
+                    <strong>{MODULE_LABELS[key].label}</strong>
+                    <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                      {MODULE_LABELS[key].hint}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ),
+        )}
         <button>Save app sections</button>
+        <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+          Saving reloads the app so the menu updates. Care stays visible only to ushers and Sunday School teachers, even
+          after you tick it.
+        </p>
       </form>
       <div hidden={tab !== 'billing'} style={{ marginTop: '0.4rem' }}>
         <BillingPanel />

@@ -2,7 +2,7 @@
 // Groups & cells: every group is a card. Opening one shows its leader, its
 // members (each opens the shared profile drawer) and its meetings/events, and
 // lets you add people or change the leader without leaving the page.
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
 import MemberDrawer from '../../../components/member-drawer';
@@ -81,6 +81,8 @@ export default function GroupsPage() {
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const detailRef = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef('');
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -108,6 +110,14 @@ export default function GroupsPage() {
   useEffect(() => {
     if (activeId) void loadDetail(activeId);
   }, [activeId, loadDetail]);
+
+  // A phone shows one screen at a time, so tapping a group has to bring the
+  // people under it into view rather than leaving them below the fold.
+  useEffect(() => {
+    if (!detail || detail.id !== activeId || scrolledFor.current === detail.id) return;
+    scrolledFor.current = detail.id;
+    detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activeId, detail]);
 
   async function createGroup(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -233,7 +243,7 @@ export default function GroupsPage() {
       </div>
 
       {detail ? (
-        <div className="card" style={{ marginTop: '1rem' }}>
+        <div ref={detailRef} className="card" style={{ marginTop: '1rem' }}>
           <div className="spread">
             <div>
               <h2 style={{ margin: 0 }}>{detail.name}</h2>
@@ -242,28 +252,6 @@ export default function GroupsPage() {
               </div>
             </div>
             <span className="badge mute">{typeLabel(detail.type)}</span>
-          </div>
-
-          <div className="row" style={{ marginTop: '0.7rem', alignItems: 'flex-end' }}>
-            <label style={{ flex: 1 }}>
-              Rename
-              <input value={rename} onChange={(e) => setRename(e.target.value)} />
-            </label>
-            <label style={{ flex: 1 }}>
-              Leader
-              <select
-                value={detail.leaderId ?? ''}
-                onChange={(e) => void saveGroup({ leaderId: e.target.value || null })}
-              >
-                <option value="">No leader yet</option>
-                {detail.members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
-                ))}
-              </select>
-            </label>
-            <button className="small" type="button" onClick={() => void saveGroup({ name: rename.trim() })} disabled={!rename.trim() || rename === detail.name}>
-              Save name
-            </button>
           </div>
 
           {detail.leader ? (
@@ -276,7 +264,7 @@ export default function GroupsPage() {
             </p>
           ) : null}
 
-          <h3 style={{ marginTop: '1rem' }}>Members</h3>
+          <h3 style={{ marginTop: '1rem' }}>Members ({detail.members.length})</h3>
           <form className="row" onSubmit={addMember} style={{ marginBottom: '0.4rem' }}>
             <select style={{ flex: 1 }} value={addMemberId} onChange={(e) => setAddMemberId(e.target.value)}>
               <option value="">Choose a person…</option>
@@ -315,6 +303,31 @@ export default function GroupsPage() {
             </tbody>
           </table>
           {detail.members.length === 0 ? <p className="muted">No one in this group yet — add the first person above.</p> : null}
+
+          <details style={{ marginTop: '1.2rem' }}>
+            <summary className="muted" style={{ fontSize: '0.85rem' }}>Group name and leader</summary>
+            <div className="row" style={{ marginTop: '0.6rem', alignItems: 'flex-end' }}>
+              <label style={{ flex: 1 }}>
+                Rename
+                <input value={rename} onChange={(e) => setRename(e.target.value)} />
+              </label>
+              <label style={{ flex: 1 }}>
+                Leader
+                <select
+                  value={detail.leaderId ?? ''}
+                  onChange={(e) => void saveGroup({ leaderId: e.target.value || null })}
+                >
+                  <option value="">No leader yet</option>
+                  {detail.members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="small" type="button" onClick={() => void saveGroup({ name: rename.trim() })} disabled={!rename.trim() || rename === detail.name}>
+                Save name
+              </button>
+            </div>
+          </details>
 
           <h3 style={{ marginTop: '1.2rem' }}>Meetings &amp; events</h3>
           <form className="row" onSubmit={recordMeeting}>
