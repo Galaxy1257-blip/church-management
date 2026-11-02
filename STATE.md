@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-10-30 (Session P). **Self-contained**: a fresh session can
+Last updated: 2026-11-02 (Session S). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -166,6 +166,14 @@ C:\Users\HP\Desktop\church\
    Nothing from the previous session's list is shipped yet: the in-app daily reading + header bell, and the
    Sunday School batch (class register, guardian SMS, class skip dates, teacher-only health note, guardians
    on the pick-up row, class link to the reader).
+0c. **Session S — unreadable text, app-wide (`uncommitted`).** Owner screenshot of the announcements page:
+   "text color unreadable, check all similar instances". One rule caused it (the global filled-button ink
+   leaking into `<button className="card">`) and the same leak in disguise was found across the app: night's
+   `--brand` used *as text* (2.09–3.03:1) and `--accent` gold as text (2.1–3.0:1). Every text site now uses
+   `--link` or `--ink`; verified 0 WCAG failures at 390px in sanctuary and night over 16 screens plus the
+   open Bible dock. Also `Register (idempotent by phone)` → **Save visitor**. Deliberately left for the
+   owner: `--terracotta` hover text (2.99–4.48) and the gold ■ legend marker would need the 20 approved
+   palettes darkened — a design change, not a bug fix.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
    guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
@@ -230,6 +238,11 @@ npm run bible:fetch                  # KJV+ASV re-download; scripts/fetch-web.mj
 
 ## 9. Critical edit points
 - Permissions map: packages/shared/src/permissions.ts · guards+boot check: apps/api/src/common/
+- **Theme colour rules** (apps/web/src/app/globals.css): `button` is a *filled control* — `color:
+  var(--brand-ink)`, near-white. A `<button>` used as a surface must be `button.card` or set its own
+  `color: var(--ink)` (`.group-card`, `.theme-card` do). `--brand` is a **fill** in every theme; text that
+  wants the brand tint uses `--link` (tuned per theme; the only token that never fails contrast).
+  `--accent` gold and `--terracotta` are decorative/hover colours and fail AA as body text in most themes.
 - withTenant: packages/db/src/tenant.ts · audit: packages/db/src/audit.ts (+ audit_verify() in extras.sql)
 - SMS dispatch (api): apps/api/src/sms/sms-dispatcher.ts · gateway (worker): apps/worker/src/sms-gateway.ts
 - Giving: apps/api/src/giving/ (verifyPaystackSignature, paystackSecret, CAS settle); worker settle/nudge

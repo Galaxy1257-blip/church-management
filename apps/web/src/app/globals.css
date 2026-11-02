@@ -442,6 +442,9 @@
   --line-strong: #4a4034;
   --brand: #2f6b52;
   --brand-ink: #f6fbf7;
+  /* Night's --brand is a mid-dark fill: cream text on it reads at 6:1, but the
+     same green written AS text on a dark card collapses to 2.85:1. Every text
+     site therefore uses --link, which each theme tunes for legibility. */
   --link: #92c9ab;
   --accent: #e0ac52;
   --accent-soft: #3a2f1c;
@@ -542,7 +545,7 @@ p { margin: 0 0 0.7rem; }
 .side-head .brand {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--brand);
+  color: var(--link);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -613,7 +616,7 @@ p { margin: 0 0 0.7rem; }
   font-size: 0.83rem;
   font-weight: 600;
   text-align: left;
-  color: var(--brand);
+  color: var(--link);
   background: transparent;
   background-image: none;
   border: 0;
@@ -684,6 +687,16 @@ p { margin: 0 0 0.7rem; }
   box-shadow: var(--shadow-sm);
 }
 
+/* A <button> used as a card is a surface you can click, not a control — the
+   global button colour is filled-button ink, which is invisible on paper. */
+button.card {
+  color: var(--ink);
+  background-image: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+button.card:hover { filter: none; border-color: var(--line-strong); }
+button.card:active { transform: none; }
+
 .grid { display: grid; gap: 1rem; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
@@ -699,7 +712,7 @@ p { margin: 0 0 0.7rem; }
   font-size: 2.05rem;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--brand);
+  color: var(--link);
 }
 .stat .label {
   color: var(--muted);
@@ -967,7 +980,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   height: 2.2rem;
   border-radius: 50%;
   background: var(--accent-soft);
-  color: var(--brand);
+  color: var(--link);
   font-weight: 700;
   font-size: 0.85rem;
   object-fit: cover;
@@ -979,7 +992,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 /* Clickable names/rows that open the member drawer. */
 .link-button {
   font: inherit;
-  color: var(--brand);
+  color: var(--link);
   background: transparent;
   background-image: none;
   border: 0;
@@ -1025,7 +1038,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   height: 2.6rem;
   border-radius: 12px;
   background: var(--accent-soft);
-  color: var(--brand);
+  color: var(--link);
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
@@ -1142,7 +1155,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   /* Usher rail becomes a plain list inside the drawer. */
   .app-shell.usher-shell .side-nav { width: 276px; background: var(--card); }
   .app-shell.usher-shell .side-head { align-items: center; border-bottom-color: var(--line); padding: 0.85rem 0.95rem; }
-  .app-shell.usher-shell .side-head .brand { color: var(--brand); }
+  .app-shell.usher-shell .side-head .brand { color: var(--link); }
   .usher-rail { padding: 0.5rem 0.55rem; }
   .rail-item {
     flex-direction: row;
@@ -1157,7 +1170,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   .rail-item.active { background: var(--brand); color: var(--brand-ink); box-shadow: none; }
   .rail-item svg { width: 18px; height: 18px; }
   .app-shell.usher-shell .side-foot { align-items: stretch; border-top-color: var(--line); padding: 0.7rem 0.85rem 0.9rem; }
-  .app-shell.usher-shell .side-action { color: var(--brand); text-align: left; font-size: 0.83rem; padding: 0.35rem 0.2rem; }
+  .app-shell.usher-shell .side-action { color: var(--link); text-align: left; font-size: 0.83rem; padding: 0.35rem 0.2rem; }
   .app-shell.usher-shell .side-action:hover { color: var(--terracotta); }
 }
 
@@ -1215,7 +1228,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
     padding: 0.45rem 0.1rem;
     color: var(--muted);
   }
-  .portal-tabs button.on { background: var(--accent-soft); color: var(--brand); }
+  .portal-tabs button.on { background: var(--accent-soft); color: var(--link); }
   .portal-page { padding-bottom: 4.6rem; }
 }
 
@@ -1243,7 +1256,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 .theme-swatch span { flex: 1; }
 .theme-card .name { font-size: 0.86rem; font-weight: 700; color: var(--ink); }
 .theme-card .hint { font-size: 0.72rem; color: var(--muted); }
-.theme-card.on .hint { color: var(--accent); font-weight: 700; }
+.theme-card.on .hint { color: var(--ink); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -1269,10 +1282,12 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   background-image: none;
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-sm);
-  color: var(--brand);
+  color: var(--ink);
   cursor: pointer;
 }
-.bible-fab:hover { color: var(--terracotta); filter: none; }
+/* Only the frame moves on hover: brand/terracotta/gold text on this pale chip
+   is 2.0-3.5:1 in most themes, which is unreadable. */
+.bible-fab:hover { border-color: var(--accent); color: var(--ink); filter: none; }
 @media (min-width: 901px) {
   .bible-fab { top: 0.6rem; right: 1rem; }
 }
@@ -1312,7 +1327,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 }
 .bible-verse:hover { background: var(--bg-soft); filter: none; }
 .bible-verse.on { background: var(--accent-soft); }
-.bible-verse sup { color: var(--terracotta); font-weight: 700; margin-right: 0.15rem; }
+.bible-verse sup { color: var(--ink); font-weight: 700; margin-right: 0.15rem; }
 .note-mark {
   display: inline-block;
   width: 0.45rem;

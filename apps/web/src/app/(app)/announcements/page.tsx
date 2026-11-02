@@ -177,7 +177,7 @@ export default function AnnouncementsPage() {
             type="button"
             className="card notice-card"
             onClick={() => void openAnnouncement(a.id)}
-            style={{ marginTop: 8, background: 'var(--bg)', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+            style={{ marginTop: 8, width: '100%', textAlign: 'left', cursor: 'pointer' }}
           >
             <div className="spread"><strong>{a.title}</strong><span className="muted">{fmtDateTime(a.publishAt)}</span></div>
             <p style={{ margin: '4px 0 0' }}>{a.body}</p>

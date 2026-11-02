@@ -51,7 +51,7 @@ function MockPayInner() {
         <p className="muted">
           PAYSTACK_MODE=mock — this page simulates the Paystack hosted page. Reference: <code>{ref}</code>
         </p>
-        {status === 'done' ? <p style={{ color: 'var(--accent)' }}>{message}</p> : null}
+        {status === 'done' ? <p style={{ color: 'var(--ink)' }}>{message}</p> : null}
         {status === 'error' ? <p className="error">{message}</p> : null}
         <div className="row">
           <button disabled={!ref || status === 'busy'} onClick={() => void complete(true)}>

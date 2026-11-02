@@ -1006,3 +1006,44 @@ the run (`BibleNote` is empty again).
 
 **Fixed on the way:** the colour chips started life as 18px targets, which is a miss on a phone — they are
 now 44×44 with the paint confined to the content box, so the dot still looks the same size.
+
+## 2026-11-02 — Session S: nothing is allowed to be invisible (`uncommitted`)
+
+**Owner ask:** a screenshot of the announcements page — "text color unreadable, check all similar instances".
+
+**The one cause.** `globals.css` styles every `button` as a filled control: `color: var(--brand-ink)`, which
+is near-white paper cream. Anywhere a `<button>` is used as a *surface* instead of a control, its text is
+white on white. The announcements list did exactly that (`<button className="card notice-card">`) and then
+painted `background: var(--bg)` inline on top. Fixed as a rule, not a patch — `button.card` now takes
+`color: var(--ink)` and drops the control gradient, the same way `.group-card` already did. The inline
+background came off the page. A scan of every `.tsx` for a button carrying a card class found two: this one
+and `.group-card`, which was already correct.
+
+**The sweep.** A DOM audit that walks every visible text node, blends the ancestor background chain and
+scores it against WCAG (4.5:1 body, 3:1 large) at 390px in the running app. The first version of it reported
+zero failures on every page — it was parsing `rgb()` with a regex, and `\s` does not survive the script
+transport, so every colour silently fell back to black-on-white and scored 21:1. Rebuilt with no regex at
+all. The honest numbers then showed the real pattern: **night is the only dark palette, and in it
+`--brand` (#2f6b52) is a fill, never a colour you write text in** — as text on a dark card it is 2.85:1, on
+the Bible chip 2.09:1. Every text site that wanted the brand tint now uses `--link`, which each of the 21
+themes already tunes for legibility and which the audit never once flagged: sidebar title, sidebar actions,
+dashboard stat numbers, member and group initials, the usher-mode rail, the companion tab bar, and
+`.link-button`. Two more were unreadable for a different reason — `.theme-card.on .hint` ("In use") and the
+mock-checkout confirmation were `--accent` gold, 2.1–3.0:1 on paper in almost every theme; both are ink now.
+`.bible-fab` and `.bible-verse sup` came with them. A wrong turn is recorded here on purpose: `--brand-ink`
+was briefly dark in night, which made filled buttons *worse* (6.2:1 down to 3.0:1) and was reverted.
+
+**Plain language.** `Register (idempotent by phone)` on the visitors form is now **Save visitor** — the
+behaviour (a second save of the same phone does not make a second person) is a property of the button, not
+a word to put on it.
+
+**Verification.** sanctuary and night, 390px: 0 failures across /dashboard, /members, /announcements,
+/visitors, /settings, /groups, /finance, /billing, /services, /events, /campaigns, /extras, /about, /bible,
+/portal and the open Bible dock (69 nodes). The original card computes `color: rgb(34,27,21)` on
+`rgb(255,253,248)`. shared 119/119 · api 73/73 · typecheck 0 · eslint 0 · check:secrets clean.
+
+**Still open, deliberately not touched.** The static token audit lists 55 pairs under 4.5:1 across 20
+themes, and after this session they are all the same two families: `--terracotta` used as *hover* text
+(2.99–4.48 — transient, borderline, and it is the owner's chosen hover colour) and `--accent` gold as the
+decorative ■ in `.demo-legend`. Both would need the palettes themselves darkened, which is a design change
+rather than a bug fix, so they are the owner's call.
