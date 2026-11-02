@@ -99,7 +99,7 @@ export default function VisitorsPage() {
               </select>
             </label>
           </div>
-          <button>Register (idempotent by phone)</button>
+          <button>Save visitor</button>
         </form>
       </div>
 
