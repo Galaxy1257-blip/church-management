@@ -86,7 +86,13 @@ describe('resolveDevotional', () => {
 // The bundles are 27MB of licensed data and are not committed, so this only runs
 // where they have been fetched (`npm run bible:fetch`).
 describe.runIf(existsSync(BIBLE_DIR))('every reading resolves in every bundled translation', () => {
-  const codes = readdirSync(BIBLE_DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
+  // runIf skips the tests but still runs this callback, so the read has to
+  // tolerate the missing folder itself or CI fails on the collect step.
+  const codes = existsSync(BIBLE_DIR)
+    ? readdirSync(BIBLE_DIR)
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => f.replace(/\.json$/, ''))
+    : [];
 
   it('has at least the KJV to check against', () => {
     expect(codes.length).toBeGreaterThan(0);
