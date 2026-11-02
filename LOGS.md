@@ -910,3 +910,27 @@ One eslint error came in with `279f3fb` (a `react-hooks/exhaustive-deps` disable
 **Left as found:** the demo church's Care switch is back off, the demo teacher's class assignment is
 cleared, and the service schedule is Sunday 07:30–12:00 with no skip dates. `services`/`children`/
 `groups`/`expenses` module flags were returned to the values the other session had them at.
+
+## 2026-11-02 — Session Q: the dashboard answers in one glance
+
+The machine lost power mid-session, so this starts with the recovery and then the two dashboard
+items that were still open.
+
+- **The web server is healthy again.** The 500-on-every-route condition was a `next build` sharing
+  `apps/web/.next` with a live `next dev`. Killed the :3000 listener, deleted `.next`, restarted
+  `npm run dev:web`; `/`, `/dashboard`, `/expenses`, `/events`, `/children`, `/care` and `/settings`
+  each return 200.
+- **Events stopped offering a card the church switched off.** `eventsVisible` on the dashboard read
+  `mod('worship')`, but `/events` moved behind its own `events` switch in `279f3fb`, so a church with
+  Events off still saw the Upcoming events card. It reads `mod('events')` now.
+- **Four cards, then a line.** The dashboard shows the first four cards and folds the rest behind
+  **Show N more cards**; the button flips to **Show fewer cards** and the choice is stored in the same
+  `chms.dashboard.layout` record as the order and hidden cards, so it survives a reload and a revisit.
+  Edit dashboard ignores the fold — the person arranging sees every card and no fold line.
+
+**Verification:** browser as the demo admin — four cards with "Show 3 more cards", expand to seven and
+the label flips, reload keeps seven, collapse returns to four; edit mode shows seven cards, no fold
+line and seven arrange rows. Typecheck 0, eslint 0. The panel used was 510 CSS px, not 390 — the
+in-app browser could not be resized and its surface was hidden, so no screenshot was taken. The fold
+is a count rule, not a breakpoint, so width does not change it.
+

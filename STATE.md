@@ -147,14 +147,14 @@ C:\Users\HP\Desktop\church\
 
 ## 6. Currently working on (exact in-flight state)
 0. **Session P — ✅ committed 31 Oct (`7105d44` class-scoped Sunday School care, `d25d67e` automatic
-   Sunday service).** One thing is still broken and needs no code: **the web dev server answers 500
-   on every route** because a `next build` was run against the same `apps/web/.next` a live
-   `next dev` was using. Fix: kill the :3000 listener (`netstat -ano | grep :3000`),
-   `rm -rf apps/web/.next`, `npm run dev:web`. **Never run `next build` while a dev server is live.**
+   Sunday service).** The web 500s are cleared: killed the :3000 listener, deleted `apps/web/.next`,
+   restarted `npm run dev:web` — `/`, `/dashboard`, `/expenses`, `/events`, `/children`, `/care`,
+   `/settings` all return 200. **Never run `next build` while a dev server is live.**
+   Dashboard is trimmed to four cards, the rest behind a "Show 3 more cards" line that remembers the
+   choice per browser (Edit mode still shows every card).
    Open owner decision: a Sunday School teacher cannot open `/children` or the check-in desk
    (`checkin:write` is not in the preset) although the switch hint says the children's page is for
-   them — fix the hint or the role. Not started: trim the dashboard to four cards behind a
-   "Show more cards" line.
+   them — fix the hint or the role.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
    guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).

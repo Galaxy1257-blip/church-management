@@ -57,21 +57,29 @@ const WIDGETS: { key: WidgetKey; label: string }[] = [
 ];
 const DEFAULT_ORDER = WIDGETS.map((w) => w.key);
 const LAYOUT_KEY = 'chms.dashboard.layout';
+// The owner asked for a dashboard that answers "how are we doing" in one
+// glance, so everything past the fourth card starts folded away.
+const FOLD_AFTER = 4;
 
 interface Layout {
   order: WidgetKey[];
   hidden: WidgetKey[];
+  expanded: boolean;
 }
 
 function readLayout(): Layout {
-  if (typeof window === 'undefined') return { order: DEFAULT_ORDER, hidden: [] };
+  if (typeof window === 'undefined') return { order: DEFAULT_ORDER, hidden: [], expanded: false };
   try {
     const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}') as Partial<Layout>;
     const order = (raw.order ?? []).filter((k): k is WidgetKey => DEFAULT_ORDER.includes(k as WidgetKey));
     const hidden = (raw.hidden ?? []).filter((k): k is WidgetKey => DEFAULT_ORDER.includes(k as WidgetKey));
-    return { order: [...order, ...DEFAULT_ORDER.filter((k) => !order.includes(k))], hidden };
+    return {
+      order: [...order, ...DEFAULT_ORDER.filter((k) => !order.includes(k))],
+      hidden,
+      expanded: raw.expanded === true,
+    };
   } catch {
-    return { order: DEFAULT_ORDER, hidden: [] };
+    return { order: DEFAULT_ORDER, hidden: [], expanded: false };
   }
 }
 
@@ -81,7 +89,7 @@ export default function DashboardPage() {
   const [roles, setRoles] = useState<string[]>([]);
   const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
   const [error, setError] = useState('');
-  const [layout, setLayout] = useState<Layout>({ order: DEFAULT_ORDER, hidden: [] });
+  const [layout, setLayout] = useState<Layout>({ order: DEFAULT_ORDER, hidden: [], expanded: false });
   const [editing, setEditing] = useState(false);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
@@ -487,7 +495,7 @@ export default function DashboardPage() {
         <div className="card stack">
           <div className="spread">
             <h2 style={{ margin: 0 }}>Arrange your dashboard</h2>
-            <button className="small secondary" type="button" onClick={() => saveLayout({ order: DEFAULT_ORDER, hidden: [] })}>Reset</button>
+            <button className="small secondary" type="button" onClick={() => saveLayout({ order: DEFAULT_ORDER, hidden: [], expanded: false })}>Reset</button>
           </div>
           <p className="muted" style={{ marginTop: '-0.3rem' }}>Move a card up or down, or hide the ones you do not need. This only changes what you see.</p>
           {WIDGETS.filter((w) => allowed.has(w.key)).map((w) => (
@@ -506,12 +514,25 @@ export default function DashboardPage() {
       ) : null}
 
       <div className="dash-grid">
-        {visibleKeys.map((key) => (
+        {(editing || layout.expanded ? visibleKeys : visibleKeys.slice(0, FOLD_AFTER)).map((key) => (
           <div key={key} className={key === 'stats' || key === 'today' ? 'dash-full' : undefined}>
             {widget(key)}
           </div>
         ))}
       </div>
+      {editing || visibleKeys.length <= FOLD_AFTER ? null : (
+        <div className="row" style={{ justifyContent: 'center', marginTop: '0.85rem' }}>
+          <button
+            className="small secondary"
+            type="button"
+            onClick={() => saveLayout({ ...layout, expanded: !layout.expanded })}
+          >
+            {layout.expanded
+              ? 'Show fewer cards'
+              : `Show ${visibleKeys.length - FOLD_AFTER} more card${visibleKeys.length - FOLD_AFTER === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      )}
       {canOpenProfile && openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>
   );
