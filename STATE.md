@@ -155,7 +155,7 @@ C:\Users\HP\Desktop\church\
    Open owner decision: a Sunday School teacher cannot open `/children` or the check-in desk
    (`checkin:write` is not in the preset) although the switch hint says the children's page is for
    them — fix the hint or the role.
-0b. **Session R — the persistent Bible button.** Owner asked
+0b. **Session R — the persistent Bible button (`35192ee`, pushed).** Owner asked
    for the Bible to be reachable from anywhere: "just put a button at the top right … but no clutter" and
    "make the bible reader accessible to any type of user". `apps/web/src/components/bible-dock.tsx` is a
    small fixed **Bible** button plus a reading panel mounted in the staff shell and the member companion,

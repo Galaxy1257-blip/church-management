@@ -957,7 +957,7 @@ writing the rows and the header bell that shows them.
 
 ---
 
-## 2026-11-02 — Session R: the Bible, one button away from everywhere
+## 2026-11-02 — Session R: the Bible, one button away from everywhere (`35192ee`)
 
 **Owner ask:** "i think bible is in the app but not showing in ui. just put a button at the top right that
 shows bible and allow changing language, making notes (in different colours), searching similar texts and
