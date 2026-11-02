@@ -155,13 +155,17 @@ C:\Users\HP\Desktop\church\
    Open owner decision: a Sunday School teacher cannot open `/children` or the check-in desk
    (`checkin:write` is not in the preset) although the switch hint says the children's page is for
    them — fix the hint or the role.
-0b. **Session Q — verse of the day rotates (`daily-reading.ts`, 84 passages by date).** Owner asked for
-   a different quotation each night instead of John 3:16 forever; `GET /bible/daily` serves it in any
-   bundled translation and the worker rotates unless a verse is pinned in Settings→SMS. Same change
-   fixed ASV numbered books ("1 John" 404'd) and removed the phantom "WEB" option. Next in this thread,
-   all with their own off switch: the in-app daily reading + header bell, then the Sunday School batch
-   (class register, guardian SMS, class skip dates, teacher-only health note, guardians on the pick-up
-   row, class link to the reader) and the persistent Bible button.
+0b. **Session R — the persistent Bible button.** Owner asked
+   for the Bible to be reachable from anywhere: "just put a button at the top right … but no clutter" and
+   "make the bible reader accessible to any type of user". `apps/web/src/components/bible-dock.tsx` is a
+   small fixed **Bible** button plus a reading panel mounted in the staff shell and the member companion,
+   with seven languages, five note colours, verse search, cross-translation compare and a link to `/bible`.
+   Notes live in the new `BibleNote` table (`migrations/11_bible_notes`), scoped by church and author, and
+   one service answers both audiences: staff `@Authenticated()` `/bible/notes`, members `/portal/bible-notes`
+   with the bearer they already hold. The new **Bible** app section is the off switch and gates the API too.
+   Nothing from the previous session's list is shipped yet: the in-app daily reading + header bell, and the
+   Sunday School batch (class register, guardian SMS, class skip dates, teacher-only health note, guardians
+   on the pick-up row, class link to the reader).
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
    guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
@@ -230,7 +234,8 @@ npm run bible:fetch                  # KJV+ASV re-download; scripts/fetch-web.mj
 - SMS dispatch (api): apps/api/src/sms/sms-dispatcher.ts · gateway (worker): apps/worker/src/sms-gateway.ts
 - Giving: apps/api/src/giving/ (verifyPaystackSignature, paystackSecret, CAS settle); worker settle/nudge
 - Demographics: apps/api/src/demographics/ · age math: packages/shared/src/age.ts
-- Bible API: apps/api/src/bible/ · bundles: apps/api/data/bible/*.json (gitignored)
+- Bible API: apps/api/src/bible/ (reader + `bible-notes.ts`, one service, two route surfaces) ·
+  bundles: apps/api/data/bible/*.json (gitignored) · the always-there button: apps/web/src/components/bible-dock.tsx
 - Member companion: apps/api/src/portal/portal.module.ts · apps/web/src/app/portal/page.tsx
 - Worker schedulers/queues: apps/worker/src/main.ts · reconciler.ts · drip: followup.ts · vod: verse-of-day.ts
 - R4/Ghana: worker missing-member: apps/worker/src/missing-member.ts · SMS locales: packages/shared/src/sms-locales.ts ·

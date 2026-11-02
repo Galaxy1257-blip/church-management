@@ -107,6 +107,7 @@ export const MODULE_KEYS = [
   'worship',
   'money',
   'reach',
+  'bible',
   'care',
   'roster',
   'events',
@@ -123,14 +124,16 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
 
 /**
- * Must match packages/shared MODULE_DEFAULTS. The first four carry the week —
- * directory, service, offering, news — and everything after them is opt-in.
+ * Must match packages/shared MODULE_DEFAULTS. The first five carry the week —
+ * directory, service, offering, news, Bible — and everything after them is
+ * opt-in.
  */
 export const MODULE_DEFAULTS: Record<ModuleKey, boolean> = {
   people: true,
   worship: true,
   money: true,
   reach: true,
+  bible: true,
   care: false,
   roster: false,
   events: false,
@@ -149,6 +152,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   worship: { label: 'Services', hint: 'The service list and Sunday attendance' },
   money: { label: 'Offerings', hint: 'Sunday giving and the money reports' },
   reach: { label: 'News', hint: 'Announcements the congregation sees' },
+  bible: {
+    label: 'Bible',
+    hint: 'The Bible button at the top right of every page — reading, languages, search and your own verse notes',
+  },
   care: {
     label: 'Care',
     hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',

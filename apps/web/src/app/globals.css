@@ -1249,9 +1249,142 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* ---------------------------------------------------------- bible dock */
+/* The small button that stays at the top right of every screen, and the
+   reading panel behind it (components/bible-dock.tsx). It sits under the
+   section drawer (z 70) and the side menu (z 45/46) so it never covers a
+   member's details or the menu. */
+.bible-fab {
+  position: fixed;
+  top: 0.45rem;
+  right: 0.85rem;
+  z-index: 44;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  background-image: none;
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-sm);
+  color: var(--brand);
+  cursor: pointer;
+}
+.bible-fab:hover { color: var(--terracotta); filter: none; }
+@media (min-width: 901px) {
+  .bible-fab { top: 0.6rem; right: 1rem; }
+}
+
+.bible-drawer { width: min(460px, 96vw); }
+.bible-drawer .drawer-head h2 { margin: 0; font-size: 1rem; flex: none; }
+.bible-lang { flex: 1; min-width: 0; }
+
+.bible-controls select { flex: 1; min-width: 0; }
+.bible-search { margin-top: 0.6rem; }
+.bible-search input { flex: 1; min-width: 0; }
+.bible-listhead { align-items: baseline; margin-bottom: 0.3rem; }
+.bible-verses { margin-top: 0.9rem; }
+.bible-verses h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bible-verse {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+.bible-verse:hover { background: var(--bg-soft); filter: none; }
+.bible-verse.on { background: var(--accent-soft); }
+.bible-verse sup { color: var(--terracotta); font-weight: 700; margin-right: 0.15rem; }
+.note-mark {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.bible-notebox { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
+.bible-notebox textarea { width: 100%; }
+.bible-colours { display: flex; flex-wrap: wrap; gap: 0.15rem; margin-top: 0.35rem; }
+.bible-compare { margin-top: 0.6rem; }
+.bible-compare p { margin: 0.3rem 0; font-size: 0.88rem; }
+.bible-foot { margin-top: 1rem; }
+
+/* A finger-sized square around a pea-sized dot: the colour is painted only
+   inside the content box, so the padding stays invisible tap room. */
+.note-dot {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.78rem;
+  border: 0;
+  border-radius: 50%;
+  background-clip: content-box;
+  box-shadow: none;
+  cursor: pointer;
+}
+.note-dot.on { outline: 2px solid var(--ink); outline-offset: 1px; }
+.note-dot.note-yellow { background-color: #eab308; background-image: none; }
+.note-dot.note-green { background-color: #4f9d69; background-image: none; }
+.note-dot.note-blue { background-color: #3f7cc0; background-image: none; }
+.note-dot.note-pink { background-color: #d46a9c; background-image: none; }
+.note-dot.note-purple { background-color: #8a5fb8; background-image: none; }
+
+.note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--line-strong);
+  font-size: 0.9rem;
+}
+.note-row > span { flex: 1; }
+.note-row.note-yellow { background: rgba(234, 179, 8, 0.2); border-left-color: #ca8a04; }
+.note-row.note-green { background: rgba(79, 157, 105, 0.2); border-left-color: #3d7c52; }
+.note-row.note-blue { background: rgba(63, 124, 192, 0.18); border-left-color: #2f6bab; }
+.note-row.note-pink { background: rgba(212, 106, 156, 0.18); border-left-color: #b8477f; }
+.note-row.note-purple { background: rgba(138, 95, 184, 0.18); border-left-color: #6f45a3; }
+
+.icon-btn {
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  flex: none;
+}
+.icon-btn:hover { color: var(--terracotta); filter: none; }
+
 /* ---------------------------------------------------------- print */
 @media print {
   .side-nav, .nav-mobilebar, .nav-burger, .side-scrim, .portal-tabs { display: none !important; }
+  .bible-fab, .bible-drawer, .drawer-scrim { display: none !important; }
   .app-body { margin-left: 0 !important; padding-top: 0 !important; }
   body { background: #fff; }
   .card { box-shadow: none; border-color: #ccc; break-inside: avoid; }

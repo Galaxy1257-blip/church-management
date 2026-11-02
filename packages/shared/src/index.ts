@@ -13,6 +13,7 @@ export * from './datetime';
 export * from './service-schedule';
 export * from './verse';
 export * from './daily-reading';
+export * from './bible-notes';
 export * from './age';
 export * from './types';
 export * from './sms-locales';

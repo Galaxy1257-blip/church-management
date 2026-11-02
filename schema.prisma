@@ -1259,6 +1259,22 @@ model Notification {
   @@index([churchId, userId, readAt])
 }
 
+// One person's verse notes in the Bible panel. authorId is a staff User id or a
+// portal Member id, so it stays a plain uuid with no relation — see
+// migrations/11_bible_notes.
+model BibleNote {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  churchId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  ref       String
+  text      String
+  colour    String   @default("yellow")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([churchId, authorId, createdAt])
+}
+
 model AlertState {
   churchId  String
   key       String

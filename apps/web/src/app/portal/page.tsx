@@ -3,6 +3,7 @@
 // Home, My giving + statement, Volunteer shifts, Events/RSVP, Prayer.
 import { FormEvent, useState } from 'react';
 import { fmtDateTime, ghs } from '../../lib/format';
+import BibleDock from '../../components/bible-dock';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -19,6 +20,8 @@ interface HomeData {
   } | null;
   services: { id: string; name: string; startsAt: string; status: string }[];
   announcements: { id: string; title: string; body: string; publishAt: string }[];
+  /** False when the church switched the Bible area off in its settings. */
+  bibleOn?: boolean;
   links: { give: string; bible: string };
 }
 interface Shift { id: string; duty: string; status: string; service: { name: string; startsAt: string } | null }
@@ -157,7 +160,7 @@ export default function PortalPage() {
   }
 
   return (
-    <div className="container portal-page" style={{ maxWidth: 640, paddingTop: '3vh' }}>
+    <div className="container portal-page" style={{ maxWidth: 640, paddingTop: '3.6rem' }}>
       <div className="card">
           <div className="spread" style={{ alignItems: 'center' }}>
             <h1 style={{ margin: 0 }}>
@@ -314,7 +317,7 @@ export default function PortalPage() {
         </div>
       ) : null}
 
-
+      <BibleDock token={token} on={home?.bibleOn !== false} />
     </div>
   );
 }

@@ -145,6 +145,12 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
   * **Ga**: Complete 66 books, 31,090 verses.
   * **Ewe**: Complete 66 books, local translation.
 * **Search & Copy**: Chapter-by-chapter reading, keyword search across all local translations, and one-click copy verse references.
+* **The Bible button (every page, every role)**: a small **Bible** button pinned to the top right of the staff
+  app *and* the member companion — admin, teacher, usher, member alike — that opens a reading panel over
+  whatever you were doing. Language, book and chapter, tap any verse to keep a note in one of five colours,
+  search the wording across translations, compare the same verse in the other languages, and jump to the
+  full reader. Notes are stored per person and only their author ever sees them. Your place is remembered.
+  Switched off in Settings → App sections (**Bible**), which removes the button and refuses note writes.
 * **Daily Reading**: 84 passages that rotate by the church's own date (`GET /bible/daily`), each with one plain line beside it — the same passage the optional 8pm SMS sends, in the church's chosen translation. Settings→SMS switches the SMS off and can pin one verse instead of rotating.
 
 ---

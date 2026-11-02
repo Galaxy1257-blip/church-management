@@ -86,6 +86,11 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
 - [x] scripts/fetch-bible.mjs — bundle public-domain KJV (offline JSON, gitignored) — 66 books bundled 21 Oct
 - [x] /bible API — **multi-translation**: scans `apps/api/data/bible/*.json`; books/chapter/search/verse refs + `?translation=`
 - [x] /bible web page — translation picker, read + search + click-to-copy verse
+- [x] **R2.0b The Bible button (Session R)** — one small fixed button on every staff page AND in the
+  member companion, for every role: 7 languages, tap-a-verse notes in 5 colours (server-side, per author,
+  `BibleNote` + `migrations/11_bible_notes`), verse search, cross-translation compare, remembered place.
+  Off switch: Settings → App sections → **Bible**, which hides the button on both surfaces and makes
+  `POST /bible/notes` 403 rather than merely removing the link.
 - [x] Setlists API + songs (CCLI flag) on /media
 - [ ] **R2.1 Ghana local-language Bibles (owner action — licences)**
   - [x] Twi — ✅ BUNDLED 21 Oct (Session H): extracted from owner-supplied APK

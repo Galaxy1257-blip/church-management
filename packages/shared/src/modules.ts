@@ -12,6 +12,7 @@ export const MODULE_KEYS = [
   'worship',
   'money',
   'reach',
+  'bible',
   'care',
   'roster',
   'events',
@@ -30,16 +31,17 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Record<ModuleKey, boolean>;
 
 /**
- * What a new church starts with. The four above the line carry the week: the
- * directory, the service, the offering and the news. Everything below it is
- * opt-in, because most churches do not run all of it — they tick what they use
- * in Settings → App sections and the rest never appears.
+ * What a new church starts with. The five above the line carry the week: the
+ * directory, the service, the offering, the news and the Bible. Everything below
+ * it is opt-in, because most churches do not run all of it — they tick what they
+ * use in Settings → App sections and the rest never appears.
  */
 export const MODULE_DEFAULTS: ModuleFlags = {
   people: true,
   worship: true,
   money: true,
   reach: true,
+  bible: true,
   care: false,
   roster: false,
   events: false,
@@ -62,6 +64,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   worship: { label: 'Services', hint: 'The service list and Sunday attendance' },
   money: { label: 'Offerings', hint: 'Sunday giving and the money reports' },
   reach: { label: 'News', hint: 'Announcements the congregation sees' },
+  bible: {
+    label: 'Bible',
+    hint: 'The Bible button at the top right of every page — reading, languages, search and your own verse notes',
+  },
   care: {
     label: 'Care',
     hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',

@@ -954,3 +954,55 @@ send path is covered by the shared tests and typecheck only.
 switch that gates nothing is the same defect as the Children hint, so it comes back with the worker
 writing the rows and the header bell that shows them.
 
+
+---
+
+## 2026-11-02 — Session R: the Bible, one button away from everywhere
+
+**Owner ask:** "i think bible is in the app but not showing in ui. just put a button at the top right that
+shows bible and allow changing language, making notes (in different colours), searching similar texts and
+other bible actions but no clutter, i want that button to persist despite the opened part of the app.
+button not too big or interrupting" — then "**make the bible reader to be accesible to any type of user**".
+
+**Built.** `apps/web/src/components/bible-dock.tsx` is a 52×27px **Bible** pill fixed to the top right at
+`z-index: 44` — above the mobile bar, below the menu scrim — mounted once in the staff shell
+(`(app)/layout.tsx`) and once in the member companion (`portal/page.tsx`), so it survives every page, every
+tab and every drawer in the app. Nothing loads until the first press: one `GET /bible` for the translation
+list, one for the chapter, one for the notes. The panel reuses the existing drawer CSS:
+language select (seven bundles: KJV, ASV, Twi, Akuapem-Twi, Fante, Ga, Ewe), book + chapter, verse list with
+a dot on any verse you have already noted, tap-to-note with five colours, "My notes" as a list of your own
+verses, keyword search across the whole bundle, Copy, and "Other languages" which fetches the same verse in
+every other bundle side by side. The reading position (translation, book, chapter) is remembered per browser
+in `chms.bibleDock`; the notes are on the server, so they follow the person to another phone.
+
+**Any user type.** The gate is the session, not the permission: `apps/api/src/bible/bible-notes.ts` exposes
+one `BibleNotesService` behind two thin surfaces — staff `/bible/notes` with `@Authenticated()` (so MEMBER
+with zero permissions still qualifies) and member `/portal/bible-notes` with the portal bearer the companion
+already carries, matching how the rest of `portal.module.ts` works. `BibleNote.authorId` is deliberately a
+plain uuid with no foreign key, because a staff `User` id and a portal `Member` id share the column. Every
+query is `where: { id, churchId, authorId }`, so a note belongs to exactly one person.
+
+**Off switch.** New **Bible** entry in Settings → App sections (`bible` in `MODULE_KEYS`, default on), and it
+gates more than the button: the staff shell and the companion stop rendering it (`/portal/home` now returns
+`bibleOn`), `POST /bible/notes` answers 403 "The Bible is switched off for this church" and `GET` returns
+`[]`. Verified both directions in the running app.
+
+**Verification** (dev servers on :3000/:4000, in-app browser; a 390px iframe because the surface itself is
+510 CSS px): shared build + **119/119** · api **73/73** · typecheck 0 · eslint 0 ·
+`prisma migrate deploy` applied `0a_sunday_school_role_key` + `11_bible_notes` as the owner, then
+`db:extras` + `db:appuser`; `scripts/reset-test-db.mjs` proved the fresh-install path builds table 11.
+As super admin: button at top:7 right:14 with nothing overlapping, panel opens with 7 languages and 31
+verses, notes save as `note-yellow`/`note-green`, the noted verse grows its dot, "My notes" lists both refs,
+`God so loved` found 2 verses, John 3:16 compared across all six other bundles, and a full page reload
+brought the same two notes back from the server. As **Sunday School teacher** (`+233240000110`): the button
+is there, the reader works, and a blue note saved — the list came back empty first, which is the per-author
+scope proving itself. Through the **member** path (a real portal session issued by seeding an `OtpChallenge`
+with the service's own hash and redeeming it on the sign-in form): 44px colour chips, panel 374×669 in a
+375×760 viewport with no horizontal overflow, `search rejoice` → 25 hits, note saved and listed with its
+ref. Cross-account probes: staff `DELETE` of a member's note → 404, staff list never shows a member's note,
+member `PATCH`/`DELETE` of their own → 200/204. Switch off → button gone, `POST` 403, `GET` `[]`; switch on
+→ button back. All demo notes, the seeded OTP challenges and the throwaway seed script were deleted after
+the run (`BibleNote` is empty again).
+
+**Fixed on the way:** the colour chips started life as 18px targets, which is a miss on a phone — they are
+now 44×44 with the paint confined to the content box, so the dot still looks the same size.

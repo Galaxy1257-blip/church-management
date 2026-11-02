@@ -6,6 +6,7 @@ const defaults = {
   worship: true,
   money: true,
   reach: true,
+  bible: true,
   care: false,
   roster: false,
   events: false,

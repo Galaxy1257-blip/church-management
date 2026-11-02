@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { clearTokens, hasSession } from '../../lib/api';
 import AppNav from '../../components/app-nav';
+import BibleDock from '../../components/bible-dock';
 import LockScreen from '../../components/lock-screen';
 import { clearSession, getSession } from '../../lib/session';
 import {
@@ -154,6 +155,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+      {/* Every role gets the Bible: no permission, no staff screen of its own. */}
+      <BibleDock on={me.modules?.bible !== false} />
     </div>
   );
 }

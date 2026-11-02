@@ -1,11 +1,13 @@
 // Member self-service portal: OTP login bound to a Member record (no staff
 // account needed), my-giving history, giving statement (JSON/print-ready).
-import { Body, Controller, Get, HttpCode, Injectable, Module, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
-import { normalizeGhPhone, uuidv7, localizedSmsBody } from '@chms/shared';
+import { normalizeGhPhone, resolveModules, uuidv7, localizedSmsBody } from '@chms/shared';
 import { Public } from '../common/decorators';
+import { BibleModule } from '../bible/bible.module';
+import { BibleNotesService } from '../bible/bible-notes';
 
 const OTP_TTL = 10 * 60_000;
 
@@ -203,6 +205,9 @@ export class PortalService {
         : null,
       services,
       announcements,
+      // The church switched the Bible panel off in Settings → App sections, so
+      // the companion app must not show the button either.
+      bibleOn: resolveModules(church?.settings).bible !== false,
       links: { give: `/give/${church?.slug ?? ''}`, bible: '/bible' },
     };
   }
@@ -298,7 +303,7 @@ function bearer(req: any): string {
 
 @Controller('portal')
 export class PortalController {
-  constructor(private readonly svc: PortalService) {}
+  constructor(private readonly svc: PortalService, private readonly notes: BibleNotesService) {}
 
   @Public()
   @Post('otp/request')
@@ -379,9 +384,45 @@ export class PortalController {
   respondShift(@Req() req: any, @Param('id') id: string, @Body() body: { status: 'CONFIRMED' | 'DECLINED' }) {
     return this.svc.respondShift(bearer(req), id, body?.status === 'DECLINED' ? 'DECLINED' : 'CONFIRMED');
   }
+
+  // Verse notes are the member's own, so the companion app uses the same
+  // service the staff panel does — only the token differs (Member id, not User).
+  @Public()
+  @Get('bible-notes')
+  async bibleNotes(@Req() req: any) {
+    const { member, churchId } = await this.svc.portalUser(bearer(req));
+    return this.notes.list(churchId, member.id);
+  }
+
+  @Public()
+  @Post('bible-notes')
+  async createBibleNote(@Req() req: any, @Body() body: { ref?: unknown; text?: unknown; colour?: unknown }) {
+    const { member, churchId } = await this.svc.portalUser(bearer(req));
+    return this.notes.create(churchId, member.id, body ?? {});
+  }
+
+  @Public()
+  @Patch('bible-notes/:id')
+  async updateBibleNote(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { text?: unknown; colour?: unknown },
+  ) {
+    const { member, churchId } = await this.svc.portalUser(bearer(req));
+    return this.notes.update(churchId, member.id, id, body ?? {});
+  }
+
+  @Public()
+  @Delete('bible-notes/:id')
+  @HttpCode(204)
+  async deleteBibleNote(@Req() req: any, @Param('id') id: string) {
+    const { member, churchId } = await this.svc.portalUser(bearer(req));
+    return this.notes.remove(churchId, member.id, id);
+  }
 }
 
 @Module({
+  imports: [BibleModule],
   providers: [PortalService],
   controllers: [PortalController],
 })
