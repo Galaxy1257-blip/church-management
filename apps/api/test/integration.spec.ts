@@ -97,7 +97,7 @@ d('integration', () => {
     const roles = await platformPrisma.role.count({ where: { churchId: ctx.user.churchId } });
     expect(funds).toBeGreaterThanOrEqual(5);
     expect(segments).toBeGreaterThanOrEqual(5);
-    expect(roles).toBe(9); // R4 added ELDER + SECRETARY (6 → 8); role tiers added PASTOR (→ 9)
+    expect(roles).toBe(10); // R4 added ELDER + SECRETARY (6 → 8); role tiers added PASTOR (→ 9); Sunday School teacher (→ 10)
   });
 
   it('TENANT ISOLATION: church A cannot read church B', async () => {
