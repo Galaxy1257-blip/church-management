@@ -1,5 +1,5 @@
 'use client';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, api, hasSession } from '../../../lib/api';
@@ -7,7 +7,7 @@ import { finishLogin, useChurchLookup, type Tokens } from '../auth-shared';
 
 const LAST_CHURCH_KEY = 'chms.lastChurch';
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [mode, setMode] = useState<'password' | 'otp'>('password');
@@ -191,5 +191,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="pub-auth"><div className="card auth-card">Loading…</div></div>}>
+      <LoginInner />
+    </Suspense>
   );
 }
