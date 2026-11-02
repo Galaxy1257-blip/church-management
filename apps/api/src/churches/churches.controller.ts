@@ -3,6 +3,7 @@ import { IsOptional, IsString, MinLength, ValidateNested } from 'class-validator
 import { Type } from 'class-transformer';
 import { Public, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
+import type { DevotionalSettings } from '@chms/shared';
 import { ChurchesService } from './churches.service';
 
 class AdminDto {
@@ -53,7 +54,7 @@ export class ChurchesController {
   @Post('me/devotional')
   saveDevotional(
     @Req() req: AuthedRequest,
-    @Body() body: { enabled?: boolean; translation?: string; verse?: string },
+    @Body() body: Partial<DevotionalSettings>,
   ) {
     return this.churches.saveDevotional(req.user!, body, req.ip);
   }

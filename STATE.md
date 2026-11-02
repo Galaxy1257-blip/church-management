@@ -155,6 +155,13 @@ C:\Users\HP\Desktop\church\
    Open owner decision: a Sunday School teacher cannot open `/children` or the check-in desk
    (`checkin:write` is not in the preset) although the switch hint says the children's page is for
    them — fix the hint or the role.
+0b. **Session Q — verse of the day rotates (`daily-reading.ts`, 84 passages by date).** Owner asked for
+   a different quotation each night instead of John 3:16 forever; `GET /bible/daily` serves it in any
+   bundled translation and the worker rotates unless a verse is pinned in Settings→SMS. Same change
+   fixed ASV numbered books ("1 John" 404'd) and removed the phantom "WEB" option. Next in this thread,
+   all with their own off switch: the in-app daily reading + header bell, then the Sunday School batch
+   (class register, guardian SMS, class skip dates, teacher-only health note, guardians on the pick-up
+   row, class link to the reader) and the persistent Bible button.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
    guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).

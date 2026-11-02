@@ -934,3 +934,23 @@ line and seven arrange rows. Typecheck 0, eslint 0. The panel used was 510 CSS p
 in-app browser could not be resized and its surface was hidden, so no screenshot was taken. The fold
 is a count rule, not a breakpoint, so width does not change it.
 
+**Verse of the day rotates (owner: "currently it's set to only John 3:16").** The 8pm SMS quoted one
+pinned verse forever. New `packages/shared/src/daily-reading.ts` holds 84 curated passages, each with a
+single plain-English line beside it; the pick is driven by the church-local date, so the same day always
+gives the same reading and no passage repeats inside a season. New `verse.ts` puts one reference parser
+and one book matcher behind the API reader, the worker SMS and the rotation, which also fixed a real
+bug: the ASV bundle spells numbered books `I John`, `II Peter`, `Revelation of John`, so asking for
+"1 John 3:18" in ASV used to 404 in the reader and silently skip in the SMS. `GET /bible/daily` answers
+in any bundled translation (or a pinned `?verse=`), the worker rotates when the church has not pinned
+one, and Settings→SMS now lists the seven bundles the server actually has — the old dropdown offered a
+"WEB" translation that has never existed. Verified: all 84 references return text in all seven bundles
+(vitest, skips when the untracked 27MB bundles are absent); as an admin in the running app the card
+showed Psalms 34:8 in KJV, the same verse in Twi (`Monka nhwɛ na monhunu sɛ AWURADE yɛ…`) and ASV
+"1 John 3:18" now resolves; saving Twi + SMS-on persisted through a reload, then it was put back.
+The 8pm job itself was not run — the worker was not started and the demo wallet is unfunded, so the
+send path is covered by the shared tests and typecheck only.
+
+**Not shipped on purpose:** an in-app daily-reading switch and notification inbox were drafted, but a
+switch that gates nothing is the same defect as the Children hint, so it comes back with the worker
+writing the rows and the header bell that shows them.
+

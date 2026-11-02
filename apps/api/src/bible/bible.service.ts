@@ -5,6 +5,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { dailyReading, localDateKey, matchBook, parseVerseRef, readVerse } from '@chms/shared';
 
 export interface BibleBundle {
   translation: string;
@@ -74,8 +75,7 @@ export class BibleService {
   }
 
   private findBook(bundle: BibleBundle, name: string) {
-    const q = name.trim().toLowerCase();
-    return bundle.books.find((b) => b.name.toLowerCase() === q) ?? bundle.books.find((b) => b.name.toLowerCase().startsWith(q)) ?? null;
+    return matchBook(bundle.books, name);
   }
 
   index() {
@@ -113,15 +113,33 @@ export class BibleService {
   }
 
   verse(ref: string, translation?: string) {
-    const m = /^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/.exec(ref.trim());
-    if (!m) throw new NotFoundException('use a reference like "John 3:16"');
-    const [, book, ch, v1, v2] = m;
-    const data = this.chapter(book, Number(ch), translation);
-    const from = Number(v1);
-    const to = v2 ? Number(v2) : from;
-    const verses = data.verses.filter((v) => v.n >= from && v.n <= to);
+    const parsed = parseVerseRef(ref);
+    if (!parsed) throw new NotFoundException('use a reference like "John 3:16"');
+    const data = this.chapter(parsed.book, parsed.chapter, translation);
+    const verses = data.verses.filter((v) => v.n >= parsed.from && v.n <= parsed.to);
     if (verses.length === 0) throw new NotFoundException(`no verses at ${ref}`);
-    return { ...data, verses, ref: `${data.book} ${ch}:${from}${v2 ? `-${to}` : ''}` };
+    const range = parsed.to > parsed.from ? `-${parsed.to}` : '';
+    return { ...data, verses, ref: `${data.book} ${parsed.chapter}:${parsed.from}${range}` };
+  }
+
+  /**
+   * Today's reading: the daily-rotation passage (or a pinned reference) resolved
+   * against a bundle, so the app card, a home-screen widget and the 8pm SMS all
+   * quote the same words in the church's own translation.
+   */
+  daily(translation?: string, pinnedRef?: string) {
+    const pinned = pinnedRef?.trim() ? { ref: pinnedRef.trim(), note: '' } : dailyReading();
+    const { code, bundle } = this.bundleFor(translation);
+    const found = readVerse(bundle.books, pinned.ref);
+    if (!found) throw new NotFoundException(`${code} has no ${pinned.ref}`);
+    return {
+      dateKey: localDateKey('Africa/Accra'),
+      translation: code,
+      language: bundle.language ?? 'English',
+      ref: found.ref,
+      text: found.text,
+      note: pinned.note,
+    };
   }
 
   search(q: string, limit = 20, translation?: string) {

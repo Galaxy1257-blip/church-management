@@ -11,6 +11,8 @@ export * from './modules';
 export * from './custom-features';
 export * from './datetime';
 export * from './service-schedule';
+export * from './verse';
+export * from './daily-reading';
 export * from './age';
 export * from './types';
 export * from './sms-locales';

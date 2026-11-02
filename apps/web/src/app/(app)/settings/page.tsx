@@ -103,7 +103,9 @@ export default function SettingsPage() {
   const [brackets, setBrackets] = useState<Bracket[]>(SIMPLE_BRACKETS);
   const [toggles, setToggles] = useState({ autoAssignHeadcount: true, autoPromote: false, capacity: 0 });
   const [gw, setGw] = useState<any>(null);
-  const [dev, setDev] = useState({ enabled: false, translation: 'kjv', verse: 'John 3:16' });
+  const [dev, setDev] = useState({ enabled: false, translation: 'kjv', verse: '' });
+  const [translations, setTranslations] = useState<{ code: string; language: string }[]>([]);
+  const [todayReading, setTodayReading] = useState<{ ref: string; text: string; note: string } | null>(null);
   // Church customisation: name/logo/branding, contact, giving instructions, funds, fees.
   const [prof, setProf] = useState<any>({ name: '', pastorDisplayName: '', smsSenderId: '', branding: {}, contact: {}, givingInstructions: {} });
   const [funds, setFunds] = useState<any[]>([]);
@@ -149,6 +151,7 @@ export default function SettingsPage() {
       }
     }).catch(() => undefined);
     void api<{ enabled: boolean; translation: string; verse: string }>('/churches/me/devotional').then(setDev).catch(() => undefined);
+    void api<{ translations: { code: string; language: string }[] }>('/bible').then((r) => setTranslations(r.translations)).catch(() => undefined);
     void api<any>('/churches/me/profile').then((p) => {
       setProf(p);
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
@@ -159,6 +162,16 @@ export default function SettingsPage() {
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
     void api<any>('/giving/settings').then((s) => s && setFees(s)).catch(() => undefined);
   }, []);
+
+  // Preview exactly what today's card and tonight's SMS will carry, so the
+  // owner sees the rotation working before the clock strikes 8pm.
+  useEffect(() => {
+    const q = new URLSearchParams({ translation: dev.translation });
+    if (dev.verse.trim()) q.set('verse', dev.verse.trim());
+    void api<{ ref: string; text: string; note: string }>(`/bible/daily?${q.toString()}`)
+      .then(setTodayReading)
+      .catch(() => setTodayReading(null));
+  }, [dev.translation, dev.verse]);
 
   async function saveProfile(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -267,7 +280,10 @@ export default function SettingsPage() {
     e.preventDefault();
     try {
       await api('/churches/me/devotional', { method: 'POST', body: dev });
-      setNotice(`Verse-of-the-day ${dev.enabled ? 'ON' : 'off'} — a Bible verse every day at 8pm to opted-in members.`);
+      setNotice(
+        `Daily reading saved — SMS at 8pm ${dev.enabled ? 'on' : 'off'}.` +
+          (dev.verse.trim() ? ` Repeating ${dev.verse.trim()} each day.` : ' Each day brings a different passage.'),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'save failed');
     }
@@ -457,28 +473,40 @@ export default function SettingsPage() {
       </form>
 
       <form className="card stack" onSubmit={saveDevotional} hidden={tab !== 'sms'}>
-        <h2>Verse of the day (SMS)</h2>
-        <p className="muted">Every day at 8pm, a short Bible verse goes by SMS to members who agreed to receive it. Uses your chosen Bible translation.</p>
+        <h2>Daily Bible reading</h2>
+        <p className="muted">
+          A different passage every day, read from the Bible bundled in the app — no internet needed.
+          Switch the SMS off at any time.
+        </p>
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={dev.enabled} onChange={(e) => setDev({ ...dev, enabled: e.target.checked })} />
-          Send daily verse-of-the-day
+          Send it by SMS at 8pm (uses your SMS credit)
         </label>
         <div className="row">
           <label>
-            Translation (file in apps/api/data/bible/)
+            Bible translation
             <select value={dev.translation} onChange={(e) => setDev({ ...dev, translation: e.target.value })}>
-              <option value="kjv">KJV</option>
-              <option value="asv">ASV (1901)</option>
-              <option value="twi">Twi</option>
-              <option value="web">WEB</option>
+              {(translations.length ? translations : [{ code: 'kjv', language: 'English' }]).map((t) => (
+                <option key={t.code} value={t.code}>{t.code.toUpperCase()} — {t.language}</option>
+              ))}
             </select>
           </label>
           <label style={{ flex: 1 }}>
-            Verse reference
-            <input value={dev.verse} onChange={(e) => setDev({ ...dev, verse: e.target.value })} placeholder="John 3:16" />
+            Repeat one verse instead
+            <input
+              value={dev.verse}
+              onChange={(e) => setDev({ ...dev, verse: e.target.value })}
+              placeholder="Blank = a new verse every day"
+            />
           </label>
         </div>
-        <button>Save devotional</button>
+        {todayReading ? (
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Today — <strong>{todayReading.ref}</strong>: &ldquo;{todayReading.text}&rdquo;
+            {todayReading.note ? <><br />{todayReading.note}</> : null}
+          </p>
+        ) : null}
+        <button>Save daily reading</button>
       </form>
 
       <form className="card stack" onSubmit={saveProfile} hidden={tab !== 'church'}>

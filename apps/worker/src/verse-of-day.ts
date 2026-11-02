@@ -1,22 +1,24 @@
 // Verse-of-the-day SMS (R2): runs every day at 20:00 (8pm Accra) and sends to
 // opted-in active members. Opt-out respected (source ANNOUNCEMENT is blocking);
-// idempotent per member per day (vod:{church}:{yyyymmdd}:{memberId}); configured
-// per church in Church.settings.devotional = { enabled, translation, verse }.
+// idempotent per member per day (vod:{church}:{yyyymmdd}:{memberId}). Configured
+// per church in Church.settings.devotional — a blank `verse` means the passage
+// rotates through DAILY_READINGS instead of repeating one verse forever.
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { withTenant, platformPrisma as prisma } from '@chms/db';
-import { smsSegments, localDateKey, localizedSmsBody } from '@chms/shared';
+import {
+  dailyReadingFor,
+  localizedSmsBody,
+  localDateKey,
+  readVerse,
+  resolveDevotional,
+  smsSegments,
+} from '@chms/shared';
 import { Logger } from './log';
 
 const log = new Logger('VerseOfDay');
 const BIBLE_DIR = resolve(__dirname, '../../api/data/bible'); // apps/worker/dist -> apps/api/data/bible
 const MAX_VS_CHARS = 450; // ~3 SMS segments cap
-
-interface Devotional {
-  enabled: boolean;
-  translation?: string;
-  verse?: string; // "John 3:16"; blank -> John 3:16
-}
 
 function loadVerse(translation: string, ref: string): { text: string; ref: string } | null {
   const file = resolve(BIBLE_DIR, `${translation.toLowerCase()}.json`);
@@ -24,41 +26,30 @@ function loadVerse(translation: string, ref: string): { text: string; ref: strin
   const bundle = JSON.parse(readFileSync(file, 'utf8')) as {
     books: { name: string; chapters: Record<string, string[]> }[];
   };
-  const m = /^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/.exec(ref.trim());
-  if (!m) return null;
-  const book = bundle.books.find((b) => b.name.toLowerCase() === m[1].trim().toLowerCase())
-    ?? bundle.books.find((b) => b.name.toLowerCase().startsWith(m[1].trim().toLowerCase()));
-  if (!book) return null;
-  const verses = book.chapters[m[2]];
-  if (!verses) return null;
-  const from = Number(m[3]);
-  const to = m[4] ? Number(m[4]) : from;
-  const picked: string[] = [];
-  for (let n = from; n <= to; n++) if (verses[n - 1]) picked.push(verses[n - 1]);
-  if (picked.length === 0) return null;
-  const refOut = `${book.name} ${m[2]}:${from}${m[4] ? `-${m[4]}` : ''}`;
-  const text = picked.join(' ');
-  return { text: text.length > MAX_VS_CHARS ? `${text.slice(0, MAX_VS_CHARS - 1)}…` : text, ref: refOut };
+  return readVerse(bundle.books, ref, MAX_VS_CHARS);
 }
 
 export async function sendVerseOfDay(now = new Date()): Promise<{ churches: number; sent: number }> {
-  const dateKey = localDateKey('Africa/Accra', now).replace(/-/g, ''); // 20261021
+  const dayKey = localDateKey('Africa/Accra', now); // 2026-11-02
+  const dateKey = dayKey.replace(/-/g, ''); // 20261102
   const churches = await prisma.church.findMany({ select: { id: true, name: true, settings: true } });
   let sent = 0;
   let churchesDone = 0;
 
   for (const church of churches) {
-    const dev = ((church.settings as any)?.devotional ?? {}) as Devotional;
-    if (dev.enabled !== true) continue;
-    const verse = loadVerse(dev.translation || 'kjv', dev.verse || 'John 3:16');
+    const dev = resolveDevotional((church.settings as any)?.devotional);
+    if (!dev.enabled) continue;
+    const today = dailyReadingFor(dayKey);
+    const ref = dev.verse || today.ref;
+    const verse = loadVerse(dev.translation, ref);
     if (!verse) {
-      log.warn(`church=${church.id} devotional verse/translation not found — skipping`);
+      log.warn(`church=${church.id} devotional verse "${ref}" not found in ${dev.translation} — skipping`);
       continue;
     }
     const body = localizedSmsBody('devotional', ((church.settings as any)?.smsLocales ?? null), {
       text: verse.text,
       ref: verse.ref,
-      translation: (dev.translation || 'kjv').toUpperCase(),
+      translation: dev.translation.toUpperCase(),
       churchName: church.name,
     });
 

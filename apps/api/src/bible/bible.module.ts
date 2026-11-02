@@ -30,6 +30,13 @@ export class BibleController {
     return this.svc.verse(ref ?? 'John 3:16', translation);
   }
 
+  /** Today's rotating reading — the same passage the 8pm SMS will quote. */
+  @Public()
+  @Get('daily')
+  daily(@Query('translation') translation?: string, @Query('verse') verse?: string) {
+    return this.svc.daily(translation, verse);
+  }
+
   @Public()
   @Get('search')
   search(@Query('q') q: string, @Query('limit') limit?: string, @Query('translation') translation?: string) {

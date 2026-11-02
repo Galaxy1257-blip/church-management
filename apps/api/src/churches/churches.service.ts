@@ -4,7 +4,15 @@ import { BadRequestException, ForbiddenException, Inject, Injectable } from '@ne
 import bcrypt from 'bcryptjs';
 import { prisma, withTenant, withPlatform, appendAudit } from '@chms/db';
 import { seedChurchDefaults } from '@chms/db';
-import { normalizeGhPhone, denominationPreset, isModuleKey, resolveModules, type ModuleKey } from '@chms/shared';
+import {
+  normalizeGhPhone,
+  denominationPreset,
+  isModuleKey,
+  resolveDevotional,
+  resolveModules,
+  type DevotionalSettings,
+  type ModuleKey,
+} from '@chms/shared';
 import { uuidv7 } from '@chms/shared';
 import { timingSafeEqualStr } from '../common/crypto';
 import { trialEndsAt } from '../billing/billing.logic';
@@ -261,26 +269,22 @@ export class ChurchesService {
     });
   }
 
-  /** Devotional (verse-of-the-day) settings — see worker verse-of-day.ts. */
-  devotional(churchId: string) {    return withTenant(churchId, null, async (tx) => {
+  /** Devotional settings — the 8pm SMS and the in-app daily reading. */
+  devotional(churchId: string) {
+    return withTenant(churchId, null, async (tx) => {
       const church = await tx.church.findUniqueOrThrow({ where: { id: churchId } });
-      const d = (church.settings as any)?.devotional ?? {};
-      return {
-        enabled: d.enabled === true,
-        translation: d.translation ?? 'kjv',
-        verse: d.verse ?? 'John 3:16',
-      };
+      return resolveDevotional((church.settings as any)?.devotional);
     });
   }
 
-  saveDevotional(user: { churchId: string; userId: string }, patch: { enabled?: boolean; translation?: string; verse?: string }, ip?: string) {
+  saveDevotional(user: { churchId: string; userId: string }, patch: Partial<DevotionalSettings>, ip?: string) {
     return withTenant(user.churchId, user.userId, async (tx) => {
       const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId } });
-      const prev = (church.settings as any)?.devotional ?? {};
-      const merged = {
-        enabled: patch.enabled ?? prev.enabled ?? false,
-        translation: patch.translation ?? prev.translation ?? 'kjv',
-        verse: patch.verse ?? prev.verse ?? 'John 3:16',
+      const prev = resolveDevotional((church.settings as any)?.devotional);
+      const merged: DevotionalSettings = {
+        enabled: patch.enabled ?? prev.enabled,
+        translation: patch.translation ?? prev.translation,
+        verse: patch.verse ?? prev.verse,
       };
       await tx.church.update({
         where: { id: user.churchId },

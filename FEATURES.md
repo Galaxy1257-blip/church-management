@@ -145,6 +145,7 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
   * **Ga**: Complete 66 books, 31,090 verses.
   * **Ewe**: Complete 66 books, local translation.
 * **Search & Copy**: Chapter-by-chapter reading, keyword search across all local translations, and one-click copy verse references.
+* **Daily Reading**: 84 passages that rotate by the church's own date (`GET /bible/daily`), each with one plain line beside it — the same passage the optional 8pm SMS sends, in the church's chosen translation. Settings→SMS switches the SMS off and can pin one verse instead of rotating.
 
 ---
 
