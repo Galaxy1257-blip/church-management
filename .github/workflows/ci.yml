@@ -77,7 +77,10 @@ jobs:
         env:
           DATABASE_URL: ${{ env.OWNER_DATABASE_URL }}
       - run: npm run build -w @chms/api
-      - run: npm run test -w @chms/api
+      # The github-actions reporter turns each failing test into a check
+      # annotation, which anyone can read from the API. The raw job log needs
+      # repository admin rights, so without this a red run tells us nothing.
+      - run: npm run test -w @chms/api -- --reporter=github-actions --reporter=default
 
   web-build:
     runs-on: ubuntu-latest
