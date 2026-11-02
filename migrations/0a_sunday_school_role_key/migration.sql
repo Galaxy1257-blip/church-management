@@ -1,0 +1,16 @@
+-- 0a_sunday_school_role_key: declare the SUNDAY_SCHOOL enum value BEFORE any
+-- migration can use it.
+--
+-- Prisma applies migrations in folder-name order, and "10_..." sorts between
+-- "1_" and "2_" - not after "9_". So on a database that has never seen these
+-- folders, 10_sunday_school_class ran while the value still came only from
+-- 8_sunday_school_role, and Postgres rejected the UPDATE with
+-- `invalid input value for enum "RoleKey": "SUNDAY_SCHOOL"` (22P02, wrapped as
+-- P3018). Production escaped this because 8 was already in its history; CI and
+-- every fresh install could not be built at all.
+--
+-- ADD VALUE ... IF NOT EXISTS is a no-op on a database that already has the
+-- value, which is every deployed one. It stays in its own migration because
+-- Postgres will not let a value added in a transaction be used in that same
+-- transaction.
+ALTER TYPE "RoleKey" ADD VALUE IF NOT EXISTS 'SUNDAY_SCHOOL';
