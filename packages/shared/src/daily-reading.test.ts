@@ -83,8 +83,9 @@ describe('resolveDevotional', () => {
   });
 });
 
-// The bundles are 27MB of licensed data and are not committed, so this only runs
-// where they have been fetched (`npm run bible:fetch`).
+// kjv.json is committed, so this runs in CI. The other bundles are 3-4MB each
+// and stay local until their licences are settled, so the loop only checks what
+// is actually on disk (`npm run bible:fetch` adds them).
 describe.runIf(existsSync(BIBLE_DIR))('every reading resolves in every bundled translation', () => {
   // runIf skips the tests but still runs this callback, so the read has to
   // tolerate the missing folder itself or CI fails on the collect step.

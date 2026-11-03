@@ -12,8 +12,16 @@ uploads/
 # keep the gate evidence that .ecc/artifacts/* reference
 !.ecc/*.log
 .DS_Store
-# fetched Bible bundle (public domain; regenerate with npm run bible:fetch)
-apps/api/data/
+# Bible bundles. kjv.json is committed on purpose: production has no bundles
+# unless they are in the repo, and a build-time `npm run bible:fetch` would make
+# every deploy depend on 66 fetches to raw.githubusercontent.com — a failed fetch
+# is a failed deploy. KJV is public domain (crown copyright expired 2016), so it
+# is safe to carry. Everything else stays local until its licence is settled
+# (BUILD_ORDER R2.1): regenerate with npm run bible:fetch.
+apps/api/data/*
+!apps/api/data/bible/
+apps/api/data/bible/*
+!apps/api/data/bible/kjv.json
 scripts/*.exe
 # Scratch scripts that once carried a live database password — keep them local.
 # (Credentials belong in .env, which is ignored above; these files must read

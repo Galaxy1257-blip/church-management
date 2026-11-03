@@ -1,4 +1,5 @@
-// Bundles the public-domain KJV into apps/api/data/bible/kjv.json (gitignored).
+// Bundles the public-domain KJV into apps/api/data/bible/kjv.json (committed, so
+// production can serve it without a build-time download).
 // Source: aruljohn/Bible-kjv (one JSON per book; KJV crown copyright expired
 // 2016 => public domain). Licensed translations drop in beside it later with
 // the same shape: { translation, publicDomain, books: [{ name, chapters: { "1": ["v", ...] } }] }.
