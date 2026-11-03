@@ -144,6 +144,9 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
   * **Fante**: Complete 66 books, 31,051 verses.
   * **Ga**: Complete 66 books, 31,090 verses.
   * **Ewe**: Complete 66 books, local translation.
+* **Own-language book titles**: every Bible shows its own book names — *Mateo*, *Matoti*, *Mose V* — in
+  Bible order (Genesis first, Revelation last), while the underlying reference stays the standard English
+  one so notes and comparisons keep working. You can type "Mateo 3:16" and it is understood.
 * **Search & Copy**: Chapter-by-chapter reading, keyword search across all local translations, and one-click copy verse references.
 * **The Bible button (every page, every role)**: a small **Bible** button pinned to the top right of the staff
   app *and* the member companion — admin, teacher, usher, member alike — that opens a reading panel over

@@ -60,7 +60,8 @@ C:\Users\HP\Desktop\church\
   template `{to} {message} {sender} {idempotencyKey}`); stored in DB; worker hot-reloads 60s.
 - **Bible multi-translation**: every `apps/api/data/bible/*.json` served (`?translation=`); default = **kjv**
   (explicit preference in `defaultCode`). Bundled: kjv(66), asv(66), twi(66), twi-asante(66), ga(66),
-  fante(66), ewe(66). Non-PD extracts carry `publicDomain:false` + honest license. WEB pending (§6).
+  fante(66), ewe(66). Each bundle carries `localName` per book (own-language titles; `name` stays the
+  English key). Non-PD extracts carry `publicDomain:false` + honest license. WEB pending (§6).
 - **Demographics**: configurable AgeBrackets (min/max/genderSplit); Member.dob + ageBracketId; check-in
   auto-sorts into bracket headcount sections; birthday promotions (manual + nightly), audit-chained.
 - **Roles**: SUPER_ADMIN('*') · FINANCE_ADMIN (money+reports) · USHER (headcount/checkin/visitors+care) ·
@@ -174,6 +175,17 @@ C:\Users\HP\Desktop\church\
    open Bible dock. Also `Register (idempotent by phone)` → **Save visitor**. Deliberately left for the
    owner: `--terracotta` hover text (2.99–4.48) and the gold ■ legend marker would need the 20 approved
    palettes darkened — a design change, not a bug fix.
+0d. **Session T — each Bible reads in its own language (`uncommitted`).** Owner: "the bible book names of
+   the twi bibles seem to be in english … along with all languages, is it normally like that". No — the
+   normaliser had discarded the source titles. `scripts/add-bible-local-names.mjs` (`npm run bible:names`,
+   dry run unless `--write`) harvests all 66 titles per bundle from the owner's APKs and, for Ewe, a
+   published Bible Society of Ghana list (`scripts/data/bible-ewe-book-names.json`). Bundles keep the
+   canonical `name` and gain `localName`; `matchBook` accepts either, so "Mateo 3:16" works; the reader,
+   the floating dock and Settings print local titles in **Bible order** (`inBookOrder` in shared). Two
+   latent defects fixed on the way: books listed alphabetically (reader opened at 1 Chronicles) and the
+   duplicated "Twi (TWI (Asante))" label (`translationLabel`). Honest gap: **Fante shows 24 English
+   titles** — that app names its own files in English and its text is AES-encrypted, so the printed titles
+   are not recoverable from it.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
    guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).

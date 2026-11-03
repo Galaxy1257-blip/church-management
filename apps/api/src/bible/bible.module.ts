@@ -24,8 +24,8 @@ export class BibleController {
 
   @Public()
   @Get()
-  index() {
-    return this.svc.index();
+  index(@Query('translation') translation?: string) {
+    return this.svc.index(translation);
   }
 
   @Public()

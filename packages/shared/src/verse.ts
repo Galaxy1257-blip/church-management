@@ -3,6 +3,8 @@
 // resolves in an SMS as well.
 export interface BibleBookLike {
   name: string;
+  /** The title this translation actually prints, e.g. "Mateo" in Twi. `name` stays canonical English. */
+  localName?: string;
   chapters: Record<string, string[]>;
 }
 
@@ -41,9 +43,34 @@ export function matchBook<T extends BibleBookLike>(books: T[], wanted: string): 
   const key = normaliseBookName(wanted);
   return (
     books.find((b) => normaliseBookName(b.name) === key) ??
+    books.find((b) => b.localName && normaliseBookName(b.localName) === key) ??
     books.find((b) => normaliseBookName(b.name).startsWith(key)) ??
+    books.find((b) => b.localName && normaliseBookName(b.localName).startsWith(key)) ??
     null
   );
+}
+
+/** The order a printed Bible puts its books in. Bundles arrive in whatever order
+ *  their source used, and several sort alphabetically — a reader would otherwise
+ *  open the Bible at 1 Chronicles. */
+export const BOOK_ORDER = [
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
+  '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah',
+  'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah',
+  'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum',
+  'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians',
+  'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy',
+  '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John',
+  '3 John', 'Jude', 'Revelation',
+];
+
+const BOOK_RANK = new Map(BOOK_ORDER.map((name, i) => [normaliseBookName(name), i]));
+
+/** Books in Bible order; anything the list does not know keeps its relative place at the end. */
+export function inBookOrder<T extends { name: string }>(books: T[]): T[] {
+  const rank = (b: T) => BOOK_RANK.get(normaliseBookName(b.name)) ?? BOOK_ORDER.length;
+  return books.slice().sort((a, b) => rank(a) - rank(b));
 }
 
 /** Verses for a reference in one bundle, or null when that bundle cannot answer it. */
@@ -51,7 +78,7 @@ export function readVerse(
   books: BibleBookLike[],
   ref: string,
   maxChars = 450,
-): { text: string; ref: string; book: string } | null {
+): { text: string; ref: string; book: string; bookLocal: string } | null {
   const parsed = parseVerseRef(ref);
   if (!parsed) return null;
   const book = matchBook(books, parsed.book);
@@ -67,5 +94,6 @@ export function readVerse(
     text: text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text,
     ref: label,
     book: book.name,
+    bookLocal: book.localName ?? book.name,
   };
 }

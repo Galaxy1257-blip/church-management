@@ -1047,3 +1047,46 @@ themes, and after this session they are all the same two families: `--terracotta
 (2.99–4.48 — transient, borderline, and it is the owner's chosen hover colour) and `--accent` gold as the
 decorative ■ in `.demo-legend`. Both would need the palettes themselves darkened, which is a design change
 rather than a bug fix, so they are the owner's call.
+
+---
+
+## 2026-11-03 — Session T: every Bible reads in its own language
+
+**Asked.** "The bible book names of the twi bibles seem to be in english — recheck, along with all languages.
+Is it normally like that?" No, it is not: a printed Twi Bible says *Mateo*, not *Matthew*. The English titles
+were our own artifact — `normalize-bible-bundle.mjs` identifies each book by its chapter/verse signature
+against the KJV and then throws the source's own title away.
+
+**Built.** Each bundle now carries a `localName` beside the canonical `name`, harvested from the original
+sources by **`scripts/add-bible-local-names.mjs`** (`npm run bible:names`, dry-run unless `--write`): the
+mobobi apps' asset filenames, the christappzz Room `TotalBooks.subBookName`, and — for Ewe, whose app ships
+the *Twi* list verbatim — the Bible Society of Ghana published titles, kept in
+`scripts/data/bible-ewe-book-names.json`. `name` stays canonical so references, saved notes and the
+cross-translation compare are untouched, while the reader, the floating Bible, search hits and click-to-copy
+all print the language's own title. `matchBook` accepts either spelling, so typing **Mateo 3:16** jumps.
+
+**Caught while testing.** The Asante harvest had been pairing the Room rows against a book list taken from
+`kjv.json` — and that bundle arrived from its API in *alphabetical* order, so the first title landed on
+1 Chronicles: the reader was about to label Chronicles as Genesis. The fix makes the database label itself:
+the same table always carries an English shelf in the same row order, so the two lists are paired inside the
+source instead of against a positional guess. 65 of 66 Asante titles changed.
+
+**Two more things the same walk exposed.** Bundles list their books in whatever order their source used, so
+*every* reader opened the Bible at **1 Chronicles** — `inBookOrder` in `@chms/shared` now puts them in Bible
+order, Genesis to Revelation. And the picker said "Twi (TWI (Asante))", one name said twice: version names
+are title-cased in the bundles and `translationLabel` adds the language only when the version name does not
+already carry it, which also cleans up **Settings → Bible translation** ("TWI-ASANTE — Twi" → "Twi (Asante)").
+
+**Counts.** 66/66 books named in all five Ghana bundles. Titles that still look English are the ones that
+genuinely are the same word in that language (Twi 6, Ga 10, Ewe 7, Asante 9: Genesis, Exodus, Amos, Daniel,
+Hosea, Nahum…). The one real gap is **Fante: 24 books** still print the English title because that app
+names its own files that way and its text is AES-encrypted, so its printed titles are not recoverable from
+it. Not guessed at.
+
+**Verified.** /bible and the floating Bible at 390px: book lists show *Numeri, Deuteronomium, Yosua, Mateo*,
+switching translation keeps the reader on the same book and chapter, "Mateo 5:1" resolves, 0 overflowing
+nodes. shared 123/123 · api 73/73 · worker 15/15 · typecheck 0 · eslint 0 · check:secrets clean.
+
+**Owner's side, unchanged.** Redistribution rights for all five Ghana bundles; whether the second Twi text is
+really the Asante revision (its package is named *akaupem* and its in-app label says *ASANTE VERSION*); and
+the Ewe list above is a second-hand published table — worth a look against a printed Ewe Bible.

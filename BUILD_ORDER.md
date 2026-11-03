@@ -121,6 +121,17 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
     `normalize-bible-bundle.mjs` (tolerant floor lowered to 75% chapter agreement for
     uniquely-identifiable same-chapter books): 66/66, 1,189 chapters, 31,137 verses, `ewe.json`.
     ƒ/ɖ/ɔ/ɛ intact (plain-unicode SQLite — no font-map needed). `publicDomain:false` (rights unverified).
+  - [x] Own-language book titles (Session S) — **`scripts/add-bible-local-names.mjs`** (`npm run bible:names`)
+        merges a `localName` into every bundle from its own source: mobobi asset filenames, christappzz Room
+        `TotalBooks.subBookName` paired with the English shelf in the same table, and the Bible Society of
+        Ghana Ewe list (`scripts/data/bible-ewe-book-names.json`) because com.eweghana.bible ships the Twi
+        names. `name` stays canonical, so references, notes and compare are unaffected; the reader, the Bible
+        button, search hits and copy all print the language's title, and `matchBook` takes either spelling
+        ("Mateo 3:16" jumps). Book lists also follow **Bible order** now (`inBookOrder` in `@chms/shared`) —
+        the bundles came out of their sources alphabetically, so every reader opened at 1 Chronicles.
+  - [ ] Fante: 24 of 66 books still show the English title because the Fante app names its own files that way
+        and its text is AES-encrypted, so the printed titles are not recoverable from it. Re-harvest from a
+        licensed Fante drop, or accept the English titles, or take a published Fante list the owner checks.
   - [ ] Nzema, Dagbani, Dangme — as demand confirmed
   - [x] Once licensed file received: **APK → `node scripts/extract-apk-bible.mjs <apk> <code> <Language>`**
       (handles UTF-16, HTML styles, legacy-font decode, structural validation vs KJV — proven on Twi) or

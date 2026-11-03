@@ -2,22 +2,30 @@
 // Bible reader: multi-translation (English + Ghana local languages as they
 // are licensed in), chapter reading, ref jump, search. Click verse to copy.
 import { FormEvent, useEffect, useState } from 'react';
+import { translationLabel } from '../../lib/bible';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 interface Translation { code: string; translation: string; language: string; license: string }
-interface Index { defaultTranslation: string | null; translations: Translation[]; books: { name: string; chapters: number }[] }
+interface Index {
+  defaultTranslation: string | null;
+  translations: Translation[];
+  books: { name: string; localName: string; chapters: number }[];
+}
 interface Verse { n: number; text: string }
+interface Chapter { verses: Verse[]; book: string; bookLocal: string; chapter: number }
+interface Hit { book: string; bookLocal: string; chapter: number; verse: number; text: string }
 
 export default function BiblePage() {
   const [index, setIndex] = useState<Index | null>(null);
   const [translation, setTranslation] = useState('');
   const [book, setBook] = useState('John');
+  const [bookLocal, setBookLocal] = useState('John');
   const [chapter, setChapter] = useState(3);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [ref, setRef] = useState('');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ book: string; chapter: number; verse: number; text: string }[]>([]);
+  const [results, setResults] = useState<Hit[]>([]);
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
 
@@ -25,7 +33,7 @@ export default function BiblePage() {
     void fetch(`${API}/bible`).then((r) => r.json()).then((d: Index) => {
       setIndex(d);
       if (d.defaultTranslation) setTranslation(d.defaultTranslation);
-      if (d.books[0]) setBook(d.books[0].name);
+      if (d.books[0]) { setBook(d.books[0].name); setBookLocal(d.books[0].localName); }
     }).catch(() => setError('Bible bundles missing — run npm run bible:fetch'));
   }, []);
 
@@ -33,19 +41,23 @@ export default function BiblePage() {
     try {
       const res = await fetch(`${API}/bible/chapter?book=${encodeURIComponent(b)}&chapter=${c}&translation=${encodeURIComponent(t)}`);
       if (!res.ok) throw new Error('chapter not found');
-      const d = (await res.json()) as { verses: Verse[]; book: string; chapter: number };
-      setVerses(d.verses); setBook(d.book); setChapter(d.chapter); setError('');
+      const d = (await res.json()) as Chapter;
+      setVerses(d.verses); setBook(d.book); setBookLocal(d.bookLocal); setChapter(d.chapter); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'failed'); }
   }
 
   function pickTranslation(code: string): void {
     setTranslation(code);
     setResults([]);
-    void fetch(`${API}/bible`).then((r) => r.json()).then((d: Index) => {
-      if (d.books[0]) {
-        setBook(d.books[0].name);
-        void loadChapter(code, d.books[0].name, 1);
-      }
+    // The book list belongs to the translation, so refetch it. Keep the reader
+    // on the book they were in when that translation has it too.
+    void fetch(`${API}/bible?translation=${encodeURIComponent(code)}`).then((r) => r.json()).then((d: Index) => {
+      if (!d.books[0]) return;
+      setIndex(d);
+      const target = d.books.find((b) => b.name === book) ?? d.books[0];
+      setBook(target.name);
+      setBookLocal(target.localName);
+      setChapter(Math.min(chapter, target.chapters));
     });
   }
 
@@ -67,14 +79,14 @@ export default function BiblePage() {
     e.preventDefault();
     try {
       const res = await fetch(`${API}/bible/search?q=${encodeURIComponent(query)}&limit=25&translation=${encodeURIComponent(translation)}`);
-      const d = (await res.json()) as { results: typeof results };
+      const d = (await res.json()) as { results: Hit[] };
       setResults(d.results);
     } catch { /* empty */ }
   }
 
   function copy(v: Verse): void {
-    void navigator.clipboard?.writeText(`"${v.text}" — ${book} ${chapter}:${v.n}`);
-    setCopied(`${book} ${chapter}:${v.n}`);
+    void navigator.clipboard?.writeText(`"${v.text}" — ${bookLocal} ${chapter}:${v.n}`);
+    setCopied(`${bookLocal} ${chapter}:${v.n}`);
     setTimeout(() => setCopied(''), 1500);
   }
 
@@ -86,12 +98,12 @@ export default function BiblePage() {
       <div className="card">
         <div className="spread">
           <h1 style={{ margin: 0 }}>Bible</h1>
-          {active ? <span className="badge mute">{active.language} · {active.translation}</span> : null}
+          {active ? <span className="badge mute">{translationLabel(active)}</span> : null}
         </div>
         <div className="row" style={{ marginTop: 8 }}>
           {index?.translations.map((t) => (
             <button key={t.code} className={`small ${t.code === translation ? '' : 'secondary'}`} onClick={() => pickTranslation(t.code)} title={t.license}>
-              {t.language === 'English' ? t.translation : `${t.language} (${t.translation})`}
+              {translationLabel(t)}
             </button>
           ))}
         </div>
@@ -102,7 +114,7 @@ export default function BiblePage() {
         ) : null}
         <div className="row" style={{ marginTop: 8 }}>
           <select style={{ flex: 2 }} value={book} onChange={(e) => { setChapter(1); setBook(e.target.value); }}>
-            {index?.books.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
+            {index?.books.map((b) => <option key={b.name} value={b.name}>{b.localName}</option>)}
           </select>
           <select style={{ flex: 1 }} value={chapter} onChange={(e) => setChapter(Number(e.target.value))}>
             {Array.from({ length: bookInfo?.chapters ?? 1 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
@@ -123,12 +135,12 @@ export default function BiblePage() {
         <div className="card">
           <h2>Search results</h2>
           {results.map((r, i) => (
-            <p key={i} style={{ margin: '6px 0' }}><b>{r.book} {r.chapter}:{r.verse}</b> — {r.text}</p>
+            <p key={i} style={{ margin: '6px 0' }}><b>{r.bookLocal} {r.chapter}:{r.verse}</b> — {r.text}</p>
           ))}
         </div>
       ) : null}
       <div className="card">
-        <h2>{book} {chapter}</h2>
+        <h2>{bookLocal} {chapter}</h2>
         {verses.map((v) => (
           <p key={v.n} style={{ margin: '6px 0', cursor: 'pointer' }} onClick={() => copy(v)} title="Click to copy">
             <sup><b>{v.n}</b></sup> {v.text}

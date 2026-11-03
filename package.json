@@ -29,6 +29,7 @@
     "live:check:offline": "node scripts/check-live.mjs --offline",
     "db:verify": "node scripts/verify-stack.mjs",
     "bible:fetch": "node scripts/fetch-bible.mjs",
+    "bible:names": "node scripts/add-bible-local-names.mjs",
     "db:seed": "node packages/db/dist/seed.js",
     "db:setup": "npm run db:migrate:deploy && npm run db:extras && npm run db:appuser && npm run db:seed"
   },

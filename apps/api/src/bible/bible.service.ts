@@ -5,7 +5,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { dailyReading, localDateKey, matchBook, parseVerseRef, readVerse } from '@chms/shared';
+import { dailyReading, inBookOrder, localDateKey, matchBook, parseVerseRef, readVerse } from '@chms/shared';
 
 export interface BibleBundle {
   translation: string;
@@ -14,7 +14,9 @@ export interface BibleBundle {
   license: string;
   publicDomain: boolean;
   source?: string;
-  books: { name: string; chapters: Record<string, string[]> }[];
+  /** Where the printed book titles came from (see scripts/add-bible-local-names.mjs). */
+  localNameSource?: string;
+  books: { name: string; localName?: string; chapters: Record<string, string[]> }[];
 }
 
 export interface TranslationInfo {
@@ -25,6 +27,8 @@ export interface TranslationInfo {
   license: string;
   publicDomain: boolean;
   bookCount: number;
+  /** False when this bundle only ever prints English book titles. */
+  hasLocalNames: boolean;
 }
 
 // NOTE: this file sits at src/bible/ and dist/bible/ — TWO levels below
@@ -78,22 +82,30 @@ export class BibleService {
     return matchBook(bundle.books, name);
   }
 
-  index() {
+  index(translation?: string) {
     const bundles = this.load();
-    const translations: TranslationInfo[] = [...bundles.entries()].map(([code, b]) => ({
-      code,
-      translation: b.translation,
-      language: b.language ?? 'English',
-      languageCode: b.languageCode ?? 'en',
-      license: b.license ?? 'see source',
-      publicDomain: b.publicDomain !== false,
-      bookCount: b.books.length,
-    }));
-    const { code, bundle } = this.bundleFor();
+    const fallback = this.defaultCode(bundles);
+    const translations: TranslationInfo[] = [...bundles.entries()]
+      .map(([code, b]) => ({
+        code,
+        translation: b.translation,
+        language: b.language ?? 'English',
+        languageCode: b.languageCode ?? 'en',
+        license: b.license ?? 'see source',
+        publicDomain: b.publicDomain !== false,
+        bookCount: b.books.length,
+        hasLocalNames: b.books.some((x) => x.localName && x.localName !== x.name),
+      }))
+      .sort((a, b) => (a.code === fallback ? -1 : b.code === fallback ? 1 : 0) || a.language.localeCompare(b.language) || a.translation.localeCompare(b.translation));
+    const { bundle } = this.bundleFor(translation);
     return {
-      defaultTranslation: code,
+      defaultTranslation: fallback,
       translations,
-      books: bundle.books.map((x) => ({ name: x.name, chapters: Object.keys(x.chapters).length })),
+      books: inBookOrder(bundle.books).map((x) => ({
+        name: x.name,
+        localName: x.localName ?? x.name,
+        chapters: Object.keys(x.chapters).length,
+      })),
     };
   }
 
@@ -107,6 +119,7 @@ export class BibleService {
       translation: code,
       language: bundle.language ?? 'English',
       book: b.name,
+      bookLocal: b.localName ?? b.name,
       chapter,
       verses: verses.map((text, i) => ({ n: i + 1, text })),
     };
@@ -146,12 +159,12 @@ export class BibleService {
     const needle = q.trim().toLowerCase();
     if (needle.length < 3) throw new NotFoundException('search needs at least 3 characters');
     const { code, bundle } = this.bundleFor(translation);
-    const out: { book: string; chapter: number; verse: number; text: string }[] = [];
+    const out: { book: string; bookLocal: string; chapter: number; verse: number; text: string }[] = [];
     for (const book of bundle.books) {
       for (const [ch, verses] of Object.entries(book.chapters)) {
         for (let i = 0; i < verses.length; i++) {
           if (verses[i].toLowerCase().includes(needle)) {
-            out.push({ book: book.name, chapter: Number(ch), verse: i + 1, text: verses[i] });
+            out.push({ book: book.name, bookLocal: book.localName ?? book.name, chapter: Number(ch), verse: i + 1, text: verses[i] });
             if (out.length >= limit) return { translation: code, results: out };
           }
         }

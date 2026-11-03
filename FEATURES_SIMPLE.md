@@ -119,6 +119,7 @@ An easy-to-understand breakdown of what this app does, how it helps your church 
   * **Fante**: Complete Old and New Testament.
   * **Ga**: Complete Old and New Testament.
   * **Ewe**: Complete local translation.
+* **Book Names In Their Own Language**: Open the Twi Bible and the books are called *Mateo*, *Marko*, *Yohanes* — not Matthew, Mark, John. Each Bible is listed in normal Bible order, from Genesis to Revelation.
 * **Instant Search & Copy**: Search for any word or phrase and copy verses into sermons or church social media posts.
 
 ---

@@ -3,6 +3,7 @@
 // R4 customisation: profile/branding, funds, fees, care alerts, SMS locales.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { translationLabel } from '../../../lib/bible';
 import BillingPanel from '../../../components/billing-panel';
 import { clearSession } from '../../../lib/session';
 import { MODULE_DEFAULTS, MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
@@ -104,7 +105,7 @@ export default function SettingsPage() {
   const [toggles, setToggles] = useState({ autoAssignHeadcount: true, autoPromote: false, capacity: 0 });
   const [gw, setGw] = useState<any>(null);
   const [dev, setDev] = useState({ enabled: false, translation: 'kjv', verse: '' });
-  const [translations, setTranslations] = useState<{ code: string; language: string }[]>([]);
+  const [translations, setTranslations] = useState<{ code: string; language: string; translation: string }[]>([]);
   const [todayReading, setTodayReading] = useState<{ ref: string; text: string; note: string } | null>(null);
   // Church customisation: name/logo/branding, contact, giving instructions, funds, fees.
   const [prof, setProf] = useState<any>({ name: '', pastorDisplayName: '', smsSenderId: '', branding: {}, contact: {}, givingInstructions: {} });
@@ -151,7 +152,7 @@ export default function SettingsPage() {
       }
     }).catch(() => undefined);
     void api<{ enabled: boolean; translation: string; verse: string }>('/churches/me/devotional').then(setDev).catch(() => undefined);
-    void api<{ translations: { code: string; language: string }[] }>('/bible').then((r) => setTranslations(r.translations)).catch(() => undefined);
+    void api<{ translations: { code: string; language: string; translation: string }[] }>('/bible').then((r) => setTranslations(r.translations)).catch(() => undefined);
     void api<any>('/churches/me/profile').then((p) => {
       setProf(p);
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
@@ -486,8 +487,8 @@ export default function SettingsPage() {
           <label>
             Bible translation
             <select value={dev.translation} onChange={(e) => setDev({ ...dev, translation: e.target.value })}>
-              {(translations.length ? translations : [{ code: 'kjv', language: 'English' }]).map((t) => (
-                <option key={t.code} value={t.code}>{t.code.toUpperCase()} — {t.language}</option>
+              {(translations.length ? translations : [{ code: 'kjv', language: 'English', translation: 'KJV' }]).map((t) => (
+                <option key={t.code} value={t.code}>{translationLabel(t)}</option>
               ))}
             </select>
           </label>

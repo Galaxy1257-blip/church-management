@@ -10,14 +10,19 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { api } from '../lib/api';
+import { translationLabel } from '../lib/bible';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 const POSITION_KEY = 'chms.bibleDock';
 
 interface Translation { code: string; translation: string; language: string }
-interface Index { defaultTranslation: string | null; translations: Translation[]; books: { name: string; chapters: number }[] }
+interface Index {
+  defaultTranslation: string | null;
+  translations: Translation[];
+  books: { name: string; localName: string; chapters: number }[];
+}
 interface Verse { n: number; text: string }
-interface Hit { book: string; chapter: number; verse: number; text: string }
+interface Hit { book: string; bookLocal: string; chapter: number; verse: number; text: string }
 interface Note { id: string; ref: string; text: string; colour: string }
 
 const COLOURS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
@@ -27,6 +32,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
   const [index, setIndex] = useState<Index | null>(null);
   const [translation, setTranslation] = useState('');
   const [book, setBook] = useState('Genesis');
+  const [bookLocal, setBookLocal] = useState('Genesis');
   const [chapter, setChapter] = useState(1);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [query, setQuery] = useState('');
@@ -74,9 +80,10 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
     async (t: string, b: string, c: number): Promise<void> => {
       try {
         const q = new URLSearchParams({ book: b, chapter: String(c), translation: t });
-        const d = await call<{ verses: Verse[]; book: string; chapter: number }>(`/bible/chapter?${q}`);
+        const d = await call<{ verses: Verse[]; book: string; bookLocal: string; chapter: number }>(`/bible/chapter?${q}`);
         setVerses(d.verses);
         setBook(d.book);
+        setBookLocal(d.bookLocal);
         setChapter(d.chapter);
         setHits(null);
         setSelected(null);
@@ -95,17 +102,20 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
     if (!open || index) return;
     void (async () => {
       try {
-        const d = await call<Index>('/bible');
-        setIndex(d);
         const remembered = JSON.parse(localStorage.getItem(POSITION_KEY) ?? '{}') as {
           translation?: string;
           book?: string;
           chapter?: number;
         };
+        const pre = await call<Index>('/bible');
         const t =
-          remembered.translation && d.translations.some((x) => x.code === remembered.translation)
+          remembered.translation && pre.translations.some((x) => x.code === remembered.translation)
             ? remembered.translation
-            : (d.defaultTranslation ?? d.translations[0]?.code ?? '');
+            : (pre.defaultTranslation ?? pre.translations[0]?.code ?? '');
+        // The book list is per translation, so ask for it in the language the
+        // reader is actually going to open.
+        const d = t === pre.defaultTranslation ? pre : await call<Index>(`/bible?translation=${encodeURIComponent(t)}`);
+        setIndex(d);
         const b = remembered.book && d.books.some((x) => x.name === remembered.book) ? remembered.book : 'Genesis';
         const c = remembered.chapter ?? 1;
         setTranslation(t);
@@ -252,15 +262,21 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
                 onChange={(e) => {
                   const t = e.target.value;
                   setTranslation(t);
-                  void call<Index>('/bible').then((d) => {
+                  void call<Index>(`/bible?translation=${encodeURIComponent(t)}`).then((d) => {
                     const first = d.books.find((b) => b.name === book) ?? d.books[0];
-                    if (first) void loadChapter(t, first.name, 1);
+                    if (!first) return;
+                    const nextChapter = Math.min(chapter, first.chapters);
+                    setIndex(d);
+                    setBook(first.name);
+                    setBookLocal(first.localName);
+                    setChapter(nextChapter);
+                    void loadChapter(t, first.name, nextChapter);
                   });
                 }}
               >
                 {index?.translations.map((t) => (
                   <option key={t.code} value={t.code}>
-                    {t.language} — {t.translation}
+                    {translationLabel(t)}
                   </option>
                 ))}
               </select>
@@ -274,7 +290,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
                 <select value={book} aria-label="Book" onChange={(e) => void loadChapter(translation, e.target.value, 1)}>
                   {index?.books.map((b) => (
                     <option key={b.name} value={b.name}>
-                      {b.name}
+                      {b.localName}
                     </option>
                   ))}
                 </select>
@@ -343,7 +359,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
                   <div className="spread bible-listhead">
                     <h3>{hits.length} verses say it</h3>
                     <button type="button" className="small secondary" onClick={() => void loadChapter(translation, book, chapter)}>
-                      Back to {book} {chapter}
+                      Back to {bookLocal} {chapter}
                     </button>
                   </div>
                   {hits.length === 0 ? <p className="muted">Nothing in this translation matches.</p> : null}
@@ -355,7 +371,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
                       onClick={() => void loadChapter(translation, h.book, h.chapter)}
                     >
                       <b>
-                        {h.book} {h.chapter}:{h.verse}
+                        {h.bookLocal} {h.chapter}:{h.verse}
                       </b>{' '}
                       {h.text}
                     </button>
@@ -364,7 +380,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
               ) : (
                 <div className="bible-verses">
                   <h3>
-                    {book} {chapter}
+                    {bookLocal} {chapter}
                     {active ? <span className="muted"> · {active.language}</span> : null}
                   </h3>
                   {verses.map((v) => (
@@ -442,7 +458,8 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
                       ) : null}
                       {compare.map((c) => (
                         <p key={c.code}>
-                          <b>{c.code.toUpperCase()}</b> {c.text}
+                          <b>{translationLabel(index?.translations.find((t) => t.code === c.code) ?? { translation: c.code, language: '' })}</b>{' '}
+                          {c.text}
                         </p>
                       ))}
                     </div>

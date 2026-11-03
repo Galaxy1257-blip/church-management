@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { matchBook, normaliseBookName, parseVerseRef, readVerse } from './verse';
+import { BOOK_ORDER, inBookOrder, matchBook, normaliseBookName, parseVerseRef, readVerse } from './verse';
 
 const BOOKS = [
   { name: '1 John', chapters: { '3': ['one', 'two', 'three'] } },
   { name: 'Psalms', chapters: { '23': ['The LORD is my shepherd', '', 'he leadeth'] } },
   { name: 'Revelation', chapters: { '21': ['a', 'b', 'c', 'd'] } },
+];
+
+const TWI = [
+  { name: 'Matthew', localName: 'Mateo', chapters: { '1': ['the book of the generation', ' Abraam'] } },
 ];
 
 describe('normaliseBookName', () => {
@@ -48,11 +52,45 @@ describe('matchBook', () => {
     expect(matchBook(BOOKS, 'Revelation of John')?.name).toBe('Revelation');
     expect(matchBook(BOOKS, 'Esther')).toBeNull();
   });
+
+  it('finds a book by the title the translation itself prints', () => {
+    expect(matchBook(TWI, 'Mateo')?.name).toBe('Matthew');
+    expect(matchBook(TWI, 'Matthew')?.name).toBe('Matthew');
+  });
+});
+
+describe('inBookOrder', () => {
+  it('puts the books in the order a printed Bible uses', () => {
+    const out = inBookOrder([
+      { name: 'Revelation' },
+      { name: '1 Chronicles' },
+      { name: 'Genesis' },
+      { name: 'Matthew' },
+      { name: 'Psalms' },
+    ]);
+    expect(out.map((b) => b.name)).toEqual(['Genesis', '1 Chronicles', 'Psalms', 'Matthew', 'Revelation']);
+  });
+
+  it('covers all 66 books and leaves anything unknown at the end', () => {
+    expect(new Set(BOOK_ORDER).size).toBe(66);
+    expect(BOOK_ORDER[0]).toBe('Genesis');
+    expect(BOOK_ORDER[65]).toBe('Revelation');
+    expect(inBookOrder([{ name: 'Testimony of Judas' }, { name: 'John' }]).map((b) => b.name)).toEqual(['John', 'Testimony of Judas']);
+  });
 });
 
 describe('readVerse', () => {
+  it('accepts a local reference and keeps the citation canonical', () => {
+    expect(readVerse(TWI, 'Mateo 1:1')).toEqual({
+      text: 'the book of the generation',
+      ref: 'Matthew 1:1',
+      book: 'Matthew',
+      bookLocal: 'Mateo',
+    });
+  });
+
   it('joins a range and labels it with the bundle spelling', () => {
-    expect(readVerse(BOOKS, 'I John 3:2-3')).toEqual({ text: 'two three', ref: '1 John 3:2-3', book: '1 John' });
+    expect(readVerse(BOOKS, 'I John 3:2-3')).toEqual({ text: 'two three', ref: '1 John 3:2-3', book: '1 John', bookLocal: '1 John' });
   });
 
   it('skips empty verse slots instead of returning holes', () => {
