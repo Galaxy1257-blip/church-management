@@ -6,8 +6,13 @@ services:
     region: oregon
     plan: free
     rootDir: .
+    # `--include=dev` is not optional. NODE_ENV=production is set below, and npm
+    # reads that as `--omit=dev`, so a plain `npm install` prunes the devDeps this
+    # build needs (typescript, @types/*, eslint) and removes them from the build
+    # cache on every deploy. Render's free builders have been masking it with a
+    # warm cache; a cold one fails the same way chms-web did.
     buildCommand: >-
-      npm install &&
+      npm install --include=dev &&
       npx prisma generate --schema schema.prisma &&
       npm run build -w @chms/shared &&
       npm run build -w @chms/db &&
@@ -83,7 +88,7 @@ services:
     plan: free
     rootDir: .
     buildCommand: >-
-      npm install &&
+      npm install --include=dev &&
       npm run build -w @chms/web
     startCommand: npm run start -w @chms/web
     healthCheckPath: /login
