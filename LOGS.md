@@ -1007,7 +1007,7 @@ the run (`BibleNote` is empty again).
 **Fixed on the way:** the colour chips started life as 18px targets, which is a miss on a phone — they are
 now 44×44 with the paint confined to the content box, so the dot still looks the same size.
 
-## 2026-11-02 — Session S: nothing is allowed to be invisible (`uncommitted`)
+## 2026-11-02 — Session S: nothing is allowed to be invisible (`308bf5f`, pushed)
 
 **Owner ask:** a screenshot of the announcements page — "text color unreadable, check all similar instances".
 

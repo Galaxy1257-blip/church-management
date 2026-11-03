@@ -167,7 +167,7 @@ C:\Users\HP\Desktop\church\
    Nothing from the previous session's list is shipped yet: the in-app daily reading + header bell, and the
    Sunday School batch (class register, guardian SMS, class skip dates, teacher-only health note, guardians
    on the pick-up row, class link to the reader).
-0c. **Session S — unreadable text, app-wide (`uncommitted`).** Owner screenshot of the announcements page:
+0c. **Session S — unreadable text, app-wide (`308bf5f`, pushed).** Owner screenshot of the announcements page:
    "text color unreadable, check all similar instances". One rule caused it (the global filled-button ink
    leaking into `<button className="card">`) and the same leak in disguise was found across the app: night's
    `--brand` used *as text* (2.09–3.03:1) and `--accent` gold as text (2.1–3.0:1). Every text site now uses
@@ -175,7 +175,7 @@ C:\Users\HP\Desktop\church\
    open Bible dock. Also `Register (idempotent by phone)` → **Save visitor**. Deliberately left for the
    owner: `--terracotta` hover text (2.99–4.48) and the gold ■ legend marker would need the 20 approved
    palettes darkened — a design change, not a bug fix.
-0d. **Session T — each Bible reads in its own language (`uncommitted`).** Owner: "the bible book names of
+0d. **Session T — each Bible reads in its own language (`c23a8a7`).** Owner: "the bible book names of
    the twi bibles seem to be in english … along with all languages, is it normally like that". No — the
    normaliser had discarded the source titles. `scripts/add-bible-local-names.mjs` (`npm run bible:names`,
    dry run unless `--write`) harvests all 66 titles per bundle from the owner's APKs and, for Ewe, a
