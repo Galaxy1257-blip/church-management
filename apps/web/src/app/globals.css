@@ -811,6 +811,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
 
+/* Shortcut links side by side read as one run-on sentence ("Check someone in
+   Record offering Register a visitor"), and on a phone they wrap mid-thought.
+   The dot hangs off the end of each item rather than the start of the next, so
+   a wrapped line never begins with a stray separator. */
+.quick-links > *:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 /* Title left, actions right; on phones the title takes its own line and the
    action buttons wrap underneath instead of crowding the heading. */
 .page-head {

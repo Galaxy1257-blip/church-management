@@ -230,7 +230,7 @@ export default function DashboardPage() {
                 {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}
               </span>
             </div>
-            <div className="row" style={{ marginTop: '0.5rem' }}>
+            <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
               {has('checkin:write') && (mod('worship') || has('headcount:write')) ? <Link href="/checkin">Check someone in</Link> : null}
               {has('finance:read') && mod('money') ? <Link href="/finance">Record offering</Link> : null}
               {has('visitors:write') && mod('people') ? <Link href="/visitors">Register a visitor</Link> : null}
@@ -284,7 +284,7 @@ export default function DashboardPage() {
               <div style={{ marginTop: '0.5rem' }}>
                 <strong>{data.services[0].name}</strong>
                 <div className="muted">{fmtDateTime(data.services[0].startsAt)}</div>
-                <div className="row" style={{ marginTop: '0.5rem' }}>
+                <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
                   <Link href={`/services/${data.services[0].id}`}>Attendance</Link>
                   <Link href="/checkin">Check-in</Link>
                 </div>
