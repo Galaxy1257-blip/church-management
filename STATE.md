@@ -203,7 +203,8 @@ C:\Users\HP\Desktop\church\
 - **R0 (owner gates)**: ✅ `npm run db:verify` passed 22 Oct (native PG 16.11 — no Docker needed);
   paste cSMS token in
   Settings→SMS gateway + confirm body fields vs Postman doc; Paystack sandbox keys; 3-Sunday pilot.
-- **R1**: ✅ complete (all admin UIs).
+- **R1**: ✅ complete (all admin UIs) — BUILD_ORDER ticked 3 Nov after reading each page. One gap: encrypted
+  **counselling notes have an API (`care.module.ts`) and no screen**; surface them on /care or drop it.
 - **R2**: ✅ KJV+ASV · ✅ **Twi + Twi(Asante) + Ga + Fante (Sessions H/I — all 66 books, 1,189
   chapters each)** · ✅ verse-of-the-day · WEB in-flight (§6) · Ewe ✅ (Session J, `com.eweghana.bible` Room DB);
   remaining Ghana languages (Nzema, Dagbani, Dangme) = owner drops APK →
@@ -218,6 +219,12 @@ C:\Users\HP\Desktop\church\
 - **Known gaps / polish**: church-level staff roles admin screen (office staff now managed at
   `/platform/team`); member-detail UI for milestone dates; WEB translation source; GitHub CI run;
   Turnstile keys; worker has no test files; Paystack live keys and cSMS token (owner gates).
+- **R8 (2 Nov round)**: ✅ dashboard at a glance · rotating verse of the day · the Bible button · the
+  legibility sweep. Open: teacher `checkin:write` vs the Children hint · the daily reading as an in-app
+  notification + bell, with its own switch · the Sunday School batch (register, guardian SMS, skip dates,
+  teacher-only health note, guardians on the pick-up row, class → offline bundles) · `/flyers` has no entry
+  point and FEATURES §15 overstates it · licence line on the /bible footer · the terracotta/gold palette
+  decision (owner) · **Render + Vercel need a manual deploy before any of this is live.**
 
 ## 8. How to run / verify (quick reference)
 ```bash

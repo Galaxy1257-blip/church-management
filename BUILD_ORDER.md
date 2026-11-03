@@ -67,20 +67,27 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
 - [ ] Paystack sandbox keys: `PAYSTACK_MODE=live` + keys (owner action)
 - [ ] Pilot: 3 Sundays, zero lost events, 100% payment match (release gate)
 
-## R1. Admin UIs (APIs complete + boot-checked; screens remaining) — IN PROGRESS
+## R1. Admin UIs (APIs complete + boot-checked; screens remaining) — ✅ DONE except counselling
+Re-checked against the source on 3 Nov 2026 — this list had drifted: every page below was built in Sessions
+N–R (each has its own `page.tsx` with real forms and API calls, verified by reading the file, not by
+clicking every one) and is now ticked. The one genuine gap is split out at the bottom.
 - [x] Settings (brackets, toggles, SMS gateway)
 - [x] Members (chips, promotions modal, dob)
-- [ ] /groups — groups, meetings, attendance
-- [ ] /roster — volunteer shifts + confirm/decline
-- [ ] /events — events + RSVP list
-- [ ] /campaigns — capital campaigns + pledges
-- [ ] /expenses — submit + approve workflow
-- [ ] /care — prayer wall, counseling (encrypted), welfare
-- [ ] /children — dual-ticket check-in/checkout
-- [ ] /org — branches, transfers, households
-- [ ] /announcements — post announcements
-- [x] media page: + songs (CCLI flag) + setlists (worship companion)
-- [ ] /drip — follow-up workflow builder (steps editor; engine already runs)
+- [x] /groups — groups, meetings, attendance (358 lines; members open the shared profile drawer)
+- [x] /roster — volunteer shifts + confirm/decline
+- [x] /events — events + RSVP list (capacity/waitlist, guest QR tokens)
+- [x] /campaigns — capital campaigns + pledges (progress from real gifts)
+- [x] /expenses — submit + approve workflow (a submitter cannot approve their own)
+- [x] /care — prayer wall (moderated) + welfare + care queue, class-scoped for a Sunday School teacher
+- [x] /children — dual-ticket check-in/checkout (child tag + guardian pickup code)
+- [x] /org — branches, transfers (2-step), households
+- [x] /announcements — post announcements, category filter, photo, tap-to-read drawer
+- [x] /drip — follow-up workflow builder (steps editor over the running engine)
+- [ ] **Counselling notes have an API and no screen.** `apps/api/src/ministry/care.module.ts` creates and
+      lists encrypted `CounselingNote` rows; nothing in `apps/web` calls it. Either surface it on /care for
+      the roles that hold it, or remove the endpoint — it is currently dead weight with real privacy duty.
+- ~~media page: songs (CCLI flag) + setlists~~ — **Media was deleted outright** (owner, Session P). No
+  `/media` route and no media module in the API; the two `[x]` lines that claimed it were removed.
 
 ## R2. Phase 2.5 — Bible & worship companion
 - [x] scripts/fetch-bible.mjs — bundle public-domain KJV (offline JSON, gitignored) — 66 books bundled 21 Oct
@@ -91,7 +98,8 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
   `BibleNote` + `migrations/11_bible_notes`), verse search, cross-translation compare, remembered place.
   Off switch: Settings → App sections → **Bible**, which hides the button on both surfaces and makes
   `POST /bible/notes` 403 rather than merely removing the link.
-- [x] Setlists API + songs (CCLI flag) on /media
+- ~~Setlists API + songs (CCLI flag) on /media~~ — **gone with Media** (owner, Session P): no `/media`
+  route, no media module in `apps/api/src`. Rebuild only if a church asks for a worship set list.
 - [ ] **R2.1 Ghana local-language Bibles (owner action — licences)**
   - [x] Twi — ✅ BUNDLED 21 Oct (Session H): extracted from owner-supplied APK
     `com.mobobi.twibibleoffline_3.8.apk` with **`scripts/extract-apk-bible.mjs`** (generic APK→bundle:
@@ -117,7 +125,10 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
   - [x] Once licensed file received: **APK → `node scripts/extract-apk-bible.mjs <apk> <code> <Language>`**
       (handles UTF-16, HTML styles, legacy-font decode, structural validation vs KJV — proven on Twi) or
       manual convert to bundle shape → drop into `apps/api/data/bible/` → appears in picker automatically (zero code changes)
-  - [ ] Show licence attribution on /bible footer per translation (bundle.license field already returned)
+  - [ ] Show licence attribution on /bible footer per translation. `bundle.license` is already returned and
+        today reaches the screen only as a `title` tooltip on the language chip
+        (`apps/web/src/app/bible/page.tsx:93`) — it needs a visible line, especially for the six Ghana
+        bundles marked `publicDomain:false`.
 - [x] Verse-of-the-day SMS: worker job daily 05:55 (source ANNOUNCEMENT = opt-out respected, idempotent vod:{church}:{day}:{member}); settings card on /settings (`/churches/me/devotional`)
 - [ ] **R2.2 More English translations (verify-before-build sources)**
   - [x] ASV (1901, public domain) — bundled from scrollmapper/bible_databases (MIT) — 66 books, `asv.json`
@@ -207,11 +218,44 @@ Paystack account model (subaccount per church vs own keys), SMS sender ID approv
       of `/services`, so no scheduler is involved
 - [ ] Owner follow-ups — awaiting the next list
 
+## R8. Owner round 3 (2 Nov 2026 — the dashboard, the Bible, legibility)
+- [x] **Dashboard answers in one glance** (Session Q): trimmed to four cards, the rest behind a
+      "Show 3 more cards" line that remembers the choice per browser; Edit mode still shows every card.
+- [x] **Sunday School care scoped to the class** + **the service that opens itself** (Session P) — see R7.
+- [x] **Rotating verse of the day** from the bundled Bibles (Session Q): `dailyReading()` in
+      `packages/shared/src/daily-reading.ts`, used by both the SMS worker and `GET /bible` — no longer
+      pinned to John 3:16.
+- [x] **The Bible, one button away from everywhere** (Session R, `35192ee`) — R2.0b above.
+- [x] **Nothing is allowed to be invisible** (Session S, `308bf5f` + `2b8f691`): a `<button>` used as a card
+      inherited the filled-button ink and printed white on paper; night's `--brand` was used *as text*
+      (2.09–3.03:1) and `--accent` gold as text (2.1–3.0:1). Text that wants the brand tint now uses
+      `--link`. Verified 0 WCAG failures at 390px in light and night over 16 screens plus the open dock.
+      `Register (idempotent by phone)` → **Save visitor**.
+- [ ] **A Sunday School teacher still cannot open the check-in desk.** `SUNDAY_SCHOOL` holds no
+      `checkin:write`, yet the Children switch hint tells them the page is theirs. Either add the permission
+      or fix the sentence — the hint is currently a lie.
+- [ ] **The daily reading has no in-app voice.** The rotation engine ships; there is no header bell, no
+      reading card on the dashboard or `/portal`, and no switch of its own. Owner asked for the quotation
+      plus a very short message as a notification, and (later) a phone widget.
+- [ ] **Sunday School batch** (recommended after the teacher permission decision): class attendance register
+      · guardian SMS on check-in and check-out · class skip dates for the weeks a teacher is away ·
+      allergy/health note visible to the class teacher only · the allowed guardians on the pick-up row ·
+      the class view pointing at the offline Bible bundles.
+- [ ] **`/flyers/[slug]` exists but nothing links to it**, and [FEATURES.md §15](FEATURES.md) still
+      advertises a "Social Media Flyer Generator" that draws branded graphics. It is a share-links + QR page.
+      Either link it from Settings/announcements or correct the doc.
+- [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■
+      in `.demo-legend` both fail AA as text. Fixing them means darkening the 20 approved palettes, which is
+      a design change, not a bug fix — so they were left alone.
+- [ ] **Deploy is manual.** A push only runs CI; Render and Vercel keep serving the old build until a deploy
+      is started in each console. Nothing in R8 is live on the hosted site until the owner does that.
+
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed
 tokens) · households/guardians ✅ · children dual-ticket ✅ · visitor slips + GH phone norm ✅ · drip
 pipeline ✅ · campaigns/thermals/goal dates ✅ (endsOn) · two-counter cash+cheque ✅ · pesewas ledger ✅ ·
-bulk SMS segments+wallet+STOP ✅ · prayer wall+answered tracking ✅ · encrypted counseling notes ✅ ·
+bulk SMS segments+wallet+STOP ✅ · prayer wall+answered tracking ✅ · encrypted counseling notes ✅ API only,
+no screen (R1) ·
 cell meeting reports ✅ (topic/offering/attendance) · hash-chained audit ✅ · RLS multi-branch data
 isolation ✅ (governance reports pending R4.5) · announcements+push skeleton ✅ · birthday age-promotion ✅
 (birthday *messages* → fold into R4.3 locales)
