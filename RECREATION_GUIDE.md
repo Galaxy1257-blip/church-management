@@ -214,3 +214,65 @@ npm run dev -w apps/api
 npm run dev -w apps/web
 ```
 Front-end will run on `http://localhost:3000` and communicate with API at `http://localhost:4000/api/v1`.
+
+---
+
+## 6. Nothing Lost When The Server Changes
+
+Parts 1–5 describe the code, and code is in git. The dangerous half of this
+project is the settings that exist **only inside a dashboard** — delete the
+Render account and they are gone with no trace, and a new server comes up
+"successfully" while silently doing nothing.
+
+So they are written down, in one file: **[`live-manifest.json`](live-manifest.json)**.
+It names every dashboard-only value, which service reads it, what breaks without
+it, and where the real value lives. It deliberately never contains a value —
+it is committed, and a secret in git is not a secret.
+
+Check it, from a terminal or a phone browser you have the repo on:
+
+```bash
+npm run live:check            # the manifest + the running stack
+npm run live:check:offline    # only what git can prove (this is what CI runs)
+```
+
+`live:check` asks the live services, not the dashboards: is the API's database
+up, does the Bible actually answer, does CORS accept the web origin, **does the
+JavaScript the browser downloads point at the API host**, is the jobs service
+awake and refusing an unauthenticated tick. The bundle check is the one that
+matters most, because `NEXT_PUBLIC_API_URL` is frozen into the browser code at
+build time — a deploy can be green and every button can still 404.
+
+### What happens when you move to a bigger server
+
+| Moves by itself | Has to be re-pointed by hand |
+| :--- | :--- |
+| All code, the schema and every migration (applied in order on boot) | The Neon **data** — it is not in git; keep the same database or copy it, do not recreate it |
+| `apps/api/data/bible/kjv.json`, so the Bible survives a rebuild | The five `sync: false` values on chms-api, one on chms-web, four on chms-jobs (see the manifest) |
+| `render.yaml`, which describes the whole Render topology | `JOBS_TICK_TOKEN`, which must be pasted in **two** places with the same value |
+| The GitHub workflows, including the cron | The Vercel project link, and the repo's Action secret |
+| Feature switches, roles, RLS, the live SMS gateway (a database row) | `JWT_SECRET` regenerates on a new Render service, so **everyone signs out once** — not data loss, but tell people |
+
+Then run `npm run live:check` against the new hosts. If it says 7/7, the move is
+complete; whatever it says is missing is the list of what was not.
+
+### The jobs service, because it is the newest part
+
+Render's free tier refuses a `worker` service, which is why nothing ran a
+scheduled job between October and now — no 8pm verse, no new-visitor messages,
+no nightly repair, and queued SMS stayed queued forever. `chms-jobs` is the
+workaround: a web service with two URLs.
+
+- `GET /health` — what it can see, and a plain-English list of what it is still
+  missing. Read this from a browser to check on the jobs.
+- `POST /tick` — GitHub Actions cron knocks here ten times a day (03:20 for the
+  nightly repairs, then every two hours from 06:00 to 22:00 Accra time). The
+  service works out what is due at that moment and runs it, once, using a
+  Redis lock per job — so a late or replayed tick never sends twice, and
+  nothing messages anyone between 23:00 and 06:00.
+
+Ten knocks a day, not one every five minutes, is a money decision: the free
+workspace shares 750 instance hours a month and an instance stays awake 15
+minutes after each request. A 24/7 jobs service would spend the entire quota by
+itself and take the API and the staff app down with it.
+

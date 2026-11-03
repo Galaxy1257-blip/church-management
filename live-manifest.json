@@ -1,0 +1,146 @@
+{
+  "$comment": [
+    "Every value that exists ONLY in a hosting dashboard, in one file, so moving",
+    "servers (or losing a browser session) does not lose the app. This file lists",
+    "names and purposes — NEVER the values themselves: it is committed, and a",
+    "secret in git is not a secret. `npm run live:check` proves this list still",
+    "matches render.yaml and that the live services agree with each other.",
+    "Adding an env var to render.yaml without adding it here FAILS that check."
+  ],
+
+  "hosts": {
+    "api": "https://chms-api-lfox.onrender.com",
+    "apiBase": "https://chms-api-lfox.onrender.com/api/v1",
+    "web": "https://church-management-gray.vercel.app",
+    "webRenderBackup": "https://chms-web.onrender.com",
+    "jobs": "https://chms-jobs.onrender.com"
+  },
+
+  "goesWithTheCode": [
+    "All source in apps/ and packages/, built by the workspaces on install.",
+    "schema.prisma and prisma/migrations/, applied in order by `prisma migrate deploy` on boot.",
+    "apps/api/data/bible/kjv.json — committed on purpose. Without it the production API has no Bible, and a build-time download would make every deploy depend on 66 fetches to another company's server.",
+    "render.yaml — the whole Render topology, so a new Render account can be created from the repo.",
+    ".github/workflows/ — CI, and the cron that wakes the jobs service.",
+    "Feature switches, roles, RLS policies and seed scripts: they live in code and in the database, not in a dashboard."
+  ],
+
+  "mustBeCopiedByHand": [
+    {
+      "service": "Neon (the database itself)",
+      "key": "the project",
+      "value": "project 'church-management', Postgres 16",
+      "livesIn": "neon.tech dashboard",
+      "breaksWithout": "Nothing works — members, giving, attendance, SMS log and audit trail are all here. This is the one thing git cannot carry: it is DATA, not config.",
+      "howToMove": "Do not recreate. Point the new server at the same Neon project, or use Neon's branch/migrate to copy the dataset. Keep the pooled URL."
+    },
+    {
+      "service": "chms-api",
+      "key": "DATABASE_URL",
+      "livesIn": "Neon → Connect → Pooled connection string",
+      "breaksWithout": "the API answers nothing; every login and page fails",
+      "secret": true
+    },
+    {
+      "service": "chms-api",
+      "key": "OWNER_DATABASE_URL",
+      "livesIn": "same Neon string as DATABASE_URL",
+      "breaksWithout": "migrations cannot run on boot, so a schema change never lands",
+      "secret": true
+    },
+    {
+      "service": "chms-api",
+      "key": "PLATFORM_DATABASE_URL",
+      "livesIn": "Neon string for the platform (BYPASSRLS) role",
+      "breaksWithout": "cross-tenant reads (platform admin, webhooks) return nothing under FORCE RLS",
+      "secret": true
+    },
+    {
+      "service": "chms-api",
+      "key": "WEB_URL",
+      "livesIn": "the Vercel production domain",
+      "value": "https://church-management-gray.vercel.app",
+      "breaksWithout": "CORS rejects the staff app, and receipt/followup links point at the wrong site",
+      "secret": false
+    },
+    {
+      "service": "chms-web",
+      "key": "NEXT_PUBLIC_API_URL",
+      "livesIn": "Vercel → Project → Settings → Environment Variables (and Render for the chms-web backup)",
+      "value": "https://chms-api-lfox.onrender.com/api/v1",
+      "breaksWithout": "Two different failures. On Render the build FAILS LOUDLY (next.config.mjs refuses). On Vercel it builds green and every button 404s, because NEXT_PUBLIC_* is baked into the browser bundle at build time — so changing it needs a redeploy, not a restart.",
+      "secret": false,
+      "history": "This value once disappeared from the Render dashboard and the staff app went blank. That is why live:check greps the deployed JS chunks."
+    },
+    {
+      "service": "chms-jobs",
+      "key": "DATABASE_URL",
+      "livesIn": "same Neon string as chms-api",
+      "breaksWithout": "no job can read a single row",
+      "secret": true
+    },
+    {
+      "service": "chms-jobs",
+      "key": "PLATFORM_DATABASE_URL",
+      "livesIn": "Neon platform-role string",
+      "breaksWithout": "the nightly scans are cross-tenant; without this role they fall back to app_user and find zero churches, so the reconcile reports a clean night it never did",
+      "secret": true
+    },
+    {
+      "service": "chms-jobs",
+      "key": "WEB_URL",
+      "livesIn": "the Vercel production domain",
+      "value": "https://church-management-gray.vercel.app",
+      "breaksWithout": "SMS links in receipts and followups go to the wrong address",
+      "secret": false
+    },
+    {
+      "service": "chms-jobs",
+      "key": "JOBS_TICK_TOKEN",
+      "livesIn": "Render dashboard ONLY, plus the identical value as a GitHub repository secret of the same name",
+      "breaksWithout": "every /tick answers 401 and no scheduled job ever runs. Deliberately fail-closed: a service created without it cannot send SMS.",
+      "secret": true,
+      "note": "Two places, one string. Change it in Render and GitHub in the same minute, or the cron gets 401s between the two."
+    },
+    {
+      "service": "GitHub repo",
+      "key": "JOBS_TICK_TOKEN (repository secret)",
+      "livesIn": "github.com → repo → Settings → Secrets and variables → Actions",
+      "breaksWithout": "the cron cannot wake the jobs service",
+      "secret": true
+    }
+  ],
+
+  "regeneratedAutomatically": [
+    {
+      "key": "JWT_SECRET (chms-api)",
+      "note": "render.yaml says generateValue, so a NEW Render service invents a different one. Consequence of moving: every signed-out user has to log in again. Not data loss, but tell people."
+    },
+    {
+      "key": "PLATFORM_SIGNUP_KEY, SMS_WEBHOOK_SECRET",
+      "note": "same — generated per service. Anything that referenced the old value (a provider webhook) must be re-pointed."
+    },
+    {
+      "key": "JWT_SECRET (chms-jobs)",
+      "note": "generated, and allowed to differ from chms-api's because no worker code reads or checks it today. If the worker ever verifies an API-issued token, this becomes a must-copy value — see the comment in render.yaml."
+    }
+  ],
+
+  "notSecretsButEasyToLose": [
+    "The Render service URLs themselves (chms-api-lfox...) are part of allow-lists and of the baked Vercel bundle. Keeping the same service names keeps the same hostnames on a new Render account; renaming means updating NEXT_PUBLIC_API_URL and redeploying.",
+    "Render free Redis (chms-redis) has ipAllowList [] — reachable only from inside Render. That is why jobs run inside a Render service and not from a GitHub Actions runner: the runner cannot reach it.",
+    "Vercel project 'church-management' is wired to this repo and branch; the two abandoned duplicates are not. A new project must point at main, and old ones should be deleted so a push cannot look 'failed' because of a dead project.",
+    "Render's whole free workspace shares 750 instance hours a month. A jobs service poked every 5 minutes stays awake forever and uses the quota by itself, suspending the API and the app. That is why the cron fires ten times a day — see jobs-tick.yml.",
+    "The live SMS gateway is a database row (PlatformSetting 'sms_gateway'), not an env var: env is only the fallback. Moving servers does not lose it, but restoring a database backup does change it."
+  ],
+
+  "checks": [
+    { "id": "api-health", "what": "the API answers and its database is reachable" },
+    { "id": "bible-daily", "what": "a Bible bundle is actually present in production" },
+    { "id": "cors", "what": "the API accepts the web origin, so the staff app is not silently blocked" },
+    { "id": "bundle-api-url", "what": "the JS the browser downloads points at the live API host (catches a rebuilt-but-stale or emptied NEXT_PUBLIC_API_URL)" },
+    { "id": "jobs-health", "what": "the jobs service is up and states honestly what it is still missing" },
+    { "id": "jobs-fail-closed", "what": "a tick without the token is refused" },
+    { "id": "manifest-drift", "what": "every value render.yaml waits for is written down here" }
+  ]
+}

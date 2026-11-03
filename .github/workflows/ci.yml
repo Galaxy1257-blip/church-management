@@ -21,6 +21,12 @@ jobs:
       - run: npm run typecheck
       - run: npx prisma generate --schema schema.prisma
       - run: npm run test -w @chms/shared
+      # The tick schedule decides when a message reaches a member's phone, so it
+      # is tested here rather than only on a Render deploy.
+      - run: npm run test -w @chms/worker
+      # Fails the build if render.yaml waits on a dashboard value that is not
+      # written down in live-manifest.json. Network checks stay out of CI.
+      - run: npm run live:check:offline
 
   integration:
     runs-on: ubuntu-latest
