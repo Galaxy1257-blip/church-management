@@ -1,0 +1,56 @@
+name: Jobs tick
+
+# Render's free tier has no worker service, so chms-jobs (a web service holding
+# one /tick URL, see render.yaml) only wakes when this workflow pokes it. Ten
+# pokes a day is the instance-hour budget — a 5-minute cadence would keep the
+# service awake around the clock and use all 750 free hours on its own, which
+# suspends chms-api and chms-web with it.
+#
+# Times are UTC, which is Accra time (Ghana has no DST).
+#   03:20  nightly repairs: ledger reconcile, birthday promotions, attendance scan
+#   06:00-22:00 every 2h  new-visitor drip + stuck-gift sweep; the 20:00 poke is
+#              what sends the verse of day, so it arrives in the evening, not at 3am.
+#
+# tick-server decides what is actually due; this file only knocks. A poke that
+# lands late still runs the day's jobs (the locks are per-day, per-job), and a
+# duplicate poke sends nothing twice.
+on:
+  schedule:
+    - cron: "20 3 * * *"
+    - cron: "0 6,8,10,12,14,16,18,20,22 * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake the jobs service
+        env:
+          # If Render ever renames the service, this is the only line to change.
+          TICK_URL: https://chms-jobs.onrender.com/tick
+          JOBS_TICK_TOKEN: ${{ secrets.JOBS_TICK_TOKEN }}
+        run: |
+          set -eu
+          if [ -z "$JOBS_TICK_TOKEN" ]; then
+            echo "::error::Repo secret JOBS_TICK_TOKEN is empty. Settings → Secrets and variables → Actions → New repository secret, using the same value as chms-jobs on Render."
+            exit 1
+          fi
+          # A sleeping free instance takes up to a minute to answer; try three
+          # times before calling the tick broken.
+          for attempt in 1 2 3; do
+            echo "tick attempt $attempt"
+            code=$(curl --silent --show-error --output response.json --write-out '%{http_code}' \
+              --max-time 300 \
+              --request POST \
+              --header "x-jobs-token: ${JOBS_TICK_TOKEN}" \
+              "$TICK_URL" || echo "000")
+            echo "http $code"
+            cat response.json || true
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::The jobs service did not answer with 200. Check the chms-jobs deploy log and its JOBS_TICK_TOKEN."
+          exit 1

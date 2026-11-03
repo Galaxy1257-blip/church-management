@@ -103,6 +103,80 @@ services:
       - key: NEXT_PUBLIC_API_URL
         sync: false
 
+  # ── Scheduled jobs (the worker, on the free plan) ────────────────────────────
+  # `type: worker` + `plan: free` is refused by Render, which is why this
+  # blueprint dropped apps/worker in October and nothing has run a job since.
+  # A web service that only answers two URLs is the workaround: GitHub Actions
+  # cron POSTs to /tick (see .github/workflows/jobs-tick.yml) and the process
+  # runs whatever is due in Accra right now, then sleeps.
+  #
+  # It is deliberately NOT on a 5-minute cadence: 750 free instance hours cover
+  # the whole workspace and an instance stays awake 15 minutes after each
+  # request, so a constantly-woken service would suspend chms-api and chms-web.
+  - type: web
+    name: chms-jobs
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: >-
+      npm install --include=dev &&
+      npx prisma generate --schema schema.prisma &&
+      npm run build -w @chms/shared &&
+      npm run build -w @chms/db &&
+      npm run build -w @chms/worker
+    startCommand: npm run start:tick -w @chms/worker
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # The same Neon strings as chms-api. PLATFORM_DATABASE_URL matters: the
+      # nightly scans are cross-tenant, and without the BYPASSRLS role they fall
+      # back to app_user and silently return zero rows under FORCE RLS.
+      - key: DATABASE_URL
+        sync: false
+      - key: PLATFORM_DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: chms-redis
+          property: connectionString
+      # The worker schema requires a ≥16-char secret but no worker code reads or
+      # checks it, so this one is allowed to differ from chms-api's. If the
+      # worker ever verifies an API-issued token, change this to sync: false and
+      # paste the same value chms-api uses.
+      - key: JWT_SECRET
+        generateValue: true
+      # Must be the URL staff/visitors actually use, because receipt and
+      # followup links are built from it.
+      - key: WEB_URL
+        sync: false
+      # Paste a random secret here and put the identical value in the GitHub
+      # repo secret JOBS_TICK_TOKEN. Without it every /tick answers 401 and no
+      # job can run at all — that is the fail-closed design, not a bug.
+      - key: JOBS_TICK_TOKEN
+        sync: false
+      # Mirrors chms-api. The live gateway config actually comes from the
+      # PlatformSetting row the admin UI writes (DB beats env), so switching to
+      # a real provider is done in Admin → SMS, not here.
+      - key: SMS_GATEWAY
+        value: mock
+      - key: CSMS_BASE_URL
+        value: https://app.mycsms.com/api
+      - key: CSMS_API_TOKEN
+        value: ""
+      - key: CSMS_SENDER_ID
+        value: ""
+      - key: CSMS_VERIFIED
+        value: "false"
+      - key: PAYSTACK_MODE
+        value: mock
+      - key: PAYSTACK_SECRET_KEY
+        value: ""
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+
   # ── Redis ────────────────────────────────────────────────────────────────────
   - type: redis
     name: chms-redis

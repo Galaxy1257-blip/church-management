@@ -14,6 +14,10 @@ const envSchema = z.object({
   PAYSTACK_SECRET_KEY: z.string().default(''),
   PAYSTACK_BASE_URL: z.string().default('https://api.paystack.co'),
   WEB_URL: z.string().default('http://localhost:3000'),
+  // The tick URL is dead unless this is set — tick-server refuses to run any
+  // job without it, so a service created without the secret cannot send SMS.
+  JOBS_TICK_TOKEN: z.string().default(''),
+  PORT: z.coerce.number().int().positive().default(10000),
 });
 
 export type WorkerEnv = z.infer<typeof envSchema>;
