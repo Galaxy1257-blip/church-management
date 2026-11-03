@@ -114,7 +114,7 @@ An easy-to-understand breakdown of what this app does, how it helps your church 
 * **No Data Needed to Read Scripture**: Read God's Word anywhere, even without an internet connection.
 * **Available in Local Languages**:
   * **English**: King James Version (KJV) and American Standard Version (ASV).
-  * **Akuapem Twi**: Full Old & New Testament with proper local alphabets (`ɔ`, `ɛ`).
+  * **Twi**: Full Old & New Testament with proper local alphabets (`ɔ`, `ɛ`).
   * **Asante Twi**: Complete 66 books, all 1,189 chapters and 31,102 verses.
   * **Fante**: Complete Old and New Testament.
   * **Ga**: Complete Old and New Testament.

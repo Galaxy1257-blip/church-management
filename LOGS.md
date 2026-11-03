@@ -1090,3 +1090,28 @@ nodes. shared 123/123 · api 73/73 · worker 15/15 · typecheck 0 · eslint 0 ·
 **Owner's side, unchanged.** Redistribution rights for all five Ghana bundles; whether the second Twi text is
 really the Asante revision (its package is named *akaupem* and its in-app label says *ASANTE VERSION*); and
 the Ewe list above is a second-hand published table — worth a look against a printed Ewe Bible.
+
+## 2026-11-03 — Follow-up: which Twi is which (`uncommitted`)
+
+**Owner ask:** "there are 2 twi there, indicate which is Akuapem and which is Asante. Or are they the same?"
+
+**Not the same text.** Of the 31,091 verses both bundles carry, 8% are identical after normalising case,
+punctuation and spacing; 30 of the 66 book titles differ. Two translations, not one file listed twice.
+
+**Which is which — one proven, one not.** Grepping the raw bytes of the christappzz Room DB found the
+literal string "TWI BIBLE ASANTE VERSION" stored beside the `twi_bible` shelf id, and no "Akuapem" string
+anywhere in the data. So `twi-asante.json` is Asante, proven from the package itself; the app's *store title*
+("Akuapem Twi Bible & Audio") is the part that is wrong. `twi.json` has the opposite problem: its app is
+sold as "Asante Twi & English Bible" and its audio packs list Akuapem 1999 / Akuapem 2026 / Asante 2026,
+while the text assets carry no edition label at all — so we cannot call it Akuapem either.
+
+**Consequence.** FEATURES.md and FEATURES_SIMPLE.md claimed an "Akuapem Twi" Bible. That claim is not
+supported by anything in the bundle, so both now say **Twi** with a pointer to the open audit, and
+BUILD_ORDER R2.1 carries the audit: settle the edition (Bible Society of Ghana, or the same developer's
+*Twi Bible: Asante & Akuapem*, which puts both dialects in one database and can be compared directly), then
+either relabel or source a genuine Akuapem. The picker keeps showing "Twi" and "Twi (Asante)" — honest for
+what we know.
+
+**Also this session:** the Today shortcuts read as one sentence ("Check someone in Record offering Register
+a visitor Add a member") and the last wrapped mid-thought on a phone — `.quick-links` now puts a muted dot
+after each item except the last, on both dashboard link rows (`57ad211`).

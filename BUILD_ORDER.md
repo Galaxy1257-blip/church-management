@@ -106,6 +106,16 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
     unzip assets → UTF-16/HTML parse → q/x→ɔ/ɛ decode → structural ID vs KJV → validation report).
     66/66 books, 31,094 verses, `twi.json` auto-listed. `publicDomain:false` + honest `license` field —
     owner must verify translation identity/rights (Mater Dei vs heritage translation) before public hosting.
+    **Dialect still unproven**: the app is sold as *Asante Twi & English Bible* and its audio packs name
+    Akuapem 1999 / Akuapem 2026 / Asante 2026, while nothing inside the text assets says which edition the
+    *text* is. So `twi.json` is labelled plain **Twi** in the app and FEATURES no longer calls it Akuapem.
+  - [ ] **Twi dialect audit** — settle what `twi.json` actually is, then either label it correctly or get a
+    genuine Akuapem. `twi-asante.json` is proven: the Room DB itself carries the literal string
+    "TWI BIBLE ASANTE VERSION" beside the `twi_bible` shelf (the app's *store title* says Akuapem, so the
+    title is the unreliable half). The two texts are not duplicates — of 31,091 shared verses only 8% are
+    identical after normalising, and 30 of 66 book titles differ. Cheapest proof: the same developer's
+    *Twi Bible: Asante & Akuapem*, which ships both dialects in one database and can be compared directly,
+    or a line from the Bible Society of Ghana.
   - [x] Twi (Asante) — ✅ BUNDLED (Session I): `Akuapem Twi Bible & Audio` XAPK → Room DB
     `assets/book_database` via **`scripts/extract-akuapem-sqlite.py`** (+ `normalize-bible-bundle.mjs`
     for KJV-name mapping): 66/66 books, 1,189 chapters, **31,102 verses (exact)**, `twi-asante.json`,

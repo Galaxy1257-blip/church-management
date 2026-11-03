@@ -139,7 +139,7 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 * **Multi-Translation Engine**: Built-in offline Scripture reader and cross-reference search engine (`/bible`).
 * **Pre-bundled Translations**:
   * **English**: King James Version (KJV), American Standard Version (ASV).
-  * **Akuapem Twi**: Full 66-book Old and New Testament with phonetic characters (`ɔ`, `ɛ`).
+  * **Twi** (edition still to be confirmed — see BUILD_ORDER R2.1; a different text from the Asante one below): Full 66-book Old and New Testament with phonetic characters (`ɔ`, `ɛ`).
   * **Asante Twi**: Complete 66 books, 1,189 chapters, 31,102 verses.
   * **Fante**: Complete 66 books, 31,051 verses.
   * **Ga**: Complete 66 books, 31,090 verses.
