@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session Z). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session AA). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -290,6 +290,11 @@ C:\Users\HP\Desktop\church\
   finance sheet — `GET /finance/batches` stays 403), real QR codes (join QR on /join-card and inside Check-in;
   each member's check-in QR in the companion). Requirement tags (`R4.10`) removed from the UI. Collections
   also work at non-service programs (nullable `GivingBatch.serviceId`, "For what?" picker).
+  Batch 11 ✅ (owner ask, 4 Nov) — **the door is not the Services screen**: with worship switched off an usher
+  still opens Check-in (`/checkin/setup` + `/checkin/find` gated on `checkin:write`, no `@ForModule`), the nav
+  item is `standalone`, and the count reads Attendance rows so a person in a hidden section is still counted.
+  **A card belongs to one church**: member QRs carry `chms-card://<church-id>/<number>` and the door refuses a
+  foreign card by name (member numbers repeat across churches). See BUILD_ORDER §Batch 11.
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 

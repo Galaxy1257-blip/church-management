@@ -4,6 +4,7 @@ export * from './template';
 export * from './fee';
 export * from './sms';
 export * from './csv';
+export * from './card';
 export * from './uuid';
 export * from './enums';
 export * from './permissions';

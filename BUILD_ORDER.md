@@ -354,6 +354,26 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       `GivingBatch.serviceId` nullable, "For what?" picker with *Other program…*, batch label names the
       occasion. 4 unit tests.
 
+### Batch 11 — the door stays open, and a card belongs to one church ✅ (owner ask, 4 Nov)
+- [x] "The qr is not there, i want ushers to be able help members check in": with the **Services section
+      switched off** the usher lost the Check-in link *and* `POST /checkin` (the controller carried
+      `@ForModule('worship')`). The door now reads its own list (`GET /checkin/setup`) and finds people by
+      name/number/phone (`GET /checkin/find`), both on `checkin:write`; only the attendance *list* stays
+      inside the section. Nav/route rule for `/checkin` is `standalone` (skips the section switch, keeps the
+      permission). `doorView()` is the one shared rule used by Check-in, the dashboard and Visitors.
+- [x] The count at the top of the door reads the check-ins, not the section totals — a person auto-sorted
+      into a section the office switched off is still in the room.
+- [x] Helping someone at the door marks **that** person checked in, not everybody on the screen.
+- [x] **A card carries the church that printed it**: `chms-card://<church-id>/<member-no>` (shared helper in
+      `packages/shared/src/card.ts`, mirrored for the web in `lib/card.ts`). Member numbers repeat across
+      churches, so a bare number in a QR could check in the wrong person at another assembly. The door
+      refuses a foreign card by name; a typed member number or phone still works; the join QR already named
+      the church in its URL. 9 API door tests + 4 shared card tests.
+
+### Audit round 5 — permissions per user (owner ask, 4 Nov)
+- [ ] Recommendations from the role audit are awaiting the owner's approval; nothing in this section is built
+      until a line is approved. See LOGS 2026-11-04 "Audit round 5".
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

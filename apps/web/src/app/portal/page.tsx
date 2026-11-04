@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { fmtDateTime, ghs } from '../../lib/format';
 import { pdfBlob } from '../../lib/pdf';
 import { fileToPhotoDataUrl } from '../../lib/photo';
+import { cardPayload } from '../../lib/card';
 import QRCode from 'qrcode';
 import BibleDock from '../../components/bible-dock';
 import Notice from '../../components/notice';
@@ -121,9 +122,10 @@ export default function PortalPage() {
     ]);
     setHome(h); setGiving(g); setShifts(sh); setEvents(ev); setPosts(myPosts);
     setReminders(notes.items ?? []); setUnread(notes.unread ?? 0); setAssigned(help);
-    // The door scans this: it carries the member number the check-in looks up.
-    if (h?.member?.memberNo) {
-      void QRCode.toDataURL(h.member.memberNo, { width: 240, margin: 1, color: { dark: '#1f2a24', light: '#fffdf8' } })
+    // The door scans this: it carries this church's id plus the member number,
+    // so a card printed here cannot be read as somebody else's down the road.
+    if (h?.member?.memberNo && h?.church?.slug) {
+      void QRCode.toDataURL(cardPayload(h.church.slug, h.member.memberNo), { width: 240, margin: 1, color: { dark: '#1f2a24', light: '#fffdf8' } })
         .then(setCheckinQr)
         .catch(() => setCheckinQr(''));
     }

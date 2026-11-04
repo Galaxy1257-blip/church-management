@@ -1378,3 +1378,44 @@ program"*). 4 unit tests. Proven live: *Harvest night* → 201, batch `serviceId
 label `Offering count — Harvest night`; browser at 390px shows the service list plus Other program, and
 submits with the typed name. api 146/146 (18 files) · shared 126/126 · typecheck/eslint/secrets clean.
 Test rows deleted.
+
+## 2026-11-04 — Audit round 4, Batch 11: the door stays open, and a card belongs to one church (`uncommitted`)
+
+**Owner:** "the qr is not there, i want ushers to be able help members check in", then "make sure qr is
+specific to each church".
+
+**The door was inside the Services section twice over.** `CheckinController` carried a class-level
+`@ForModule('worship')`, so with Services switched off the usher's `POST /checkin` answered 403 *"Services is
+switched off for this church"* — and the nav item inherited the area's `module: 'worship'`, so the Check-in
+link (and the join QR on it) disappeared entirely. Reproduced with curl as `+233550449843` before touching
+code. The door is not the attendance screen, so the section switch now closes only the attendance *list*
+(`GET /checkin`, `@ForModule('worship')` + `services:read`); the desk itself runs on `checkin:write` through
+two new routes — `GET /checkin/setup` (the Sunday to work + how many are in) and `GET /checkin/find`
+(name / member number / phone, flagged with who is already inside). `/checkin` is `standalone` in
+`lib/access.ts`, which skips the section switch and keeps the permission; the same rule is read by the
+dashboard and Visitors through one `doorView()` helper instead of three per-screen copies.
+
+**Two defects the live test caught.** The count came from `headcount.totals.netTotal`, which only maps
+`isActive` sections, so a member auto-sorted into a section the office switched off was invisible: the door
+said 1 after taking two people in. It now counts `Attendance` rows for that service. And checking in one
+person from the search results marked **every** row "In already"; only the tapped member flips now.
+
+**Church-scoped cards.** The companion QR encoded the bare member number, and member numbers repeat across
+churches — the same card checked in whoever held that number in whichever assembly scanned it. The payload
+is now `chms-card://<church-id>/<member-number>` (`packages/shared/src/card.ts`, mirrored in
+`apps/web/src/lib/card.ts` because the web app cannot import shared); the door reads the reference inside it
+and refuses a foreign church **by name** rather than matching the wrong person. Coverage of every QR the app
+issues: 3 screens — companion card (changed), join QR inside Check-in and on `/join-card` + Settings (both
+already carried the church id in `/join/<slug>`). A typed member number or phone still works unchanged.
+
+**Proven live, worship OFF, 390px, as the usher.** `GET /checkin/setup` 200 (8 services, current service +
+count); find by first name, both names in either order, member number, phone; `POST /checkin` 200 with the
+section named; repeat → `alreadyCheckedIn`; `chms-card://grace/MEM-0001` → 400 *"That card belongs to another
+church (grace) — it cannot be used here."* shown on the phone screen; `chms-card://demo/MEM-0001` → 200
+counted in a section; the companion renders the card QR for a signed-in member (MEM-0001) and the door
+accepts what it encodes. 0 failures over 3 door screens; test attendance and auto-checkin headcount rows
+deleted afterwards (service count back to 0).
+
+**Counts.** api 155/155 (19 files, +9 door tests) · shared 130/130 (16 files, +4 card tests) · typecheck
+clean in api/web/shared · eslint clean · `check:secrets` clean. `@chms/shared` rebuilt so the API picks up
+the new exports. Neon untouched.

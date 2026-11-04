@@ -4,15 +4,91 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { appendAudit } from '@chms/db';
-import { normalizeGhPhone, ageOn, resolveBracket, segmentKeyFor, uuidv7 } from '@chms/shared';
+import { normalizeGhPhone, ageOn, resolveBracket, segmentKeyFor, uuidv7, parseCardScan } from '@chms/shared';
 import { TenantService } from '../common/tenant';
+import { ServicesService } from '../services/services.service';
+import { HeadcountService } from '../headcount/headcount.service';
 import { AuthUser } from '../common/guards';
 
 export type CheckInMethod = 'MANUAL' | 'QR' | 'PHONE_LOOKUP';
 
 @Injectable()
 export class CheckinService {
-  constructor(private readonly tenant: TenantService) {}
+  constructor(
+    private readonly tenant: TenantService,
+    private readonly services: ServicesService,
+    private readonly headcount: HeadcountService,
+  ) {}
+
+  /**
+   * What the door screen opens with: the Sunday to check people into and how
+   * many are already in. It reads through ServicesService so the auto-open still
+   * runs, and it works with the Services section switched off — the door is not
+   * the services screen.
+   *
+   * The number at the top counts the check-ins themselves, not the section
+   * totals: a headcount section the office has switched off still holds people,
+   * and a door that under-reports the room is worse than one that says nothing.
+   */
+  async doorSetup(user: AuthUser) {
+    const list = await this.services.list(user);
+    const current = list.find((s) => s.status === 'OPEN') ?? list[0] ?? null;
+    if (!current) return { currentId: null, services: [], counted: 0, segments: [] };
+    const [counted, totals] = await Promise.all([
+      this.tenant.run(user, (tx) => tx.attendance.count({ where: { churchId: user.churchId, serviceId: current.id } })),
+      this.headcount.totals(user, current.id),
+    ]);
+    return {
+      currentId: current.id,
+      services: list.slice(0, 8).map((s) => ({ id: s.id, name: s.name, startsAt: s.startsAt, status: s.status })),
+      counted,
+      segments: totals.totals,
+    };
+  }
+
+  /**
+   * Find the person standing in front of you. A name, a member number or a phone
+   * all work, so the usher never has to ask a member to read their own card.
+   */
+  find(user: AuthUser, query: string, serviceId?: string) {
+    const term = (query ?? '').trim();
+    if (term.length < 2) return Promise.resolve([]);
+    let phone: string | null = null;
+    try {
+      phone = normalizeGhPhone(term);
+    } catch {
+      phone = null;
+    }
+    const words = term.split(/\s+/);
+    // Every word has to match a first or a last name, so "Kofi Mensah" and
+    // "Mensah Kofi" both find him but "Kofi Boateng" does not.
+    const nameMatch = words.map((w) => ({
+      OR: [
+        { firstName: { contains: w, mode: 'insensitive' as const } },
+        { lastName: { contains: w, mode: 'insensitive' as const } },
+      ],
+    }));
+    return this.tenant.run(user, async (tx) => {
+      const members = await tx.member.findMany({
+        where: {
+          churchId: user.churchId,
+          deletedAt: null,
+          status: 'ACTIVE',
+          OR: [{ AND: nameMatch }, { memberNo: { contains: term, mode: 'insensitive' } }, ...(phone ? [{ phoneE164: phone }] : [])],
+        },
+        select: { id: true, firstName: true, lastName: true, memberNo: true, phoneE164: true },
+        orderBy: { firstName: 'asc' },
+        take: 20,
+      });
+      if (!serviceId || !members.length) return members.map((m) => ({ ...m, checkedIn: false }));
+      const inside = await tx.attendance.findMany({
+        where: { churchId: user.churchId, serviceId, memberId: { in: members.map((m) => m.id) } },
+        select: { memberId: true },
+      });
+      const done = new Set(inside.map((a) => a.memberId));
+      return members.map((m) => ({ ...m, checkedIn: done.has(m.id) }));
+    });
+  }
 
   async checkIn(
     user: AuthUser,
@@ -32,12 +108,23 @@ export class CheckinService {
       // number/phone. The same box takes either, so nobody has to choose.
       const typed = (input.code ?? input.qrToken ?? '').trim();
       if (!memberId && typed) {
-        const hash = createHash('sha256').update(typed).digest('hex');
+        // A card says which church printed it. Member numbers only repeat across
+        // churches, so a foreign card has to be refused by name — never matched
+        // against whoever holds that number here.
+        const scan = parseCardScan(typed);
+        const code = scan ? scan.ref : typed;
+        if (scan) {
+          const here = await tx.church.findUnique({ where: { id: user.churchId }, select: { slug: true } });
+          if (here && scan.slug !== here.slug.toLowerCase()) {
+            throw new BadRequestException(`That card belongs to another church (${scan.slug}) — it cannot be used here.`);
+          }
+        }
+        const hash = createHash('sha256').update(code).digest('hex');
         // A member number is not a phone number; only try the phone lookup when
         // the text actually parses, otherwise the member-number check never runs.
         let phone: string | null = null;
         try {
-          phone = normalizeGhPhone(typed);
+          phone = normalizeGhPhone(code);
         } catch {
           phone = null;
         }
@@ -48,7 +135,7 @@ export class CheckinService {
             status: 'ACTIVE',
             OR: [
               { qrToken: hash },
-              { memberNo: { equals: typed, mode: 'insensitive' } },
+              { memberNo: { equals: code, mode: 'insensitive' } },
               ...(phone ? [{ phoneE164: phone }] : []),
             ],
           },

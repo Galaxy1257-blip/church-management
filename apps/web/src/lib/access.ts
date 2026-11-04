@@ -93,11 +93,18 @@ export interface NavItem {
   /** Which app-section switch hides this page (absent = the area's switch). */
   module?: ModuleKey;
   /**
-   * Other sections this page cannot work without. The rota and the check-in desk
-   * both start by picking a service, so with Services switched off they are dead
-   * screens — the switch that gates the API has to gate the link too.
+   * Other sections this page cannot work without. The rota starts by picking a
+   * service, so with Services switched off it is a dead screen — the switch that
+   * gates the API has to gate the link too.
    */
   requires?: readonly ModuleKey[];
+  /**
+   * A tool the church staff use whatever the section switches say. The door is
+   * the case: people still walk in on a Sunday when the office has hidden the
+   * Services screens, and a hidden check-in desk means an uncounted congregation.
+   * The permission still applies — this only skips the section switch.
+   */
+  standalone?: boolean;
   /** When set, only these role keys may see/open the page. */
   roles?: readonly string[];
 }
@@ -141,7 +148,7 @@ export type ModuleFlags = Record<ModuleKey, boolean>;
 
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
   people: { label: 'Members & visitors', hint: 'The directory, visitors and giving history' },
-  worship: { label: 'Services', hint: 'The service list and Sunday attendance' },
+  worship: { label: 'Services', hint: 'The service list and the attendance screen. Checking people in at the door keeps working whatever this says.' },
   money: { label: 'Offerings', hint: 'Sunday giving and the money reports' },
   reach: { label: 'News', hint: 'Announcements the congregation sees' },
   bible: {
@@ -166,6 +173,17 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
 
 /** Care is for the people who look after the congregation week to week. */
 export const CARE_ROLES: readonly string[] = ['USHER', 'SUNDAY_SCHOOL'];
+
+/**
+ * The roles that work the door. They stand there on Sunday whatever the office
+ * has switched off, so their screens keep showing which service is happening
+ * even when the Services section is hidden.
+ */
+export const DOOR_ROLES: readonly string[] = ['USHER', 'SUNDAY_SCHOOL'];
+
+export function isDoorRole(roles: readonly string[] | undefined): boolean {
+  return !!roles && roles.some((role) => DOOR_ROLES.includes(role));
+}
 
 /**
  * Who the children's desk lets in — the same rule the API applies
@@ -219,7 +237,7 @@ export const NAV_AREAS: NavArea[] = [
     hint: 'Services and the attendance count',
     items: [
       { href: '/services', label: 'Services', permissions: ['services:read'] },
-      { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
+      { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'], standalone: true },
       { href: '/roster', label: 'Serving team', permissions: ['members:write'], module: 'roster', requires: ['worship'] },
       { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'], module: 'events' },
     ],
@@ -264,12 +282,13 @@ export const NAV_AREAS: NavArea[] = [
 export const NAV_GROUPS: NavGroup[] = NAV_AREAS.map(({ label, hint, items }) => ({ label, hint, items }));
 
 // Usher Mode: ONE app, role-scoped shell. Ushers get a mobile-first subset
-// (Today / Check-in / Attendance / Visitors / Care) with big touch targets;
-// leaders toggle it off. The same switches as the normal menu apply — a church
-// that switched Services off has no service to check people in to.
+// (Today / Check-in / Attendance / Visitors / Collection / Care) with big touch
+// targets; leaders toggle it off. Check-in names no section switch: the door
+// reads its own service list, so the headcount still happens when the office has
+// hidden the Services screens.
 export const USHER_NAV: NavItem[] = [
   { href: '/dashboard', label: 'Today', permissions: ['church:read'] },
-  { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'], module: 'worship' },
+  { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'], standalone: true },
   { href: '/services', label: 'Attendance', permissions: ['services:read'], module: 'worship' },
   { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'], module: 'people' },
   // The door worker enters the amount they counted — not the finance sheet.
@@ -340,6 +359,7 @@ export function moduleEnabled(modules: ModuleFlags | undefined, key: ModuleKey |
 
 /** Every switch a page needs: its own (or its area's) plus anything it depends on. */
 function itemSwitches(item: NavItem, areaModule?: ModuleKey): ModuleKey[] {
+  if (item.standalone) return [...(item.requires ?? [])];
   return [item.module ?? areaModule, ...(item.requires ?? [])].filter((k): k is ModuleKey => !!k);
 }
 

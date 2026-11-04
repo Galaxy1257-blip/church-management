@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { fmtDate, fmtDateTime, ghs } from '../../../lib/format';
 import { hasPermission, isCareRole, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
+import { doorView } from '../../../lib/door';
 import MemberDrawer from '../../../components/member-drawer';
 
 interface DashboardData {
@@ -106,9 +107,11 @@ export default function DashboardPage() {
         setRoles(session.roles);
         setModules(session.modules);
         const can = (perm: string) => hasPermission(granted, perm);
-        const [wallet, services, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
+        const [wallet, door, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
           can('sms:read') ? api<NonNullable<DashboardData['wallet']>>('/sms/wallet').catch(() => null) : Promise.resolve(null),
-          can('services:read') ? api<DashboardData['services']>('/services').catch(() => []) : Promise.resolve([]),
+          can('services:read') || can('checkin:write')
+            ? doorView(granted, session.roles, session.modules)
+            : Promise.resolve(null),
           can('reports:read') ? api<DashboardData['byFund']>('/finance/reports/by-fund').catch(() => []) : Promise.resolve([]),
           can('visitors:read') ? api<DashboardData['visitors']>('/visitors').catch(() => []) : Promise.resolve([]),
           can('reports:read') ? api<DashboardData['bySunday']>('/finance/reports/by-sunday').catch(() => []) : Promise.resolve([]),
@@ -117,9 +120,9 @@ export default function DashboardPage() {
           can('services:write') ? api<DashboardData['events']>('/events').catch(() => []) : Promise.resolve([]),
           can('campaigns:read') ? api<DashboardData['announcements']>('/announcements').catch(() => []) : Promise.resolve([]),
         ]);
-        const open = services.find((s) => s.status === 'OPEN') ?? services[0] ?? null;
-        const totals = open
-          ? await api<NonNullable<DashboardData['totals']>>(`/headcount/totals?serviceId=${open.id}`).catch(() => null)
+        const services = door?.services ?? [];
+        const totals = door
+          ? { totals: door.segments, netTotal: door.counted }
           : null;
         setData({ wallet, services, totals, byFund, visitors, bySunday, churn, tasks, events, announcements });
       } catch (e) {
@@ -294,14 +297,16 @@ export default function DashboardPage() {
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Latest service</h2>
-              <Link href="/services">All services →</Link>
+              {/* With Services switched off the screens it links to are not there;
+                  the count still shows, because the door keeps making it. */}
+              {mod('worship') ? <Link href="/services">All services →</Link> : null}
             </div>
             {data.services[0] ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <strong>{data.services[0].name}</strong>
                 <div className="muted">{fmtDateTime(data.services[0].startsAt)}</div>
                 <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
-                  <Link href={`/services/${data.services[0].id}`}>Attendance</Link>
+                  {mod('worship') ? <Link href={`/services/${data.services[0].id}`}>Attendance</Link> : null}
                   <Link href="/checkin">Check-in</Link>
                 </div>
               </div>

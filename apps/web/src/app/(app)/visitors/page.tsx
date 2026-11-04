@@ -3,6 +3,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
 import Notice from '../../../components/notice';
+import { getSession } from '../../../lib/session';
+import { doorView } from '../../../lib/door';
 
 interface Visitor {
   id: string;
@@ -39,7 +41,11 @@ export default function VisitorsPage() {
 
   useEffect(() => {
     void load(status);
-    void api<Service[]>('/services').then(setServices).catch(() => undefined);
+    // The door registers visitors whatever the Services switch says.
+    void getSession()
+      .then((session) => doorView(session.permissions, session.roles, session.modules))
+      .then((view) => setServices(view.services))
+      .catch(() => undefined);
   }, [status]);
 
   async function register(e: FormEvent): Promise<void> {
