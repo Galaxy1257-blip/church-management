@@ -1419,3 +1419,60 @@ deleted afterwards (service count back to 0).
 **Counts.** api 155/155 (19 files, +9 door tests) · shared 130/130 (16 files, +4 card tests) · typecheck
 clean in api/web/shared · eslint clean · `check:secrets` clean. `@chms/shared` rebuilt so the API picks up
 the new exports. Neon untouched.
+
+## 2026-11-04 — Audit round 5: every role, what it can actually do (`awaiting approval — nothing here is built`)
+
+**Owner:** "audit each particular user of the app and their permissions and actions allowed, suggest
+recommendations". Method: the role→permission table in `packages/shared/src/permissions.ts:64-173`, every
+`@RequirePermissions` / `@ForModule` / `@Authenticated` / `@Public` in `apps/api/src/**`, the nav +
+`ROUTE_ACCESS` rules in `apps/web/src/lib/access.ts`, and the live demo data (19 staff accounts in the
+`demo` church). Guard chain as verified: `guards.ts:132` 500s a route that declares nothing, `guards.ts:144`
+ANDs the listed permissions, `guards.ts:174` **allows** any route that omits `@ForModule` — so a missing key
+is a silent hole in the section switch, not a closed door.
+
+**Findings, with what I re-checked before believing it.**
+
+1. **`giving.controller.ts` is the only money controller that doesn't honour the Money switch.** Class-level
+   `@ForModule('money')` is absent; only `GET transactions` (`:66`) declares it. `POST funds` (`:80`),
+   `GET funds` (`:44`), `quote` (`:50`), `initialize` (`:57`), `GET/POST settings` (`:86`, `:92`) all stay
+   reachable with Money switched off. Two of those are exactly what the public `/give/<slug>` page calls
+   (`quote`, `initialize`), so gating the whole controller also stops public offerings — the owner's call,
+   the same shape as the door exemption shipped in Batch 11. **Corrected:** the earlier draft claimed
+   `DELETE /sms/opt-outs/:phone` needed only `sms:read`; it is `sms:send` (`sms.controller.ts:55`).
+2. **The children's desk answers `@Authenticated()` and authorises deeper down.** `POST checkin` (`:259`),
+   `POST checkout` (`:293`) and `GET roster` (`:270`) declare no permission; the real rule is
+   `deskMoveChildIds()` / `deskRosterChildIds()` (`class-scope.ts:58-79`), which throws for anyone without
+   `members:write` / `checkin:write` / `children:write` — and it does run before any write
+   (`children.module.ts:25-27`, `:91`, `:130`). So no member can walk off with a child; but the permission
+   is invisible to the guard chain, to the boot check and to a reviewer reading the controller.
+   **Corrected:** `children:write` is live (used in `class-scope.ts:60,75` + `access.ts:196`), not dead.
+3. **Six permissions are granted but required by nothing:** `church:write`, `users:read`, `users:write`,
+   `sms:purchase`, `audit:read` (grep: only `permissions.ts:40` + `guards.spec.ts:85`), `members:import`
+   paths aside. FINANCE_ADMIN is handed `audit:read` and `users:read` that open no door.
+4. **Usher mode is switched by `headcount:write`, which no nav item or route rule uses**
+   (`(app)/layout.tsx:54,108`) — eligibility is decoupled from what the rail actually shows.
+5. **`/collection` nav and route disagree on the Money switch.** Nav item carries `module:'money'`
+   (`access.ts:295`) but `ROUTE_ACCESS` (`:315`) lists only `collection:write`, and `itemSwitches()` scans
+   `NAV_AREAS` where `/collection` never appears — so typing the URL reaches the page. The API behind it
+   (`finance.controller.ts` class-level `@ForModule('money')`) still refuses the data, so it is a dead
+   screen rather than a leak.
+6. **`ELDER` and `FOLLOWUP_TEAM` hold `care:read/write/moderate` and see no Care anywhere** — the role gate
+   `CARE_ROLES = ['USHER','SUNDAY_SCHOOL']` (`access.ts:175,229,317`) hides the nav and denies `/care`,
+   while `/welfare` (no role gate) stays open. This is Batch-1-era intent, but it means those grants are
+   dead weight on two roles.
+7. **`POST /demographics/promotions/run` needs only `members:write`** (`demographics.controller.ts:72`) and
+   no switch; `POST /push/subscribe` needs `members:read` (`push.module.ts:37`). Branch transfer approval is
+   `members:write` (`branches.module.ts:197`) — a member-editing role approves a transfer between branches.
+8. **`/about` is the only `(app)` screen with no `ROUTE_ACCESS` entry** (`access.ts:310-338`), and
+   `canAccessPath` returns `true` when nothing matches (`:435`). Deliberate per the page comment, but it is
+   the one screen where "no rule" means "open".
+
+**Not touched:** `dev.controller.ts:41` mock-Paystack completion (`@Public`) and the simulated SMS/gift
+success — the two blockers the owner explicitly did not approve. `platform/*` skips church RBAC by design
+(own PlatformGuard).
+
+**Recommendations put to the owner (awaiting a yes per line):** gate `giving` on `money` and decide the
+public-give exemption · put a declarable permission on the three children's-desk routes · delete the dead
+grants · re-key usher mode off `checkin:write` · give `/collection` its `module:'money'` route rule ·
+decide whether ELDER/FOLLOWUP_TEAM keep `care:*` at all · separate `promotions:run` / `branches:write`
+permissions.
