@@ -1366,3 +1366,15 @@ New-here QR renders, collection shows *"Counted in. The treasurer will approve i
 **Counts.** api 142/142 (17 files) · shared 126/126 · typecheck clean in api/web/shared · eslint clean ·
 `check:secrets` clean. Test money rows, attendance and seeded codes deleted; worship switched on for the test
 and restored off. Neon untouched.
+
+## 2026-11-04 — Collections at programs that are not services (`uncommitted`)
+
+**Owner:** money is collected at other programs too (harvest night, a funeral, a fund drive), so the count
+cannot be tied to a Sunday service. `GivingBatch.serviceId` is now nullable (migration
+`14_program_collections`), and the collection screen asks **"For what?"** — a service from the list, or
+*Other program…* with a name. The batch label is what the treasurer reads: `Offering count — <service>` or
+`Offering count — <program>`. A count that names neither is refused (*"choose the service or name the
+program"*). 4 unit tests. Proven live: *Harvest night* → 201, batch `serviceId: null`,
+label `Offering count — Harvest night`; browser at 390px shows the service list plus Other program, and
+submits with the typed name. api 146/146 (18 files) · shared 126/126 · typecheck/eslint/secrets clean.
+Test rows deleted.

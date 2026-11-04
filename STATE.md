@@ -288,7 +288,8 @@ C:\Users\HP\Desktop\church\
   Batch 10 ✅ (owner ask, 4 Nov) — usher mode fits the door: check-in by scanned card **or** typed member
   number/phone, `/collection` (new `collection:write`; the usher enters the counted amount and never sees the
   finance sheet — `GET /finance/batches` stays 403), real QR codes (join QR on /join-card and inside Check-in;
-  each member's check-in QR in the companion). Requirement tags (`R4.10`) removed from the UI.
+  each member's check-in QR in the companion). Requirement tags (`R4.10`) removed from the UI. Collections
+  also work at non-service programs (nullable `GivingBatch.serviceId`, "For what?" picker).
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 

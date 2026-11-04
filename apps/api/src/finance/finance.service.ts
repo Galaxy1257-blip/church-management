@@ -18,6 +18,18 @@ export interface BatchEntryInput {
   giverName?: string;
 }
 
+/**
+ * The batch a count belongs to. A program that is not a service (harvest night,
+ * a funeral, a fund drive) still needs a name — that is the label the treasurer
+ * reads — so one of the two must be given.
+ */
+export function collectionBatchLabel(serviceName: string | null | undefined, label: string | null | undefined): string {
+  const clean = (label ?? '').trim();
+  if (clean.length >= 3) return `Offering count — ${clean.slice(0, 60)}`;
+  if (serviceName) return `Offering count — ${serviceName}`;
+  throw new BadRequestException('choose the service or name the program');
+}
+
 @Injectable()
 export class FinanceService {
   constructor(private readonly tenant: TenantService) {}
@@ -66,32 +78,38 @@ export class FinanceService {
    * hands it to the treasurer for approval. Nothing about funds, reports or the
    * finance sheet is returned.
    */
-  recordCollection(user: AuthUser, input: { serviceId: string; amountMinor: number; note?: string }, ip?: string) {
-    if (!input.serviceId || typeof input.serviceId !== 'string') {
-      throw new BadRequestException('choose the service first');
-    }
+  recordCollection(
+    user: AuthUser,
+    input: { serviceId?: string; label?: string; amountMinor: number; note?: string },
+    ip?: string,
+  ) {
     if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
       throw new BadRequestException('enter the amount you counted');
     }
+    if (!input.serviceId && !input.label?.trim()) {
+      throw new BadRequestException('choose the service or name the program');
+    }
     return this.tenant.run(user, async (tx) => {
-      const service = await tx.service.findFirst({ where: { id: input.serviceId, churchId: user.churchId } });
-      if (!service) throw new NotFoundException('service not found');
+      const service = input.serviceId
+        ? await tx.service.findFirst({ where: { id: input.serviceId, churchId: user.churchId } })
+        : null;
+      if (input.serviceId && !service) throw new NotFoundException('service not found');
+      const label = collectionBatchLabel(service?.name, input.label);
       const fund = await tx.fund.findFirst({
         where: { churchId: user.churchId, isActive: true, type: 'OFFERING' },
         orderBy: { name: 'asc' },
       }) ?? (await tx.fund.findFirst({ where: { churchId: user.churchId, isActive: true }, orderBy: { name: 'asc' } }));
       if (!fund) throw new BadRequestException('no offering fund is set up yet — ask the treasurer');
-      const label = `Offering count — ${service.name}`;
       const batch = (await tx.givingBatch.findFirst({
-        where: { churchId: user.churchId, serviceId: service.id, label, status: 'OPEN' },
+        where: { churchId: user.churchId, serviceId: service?.id ?? null, label, status: 'OPEN' },
       })) ?? (await tx.givingBatch.create({
-        data: { churchId: user.churchId, branchId: service.branchId, serviceId: service.id, label, status: 'OPEN' },
+        data: { churchId: user.churchId, branchId: service?.branchId ?? null, serviceId: service?.id ?? null, label, status: 'OPEN' },
       }));
       const note = input.note?.trim();
       const row = await tx.transaction.create({
         data: {
           churchId: user.churchId,
-          branchId: service.branchId,
+          branchId: service?.branchId ?? null,
           fundId: fund.id,
           giftMinor: input.amountMinor,
           chargedMinor: input.amountMinor,

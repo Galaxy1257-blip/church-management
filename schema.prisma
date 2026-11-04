@@ -960,7 +960,8 @@ model GivingBatch {
   id           String      @id @default(uuid(7)) @db.Uuid
   churchId     String      @db.Uuid
   branchId     String?     @db.Uuid
-  serviceId    String      @db.Uuid
+  /// Null for a count taken at a program that is not a service (harvest night…).
+  serviceId    String?     @db.Uuid
   label        String
   status       BatchStatus @default(OPEN)
   countedBy1   String?     @db.Uuid

@@ -6,10 +6,13 @@ import { api } from '../../../lib/api';
 import { toPesewas } from '../../../lib/format';
 import Notice from '../../../components/notice';
 
-interface Service { id: string; name: string; startsAt: string; status: string }
+interface ServiceOption { id: string; name: string; startsAt: string }
 
 export default function CollectionPage() {
-  const [service, setService] = useState<Service | null>(null);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  // '' = nothing chosen yet, 'other' = a program that is not a service.
+  const [target, setTarget] = useState('other');
+  const [program, setProgram] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [notice, setNotice] = useState('');
@@ -18,9 +21,12 @@ export default function CollectionPage() {
 
   useEffect(() => {
     // Its own endpoint: counting the offering must not need the Services section
-    // switched on (and an empty dropdown would leave the door stuck).
-    void api<Service | null>('/finance/collection-service')
-      .then(setService)
+    // switched on, and a program that is not a service is a valid occasion too.
+    void api<{ currentId: string | null; services: ServiceOption[] }>('/finance/collection-service')
+      .then((c) => {
+        setServices(c.services);
+        setTarget(c.currentId ?? 'other');
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'could not find the service'));
   }, []);
 
@@ -34,7 +40,14 @@ export default function CollectionPage() {
     setBusy(true);
     setError('');
     try {
-      await api('/finance/collection', { method: 'POST', body: { serviceId: service?.id, amountMinor, note: note || undefined } });
+      await api('/finance/collection', {
+        method: 'POST',
+        body: {
+          ...(target === 'other' ? { label: program } : { serviceId: target }),
+          amountMinor,
+          note: note || undefined,
+        },
+      });
       setAmount(''); setNote('');
       setNotice('Counted in. The treasurer will approve it.');
     } catch (err) {
@@ -53,17 +66,23 @@ export default function CollectionPage() {
       <div className="card">
         <form className="stack" onSubmit={submit}>
           <label>
-            Service
-            <input value={service ? service.name : 'No service yet'} readOnly />
+            For what?
+            <select value={target} onChange={(e) => setTarget(e.target.value)}>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+              <option value="other">Other program…</option>
+            </select>
           </label>
-          {!service ? (
-            <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>
-              There is no service recorded yet. Open Attendance (or ask the office) and the count will work.
-            </p>
+          {target === 'other' ? (
+            <label>
+              Program name
+              <input value={program} onChange={(e) => setProgram(e.target.value)} placeholder="Harvest night, funeral, building fund drive" required />
+            </label>
           ) : null}
           <label>Amount counted (GHS)<input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="350" required /></label>
           <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="two ushers counted together, after the service" /></label>
-          <button disabled={busy || !service}>Submit count</button>
+          <button disabled={busy || (target === 'other' ? program.trim().length < 3 : !target)}>Submit count</button>
         </form>
       </div>
     </div>

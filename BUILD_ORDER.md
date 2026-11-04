@@ -350,6 +350,9 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
 - [x] Real QR codes (`qrcode`): join QR on `/join-card` and inside Check-in; each member's own check-in QR in
       the companion.
 - [x] Requirement tags removed from UI copy and comments.
+- [x] Counts also work at programs that are not services (harvest night, funeral, fund drive):
+      `GivingBatch.serviceId` nullable, "For what?" picker with *Other program…*, batch label names the
+      occasion. 4 unit tests.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*

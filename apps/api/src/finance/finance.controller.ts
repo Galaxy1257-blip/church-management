@@ -48,7 +48,10 @@ export class FinanceController {
   async collectionService(@Req() req: AuthedRequest) {
     const list = await this.services.list(req.user!);
     const current = list.find((s) => s.status === 'OPEN') ?? list[0] ?? null;
-    return current ? { id: current.id, name: current.name, startsAt: current.startsAt, status: current.status } : null;
+    return {
+      currentId: current?.id ?? null,
+      services: list.slice(0, 6).map((s) => ({ id: s.id, name: s.name, startsAt: s.startsAt })),
+    };
   }
 
   @RequirePermissions('finance:read')
@@ -60,7 +63,10 @@ export class FinanceController {
   /** The door team's amount only — no sheet, no fund list, no reports. */
   @RequirePermissions('collection:write')
   @Post('collection')
-  recordCollection(@Req() req: AuthedRequest, @Body() body: { serviceId: string; amountMinor: number; note?: string }) {
+  recordCollection(
+    @Req() req: AuthedRequest,
+    @Body() body: { serviceId?: string; label?: string; amountMinor: number; note?: string },
+  ) {
     return this.finance.recordCollection(req.user!, body, req.ip);
   }
 
