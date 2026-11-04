@@ -9,8 +9,7 @@ import Notice from '../../../components/notice';
 interface Service { id: string; name: string; startsAt: string; status: string }
 
 export default function CollectionPage() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [serviceId, setServiceId] = useState('');
+  const [service, setService] = useState<Service | null>(null);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [notice, setNotice] = useState('');
@@ -18,13 +17,11 @@ export default function CollectionPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void api<Service[]>('/services')
-      .then((list) => {
-        setServices(list);
-        const active = list.find((s) => s.status === 'OPEN') ?? list[0];
-        if (active) setServiceId(active.id);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'could not load services'));
+    // Its own endpoint: counting the offering must not need the Services section
+    // switched on (and an empty dropdown would leave the door stuck).
+    void api<Service | null>('/finance/collection-service')
+      .then(setService)
+      .catch((e) => setError(e instanceof Error ? e.message : 'could not find the service'));
   }, []);
 
   async function submit(e: FormEvent): Promise<void> {
@@ -37,7 +34,7 @@ export default function CollectionPage() {
     setBusy(true);
     setError('');
     try {
-      await api('/finance/collection', { method: 'POST', body: { serviceId, amountMinor, note: note || undefined } });
+      await api('/finance/collection', { method: 'POST', body: { serviceId: service?.id, amountMinor, note: note || undefined } });
       setAmount(''); setNote('');
       setNotice('Counted in. The treasurer will approve it.');
     } catch (err) {
@@ -57,16 +54,16 @@ export default function CollectionPage() {
         <form className="stack" onSubmit={submit}>
           <label>
             Service
-            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required>
-              <option value="">Choose the service</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+            <input value={service ? service.name : 'No service yet'} readOnly />
           </label>
+          {!service ? (
+            <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>
+              There is no service recorded yet. Open Attendance (or ask the office) and the count will work.
+            </p>
+          ) : null}
           <label>Amount counted (GHS)<input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="350" required /></label>
           <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="two ushers counted together, after the service" /></label>
-          <button disabled={busy || !serviceId}>Submit count</button>
+          <button disabled={busy || !service}>Submit count</button>
         </form>
       </div>
     </div>

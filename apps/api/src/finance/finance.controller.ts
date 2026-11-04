@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { BatchEntryInput, FinanceService } from './finance.service';
+import { ServicesService } from '../services/services.service';
 
 class EntryDto implements BatchEntryInput {
   @IsString() fundId!: string;
@@ -35,7 +36,20 @@ class DepositDto {
 @ForModule('money')
 @Controller('finance')
 export class FinanceController {
-  constructor(private readonly finance: FinanceService) {}
+  constructor(private readonly finance: FinanceService, private readonly services: ServicesService) {}
+
+  /**
+   * The service an usher is counting for. It reads through ServicesService so the
+   * Sunday-morning auto-open still runs, and it does not depend on the Services
+   * section being switched on (the door still counts when that screen is hidden).
+   */
+  @RequirePermissions('collection:write')
+  @Get('collection-service')
+  async collectionService(@Req() req: AuthedRequest) {
+    const list = await this.services.list(req.user!);
+    const current = list.find((s) => s.status === 'OPEN') ?? list[0] ?? null;
+    return current ? { id: current.id, name: current.name, startsAt: current.startsAt, status: current.status } : null;
+  }
 
   @RequirePermissions('finance:read')
   @Get('batches')
