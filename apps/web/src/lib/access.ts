@@ -229,6 +229,11 @@ export const NAV_AREAS: NavArea[] = [
       { href: '/finance', label: 'Offerings', permissions: ['finance:read'] },
       { href: '/campaigns', label: 'Special offerings', permissions: ['giving:read'], module: 'special_offerings' },
       { href: '/expenses', label: 'Expenses', permissions: ['expenses:read'], module: 'expenses' },
+      // Welfare is money, so it sits with the money pages — but its endpoints are
+      // part of the Care section (apps/api/src/ministry/care.module.ts is
+      // @ForModule('care')), so it opens and closes with that switch, not the
+      // Money one. Care itself stays a usher/teacher screen (see CARE_ROLES).
+      { href: '/welfare', label: 'Welfare', permissions: ['welfare:read'], module: 'care' },
     ],
   },
   {
@@ -290,6 +295,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/finance', permissions: ['finance:read'], label: 'Offerings' },
   { prefix: '/campaigns', permissions: ['giving:read'], label: 'Special offerings' },
   { prefix: '/expenses', permissions: ['expenses:read'], label: 'Expenses' },
+  { prefix: '/welfare', permissions: ['welfare:read'], label: 'Welfare' },
   { prefix: '/events', permissions: ['services:write', 'members:write'], label: 'Events' },
   { prefix: '/drip', permissions: ['visitors:read'], label: 'Follow-up' },
   { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },

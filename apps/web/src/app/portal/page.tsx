@@ -1,13 +1,48 @@
 'use client';
 // Member companion: OTP login (member phone, no staff account) with tabs —
 // Home, My giving + statement, Volunteer shifts, Events/RSVP, Prayer.
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { fmtDateTime, ghs } from '../../lib/format';
+import { pdfBlob } from '../../lib/pdf';
 import BibleDock from '../../components/bible-dock';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
+// The member token lasts 30 days, so a companion that forgets it on every reload
+// asks for a new SMS code every time — a text costs the church money. "Keep me
+// signed in" writes it to this phone's storage; without the tick it is kept for
+// the open tab only (sessionStorage) and the next visit asks again.
+const KEEP_KEY = 'chms.portal.token';
+
+function readStoredToken(): string {
+  try {
+    return localStorage.getItem(KEEP_KEY) ?? sessionStorage.getItem(KEEP_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function storeToken(token: string, keep: boolean): void {
+  try {
+    localStorage.removeItem(KEEP_KEY);
+    sessionStorage.removeItem(KEEP_KEY);
+    (keep ? localStorage : sessionStorage).setItem(KEEP_KEY, token);
+  } catch {
+    // Private mode / storage full: the session still works, it just is not kept.
+  }
+}
+
+function forgetToken(): void {
+  try {
+    localStorage.removeItem(KEEP_KEY);
+    sessionStorage.removeItem(KEEP_KEY);
+  } catch {
+    // Nothing stored to clear.
+  }
+}
+
 interface GiftRow { date: string | null; fund: string; amountMinor: number; reference: string; channel: string | null }
+interface Statement { year: number; rows: GiftRow[]; totalMinor: number }
 interface HomeData {
   member: { firstName: string; lastName: string; memberNo: string };
   church: {
@@ -35,9 +70,12 @@ export default function PortalPage() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [token, setToken] = useState('');
+  const [keep, setKeep] = useState(true);
+  const [restoring, setRestoring] = useState(true);
   const [tab, setTab] = useState<Tab>('home');
   const [home, setHome] = useState<HomeData | null>(null);
   const [giving, setGiving] = useState<GiftRow[]>([]);
+  const [statement, setStatement] = useState<Statement | null>(null);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -47,6 +85,37 @@ export default function PortalPage() {
   const [error, setError] = useState('');
 
   const auth = () => ({ Authorization: `Bearer ${token}` });
+
+  /** Everything the companion shows, for one token. False when the token is dead. */
+  async function loadAll(t: string): Promise<boolean> {
+    const headers = { Authorization: `Bearer ${t}` };
+    const first = await fetch(`${API}/portal/home`, { headers });
+    if (!first.ok) return false;
+    const h = (await first.json()) as HomeData;
+    const [g, sh, ev] = await Promise.all([
+      fetch(`${API}/portal/my-giving`, { headers }).then((r) => r.json()),
+      fetch(`${API}/portal/shifts`, { headers }).then((r) => r.json()),
+      fetch(`${API}/portal/events`, { headers }).then((r) => r.json()),
+    ]);
+    setHome(h); setGiving(g); setShifts(sh); setEvents(ev);
+    if (h?.church?.branding?.primaryColor) document.documentElement.style.setProperty('--brand', h.church.branding.primaryColor);
+    return true;
+  }
+
+  // A kept session comes back on its own. A token the church has since revoked
+  // (member deleted, secret rotated) lands on the sign-in form, not an error.
+  useEffect(() => {
+    const saved = readStoredToken();
+    if (!saved) { setRestoring(false); return; }
+    void loadAll(saved)
+      .then((ok) => {
+        if (ok) { setToken(saved); setStep('in'); }
+        else forgetToken();
+      })
+      .catch(() => forgetToken())
+      .finally(() => setRestoring(false));
+    // Runs once: the stored token is the only input.
+  }, []);
 
   async function requestOtp(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -67,23 +136,52 @@ export default function PortalPage() {
     });
     if (!res.ok) { setError('Invalid code'); return; }
     const { token: t } = (await res.json()) as { token: string };
+    storeToken(t, keep);
     setToken(t);
-    const headers = { Authorization: `Bearer ${t}` };
-    const [h, g, sh, ev] = await Promise.all([
-      fetch(`${API}/portal/home`, { headers }).then((r) => r.json()),
-      fetch(`${API}/portal/my-giving`, { headers }).then((r) => r.json()),
-      fetch(`${API}/portal/shifts`, { headers }).then((r) => r.json()),
-      fetch(`${API}/portal/events`, { headers }).then((r) => r.json()),
-    ]);
-    setHome(h); setGiving(g); setShifts(sh); setEvents(ev);
-    if (h?.church?.branding?.primaryColor) document.documentElement.style.setProperty('--brand', h.church.branding.primaryColor);
+    setNotice('');
+    await loadAll(t);
     setStep('in');
   }
 
   async function loadStatement(): Promise<void> {
     const res = await fetch(`${API}/portal/statement?year=${year}`, { headers: auth() });
-    const data = (await res.json()) as { rows: GiftRow[]; totalMinor: number };
+    if (!res.ok) { setError('Could not load the statement for that year.'); return; }
+    const data = (await res.json()) as Statement;
+    setStatement(data);
     setGiving(data.rows);
+    setError('');
+  }
+
+  /**
+   * The annual statement as a real PDF — the same dependency-free writer the
+   * expense summary uses, so a member away from Ghana can download one file for
+   * their records instead of printing a screen.
+   */
+  function downloadStatement(): void {
+    if (!statement || statement.rows.length === 0) { setError('There is nothing to put in the statement yet.'); return; }
+    const churchName = home?.church?.name ?? '';
+    const who = home ? `${home.member.firstName} ${home.member.lastName}` : '';
+    const lines = [
+      { text: churchName ? `${churchName} - Statement of Giving` : 'Statement of Giving', bold: true, size: 16 },
+      { text: `Year: ${statement.year}`, bold: true },
+      ...(who ? [{ text: `Member: ${who}` }] : []),
+      { text: `Total given: ${ghs(statement.totalMinor)}`, bold: true },
+      { text: `Issued: ${new Date().toISOString().slice(0, 10)}` },
+      { text: '' },
+      ...statement.rows.map((g) => ({
+        text: `${g.date ? g.date.slice(0, 10) : '-'}  ${g.fund}  ${ghs(g.amountMinor)}  ref ${g.reference}`,
+      })),
+      { text: '' },
+      { text: `${statement.rows.length} gift(s). This statement is a record of what was given to the church's own funds.` },
+    ];
+    const file = new File([pdfBlob(lines)], `statement-${statement.year}.pdf`, { type: 'application/pdf' });
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+    setNotice(`Statement for ${statement.year} downloaded as a PDF.`);
   }
 
   async function rsvp(eventId: string, partySize = 1): Promise<void> {
@@ -134,12 +232,28 @@ export default function PortalPage() {
     }
   }
 
+  async function signOut(): Promise<void> {
+    forgetToken();
+    setToken('');
+    setStep('phone');
+    setCode('');
+    setHome(null);
+    setGiving([]); setStatement(null); setShifts([]); setEvents([]);
+    setTab('home');
+    setNotice('Signed out on this phone.');
+  }
+
   if (step !== 'in') {
     return (
       <div className="container" style={{ maxWidth: 420, paddingTop: '8vh' }}>
         <div className="card">
           <h1>Member companion</h1>
+          {restoring ? (
+            <p className="muted" style={{ marginBottom: 0 }}>Checking this phone for a saved sign-in…</p>
+          ) : (
+            <>
           <p className="muted">Sign in with the phone number you registered with your church.</p>
+          {notice ? <p className="muted" style={{ marginTop: 0 }}>{notice}</p> : null}
           {step === 'phone' ? (
             <form className="stack" onSubmit={requestOtp}>
               <label>Church slug<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
@@ -150,9 +264,25 @@ export default function PortalPage() {
           ) : (
             <form className="stack" onSubmit={verify}>
               <label>6-digit code<input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" required /></label>
+              <label className="row" style={{ alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={keep}
+                  onChange={(e) => setKeep(e.target.checked)}
+                  style={{ width: 'auto' }}
+                />
+                Keep me signed in on this phone
+              </label>
+              <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>
+                {keep
+                  ? 'You will not need a new code the next time you open this page on this phone.'
+                  : 'This phone signs out when you close the page.'}
+              </p>
               {error ? <div className="error">{error}</div> : null}
               <button>Sign in</button>
             </form>
+          )}
+            </>
           )}
         </div>
       </div>
@@ -169,7 +299,10 @@ export default function PortalPage() {
               ) : null}
               {home?.church?.name ?? 'Church'}
             </h1>
-            <span className="badge mute">{home?.member?.memberNo}</span>
+            <span className="row" style={{ alignItems: 'center', gap: 8 }}>
+              <span className="badge mute">{home?.member?.memberNo}</span>
+              <button className="small secondary" onClick={() => void signOut()}>Sign out</button>
+            </span>
           </div>
         <p style={{ margin: '4px 0' }}>Welcome, <b>{home?.member?.firstName} {home?.member?.lastName}</b></p>
         <nav className="portal-tabs" aria-label="Member sections">
@@ -187,6 +320,9 @@ export default function PortalPage() {
         </nav>
       </div>
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
+      {/* The signed-in view had no error banner at all, so a failed statement or
+          prayer simply looked like nothing had happened. */}
+      {error ? <div className="error">{error}</div> : null}
       {tab === 'home' ? (
         <div>
           <div className="card">
@@ -243,9 +379,21 @@ export default function PortalPage() {
             <div className="row">
               <input style={{ width: 70 }} value={year} onChange={(e) => setYear(e.target.value)} />
               <button className="small secondary" onClick={() => void loadStatement()}>Statement {year}</button>
+              {statement && statement.year === Number(year) && statement.rows.length > 0 ? (
+                <button className="small" onClick={downloadStatement}>Download PDF</button>
+              ) : null}
               <button className="small secondary" onClick={() => window.print()}>Print</button>
             </div>
           </div>
+          {statement ? (
+            <p className="muted" style={{ fontSize: '.85rem' }}>
+              {statement.rows.length} offering{statement.rows.length === 1 ? '' : 's'} in {statement.year}, total {ghs(statement.totalMinor)}.
+            </p>
+          ) : (
+            <p className="muted" style={{ fontSize: '.85rem' }}>
+              Choose a year and ask for the statement to see what you gave in it.
+            </p>
+          )}
           <table>
             <thead><tr><th>Date</th><th>What for</th><th>Amount</th><th>Ref</th></tr></thead>
             <tbody>

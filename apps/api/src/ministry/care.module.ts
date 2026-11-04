@@ -7,7 +7,7 @@ import { classMemberIds, classMemberWhere, classScopeFor } from '../common/class
 import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
-import { decryptNote, encryptNote } from './crypto';
+import { decryptNote, encryptNote, openNote } from './crypto';
 
 class PrayerDto {
   @IsString() @MinLength(3) body!: string;
@@ -128,11 +128,33 @@ export class CareService {
     });
   }
 
+  /**
+   * The welfare list for the people who decide payouts. The situation is read
+   * here, in the open, the same way a counselling note is: anyone approving money
+   * has to be able to read what they are approving. The cipher, nonce and key
+   * version stay on the server — a browser that is given the plaintext has no use
+   * for them, and shipping them out only widens what a stolen response contains.
+   */
   welfare(user: AuthUser) {
     return this.tenant.run(user, async (tx) => {
       const rows = await tx.welfareRequest.findMany({ where: { churchId: user.churchId }, orderBy: { createdAt: 'desc' }, take: 200 });
       const members = await this.membersById(tx, user.churchId, rows.map((r) => r.memberId));
-      return rows.map((r) => ({ ...r, member: members.get(r.memberId) ?? null }));
+      return Promise.all(
+        rows.map(async (r) => ({
+          id: r.id,
+          memberId: r.memberId,
+          category: r.category,
+          status: r.status,
+          amountRequestedMinor: r.amountRequestedMinor,
+          createdAt: r.createdAt,
+          description: await openNote(tx, user.churchId, {
+            cipher: r.descriptionCipher,
+            nonce: r.nonce,
+            keyVersion: r.keyVersion,
+          }),
+          member: members.get(r.memberId) ?? null,
+        })),
+      );
     });
   }
 

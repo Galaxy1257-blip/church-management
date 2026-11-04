@@ -2,9 +2,9 @@
 // Capital campaigns (progress from real gifts) + member pledges.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
-import { ghs } from '../../../lib/format';
+import { fmtDate, ghs } from '../../../lib/format';
 
-interface Campaign { id: string; name: string; goalMinor: number; raisedMinor: number; pledgedMinor: number }
+interface Campaign { id: string; name: string; goalMinor: number; raisedMinor: number; pledgedMinor: number; startsOn: string; endsOn: string | null }
 interface Fund { id: string; name: string }
 interface Pledge { id: string; memberId: string; amountMinor: number; frequency: string; fund?: { name: string } }
 
@@ -12,7 +12,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [pledges, setPledges] = useState<Pledge[]>([]);
-  const [campForm, setCampForm] = useState({ name: '', goal: '', fundId: '' });
+  const [campForm, setCampForm] = useState({ name: '', goal: '', fundId: '', endsOn: '' });
   const [pledgeForm, setPledgeForm] = useState({ memberId: '', fundId: '', amount: '' });
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -34,8 +34,10 @@ export default function CampaignsPage() {
   async function createCampaign(e: FormEvent): Promise<void> {
     e.preventDefault();
     try {
-      await api('/campaigns', { method: 'POST', body: { name: campForm.name, fundId: campForm.fundId, goalMinor: Math.round(Number(campForm.goal) * 100), startsOn: new Date().toISOString() } });
-      setCampForm({ ...campForm, name: '', goal: '' });
+      // An empty end date is sent as no end date, not as an invalid one.
+      const endsOn = campForm.endsOn ? new Date(`${campForm.endsOn}T12:00:00`).toISOString() : undefined;
+      await api('/campaigns', { method: 'POST', body: { name: campForm.name, fundId: campForm.fundId, goalMinor: Math.round(Number(campForm.goal) * 100), startsOn: new Date().toISOString(), ...(endsOn ? { endsOn } : {}) } });
+      setCampForm({ ...campForm, name: '', goal: '', endsOn: '' });
       setNotice('Campaign launched');
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
@@ -63,6 +65,11 @@ export default function CampaignsPage() {
           return (
             <div key={c.id} style={{ marginBottom: 10 }}>
               <div className="spread"><strong>{c.name}</strong><span className="muted">{ghs(c.raisedMinor)} / {ghs(c.goalMinor)} · pledged {ghs(c.pledgedMinor)}</span></div>
+              {/* Progress is the gifts on this fund inside these dates, so the
+                  dates have to be visible or two campaigns can look identical. */}
+              <div className="muted" style={{ fontSize: '.8rem', marginTop: 2 }}>
+                {fmtDate(c.startsOn)} – {c.endsOn ? fmtDate(c.endsOn) : 'no end date'}
+              </div>
               <div style={{ background: 'var(--bg-soft)', borderRadius: 8, height: 12, marginTop: 4 }}>
                 <div style={{ width: `${pct}%`, background: 'var(--accent)', height: '100%', borderRadius: 8 }} />
               </div>
@@ -75,8 +82,16 @@ export default function CampaignsPage() {
           <select value={campForm.fundId} onChange={(e) => setCampForm({ ...campForm, fundId: e.target.value })}>
             {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
+          <label style={{ fontSize: '.82rem' }}>
+            <span className="muted">Counts gifts until</span>
+            <input type="date" value={campForm.endsOn} onChange={(e) => setCampForm({ ...campForm, endsOn: e.target.value })} />
+          </label>
           <button>Launch</button>
         </form>
+        <p className="muted" style={{ fontSize: '.82rem', marginBottom: 0 }}>
+          The total is every gift to that fund from today, and up to the day you choose. Leave it blank and the
+          campaign keeps counting later gifts on that fund.
+        </p>
       </div>
       <div className="card">
         <h2>Pledges</h2>

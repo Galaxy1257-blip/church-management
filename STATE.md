@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session U). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session V). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -207,6 +207,19 @@ C:\Users\HP\Desktop\church\
    given the demo password and the *Children Ministry* bracket with segment ALL, two `MemberGuardian` pickup
    links (Kofi Mensah and Emmanuel Appiah ← Akosua Nyarko), and a service row dated 4 Nov. The demo church's
    `serviceSchedule.weekday` was temporarily set to Wednesday and restored to Sunday.
+0f. **Session V — audit Batch 2 (money truth).** Four findings fixed and proven in the running app.
+   (1) Welfare notes were never decryptable: `encryptNote` dropped the GCM tag, so the list shipped
+   `descriptionCipher`/`nonce`/`keyVersion`. The tag now rides at the end of the ciphertext, the list returns
+   `description` in words, and `openNote` returns null for pre-fix rows instead of failing the screen.
+   (2) Welfare moved to its own **/welfare** page (Money area, `welfare:read`, gated by the Care switch
+   because the API routes are `@ForModule('care')`); `/care` stays usher/teacher-only and keeps the prayer
+   wall and visits. (3) Campaign totals are bounded by `endsOn` (inclusive day) via `campaignRaisedWhere`,
+   and launch accepts an end date. (4) The dashboard money card names its Sunday and entry count.
+   `statement(year)` now filters in the database rather than over `myGiving`'s 200-row page, and the portal
+   downloads a real PDF (verified: 1,557 bytes, `Total given: GHS 1132.00`, `5 gift(s)`). Member mode also
+   got **Keep me signed in on this phone**, so a reload no longer costs the church another SMS code.
+   Open finding, not approved to fix: portal sign-in cannot complete when the church has no `SmsWallet`
+   (no code is queued) — part of the withheld fake-SMS blocker.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in
@@ -259,7 +272,11 @@ C:\Users\HP\Desktop\church\
   decision (owner) · **Render + Vercel need a manual deploy before any of this is live.**
 - **R9 (4 Nov audit round)**: Batch 1 ✅ — switches gate the API (9/9 switched-off sections 403 by name,
   5/5 switched-on 200), worship off by default, the class-scoped children's desk, the nav empty state.
-  Batches 2–6 approved and not started (money truth · display · accessibility · ops · missing screens).
+  Batch 2 ✅ — welfare decrypt + its own /welfare page, campaign end date, dashboard money label, statement
+  PDF, member-mode keep-signed-in. Batches 3–6 approved and not started (display · accessibility · ops ·
+  missing screens). Owner asked during Batch 2 (4 Nov) for **member mode to send in announcements and prayer
+  requests with photos, announcements going to leaders for approval before they show to everybody** —
+  planned as Batch 7.
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 

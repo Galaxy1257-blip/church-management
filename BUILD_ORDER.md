@@ -296,12 +296,32 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       code release cycle, `0` overflow, office-only form hidden from the teacher.
 - Gates: shared 126/126 · api 114/114 · both typechecks · eslint · `check:secrets` clean.
 
-### Batches 2–6 (approved, not started)
-- [ ] **Batch 2 — money truth:** welfare decrypt on screen, campaign window, gift card label, statement PDF.
+### Batch 2 — money truth ✅
+- [x] **Welfare notes readable by the person deciding.** The GCM tag now travels with the ciphertext (the
+      schema has no column), the list returns `description` in words and no cipher material, and `openNote`
+      returns null for pre-fix rows instead of failing the screen. 8 unit tests (4 crypto, 4 welfare).
+- [x] **Welfare has a reachable screen.** New **/welfare** page in the Money area, `welfare:read`, gated by
+      the Care switch because the endpoints are `@ForModule('care')`. `/care` stays usher/teacher-only.
+      Verified at 390px: table scrolls 190px inside its card to reach Approve/Decline; usher unaffected.
+- [x] **Campaign totals stop at the end date.** `campaignRaisedWhere` bounds `paidAt < endsOn + 1 day`
+      (end day inclusive); launch accepts an end date; the card prints the window. On real gifts: bounded
+      Sep = 494,000 pesewas, open-ended = 695,000. 4 unit tests.
+- [x] **The dashboard money card names its Sunday**: *"Offering on 18 Oct 2026 (11 entries)"*.
+- [x] **Statement PDF from the member companion.** `statement(year)` filters in the database (was: 200-row
+      page filtered in JS) and the portal downloads a real file — verified `statement-2026.pdf`, 1,557
+      bytes, `%PDF-1.4`, `Total given: GHS 1132.00`, `5 gift(s)`. 2 unit tests.
+- [x] **Keep me signed in on this phone** (owner ask) — portal token kept in local storage (or the open tab
+      only when unticked), restored on reload, cleared by Sign out. Verified live.
+- Gates: shared 126/126 · api 128/128 · both typechecks · eslint · `check:secrets` clean.
+
+### Batches 3–7 (approved or requested, not started)
 - [ ] **Batch 3 — display:** GH₵ formatting everywhere, one shared notice banner component, accent legibility.
 - [ ] **Batch 4 — phone and keyboard accessibility sweep.**
 - [ ] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
 - [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
+- [ ] **Batch 7 — member posts (owner ask, 4 Nov):** in member mode, send in announcements and prayer
+      requests with photos; announcements go to church leaders and only appear to everybody once approved.
+      Needs a Settings switch in the same unit, gated on the API too.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*

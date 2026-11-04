@@ -42,7 +42,10 @@ export async function encryptNote(tx: Db, churchId: string, plaintext: string): 
   const { key, version } = await dataKeyFor(tx, churchId);
   const nonce = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', key, nonce);
-  const cipher = Buffer.concat([c.update(plaintext, 'utf8'), c.final()]);
+  // GCM needs its 16-byte tag to decrypt, and the schema has no column for one,
+  // so the tag travels at the end of the ciphertext. Left off, every read fails
+  // the check and no note can ever be opened again.
+  const cipher = Buffer.concat([c.update(plaintext, 'utf8'), c.final(), c.getAuthTag()]);
   return { cipher, nonce, keyVersion: version };
 }
 
@@ -52,6 +55,26 @@ export async function decryptNote(
   field: { cipher: Uint8Array; nonce: Uint8Array; keyVersion: number },
 ): Promise<string> {
   const { key } = await dataKeyFor(tx, churchId);
+  const tagStart = field.cipher.length - 16;
+  if (tagStart < 0) throw new Error('encrypted note is too short to carry its tag');
   const d = createDecipheriv('aes-256-gcm', key, field.nonce);
-  return Buffer.concat([d.update(field.cipher), d.final()]).toString('utf8');
+  d.setAuthTag(field.cipher.subarray(tagStart));
+  return Buffer.concat([d.update(field.cipher.subarray(0, tagStart)), d.final()]).toString('utf8');
+}
+
+/**
+ * The same read, for a list. Notes written before the tag was stored cannot be
+ * opened at all, and one of those must not fail the whole screen: the caller
+ * gets null and shows that this one request has no readable situation.
+ */
+export async function openNote(
+  tx: Db,
+  churchId: string,
+  field: { cipher: Uint8Array; nonce: Uint8Array; keyVersion: number },
+): Promise<string | null> {
+  try {
+    return await decryptNote(tx, churchId, field);
+  } catch {
+    return null;
+  }
 }

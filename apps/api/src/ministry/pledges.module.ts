@@ -24,6 +24,32 @@ class PledgeDto {
   @IsString() startsOn!: string;
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * The gifts that count towards one campaign.
+ *
+ * A campaign has no rows of its own — money arrives on the fund, so the
+ * campaign's dates are the only thing that can tell two campaigns apart. Counting
+ * from the start with no end charged every later gift on the fund to the campaign
+ * forever, which made two campaigns on one fund report the same total and one
+ * long-finished build look like it was still filling up.
+ *
+ * The end is exclusive and one day past `endsOn` because the columns are plain
+ * dates: a campaign ending on the 30th runs until the last gift on the 30th.
+ */
+export function campaignRaisedWhere(churchId: string, c: { fundId: string; startsOn: Date; endsOn: Date | null }) {
+  return {
+    churchId,
+    fundId: c.fundId,
+    status: 'SUCCESS' as const,
+    paidAt: {
+      gte: c.startsOn,
+      ...(c.endsOn ? { lt: new Date(c.endsOn.getTime() + DAY_MS) } : {}),
+    },
+  };
+}
+
 @Injectable()
 export class PledgesService {
   constructor(private readonly tenant: TenantService) {}
@@ -34,7 +60,7 @@ export class PledgesService {
       const withProgress = await Promise.all(
         rows.map(async (c) => {
           const sum = await tx.transaction.aggregate({
-            where: { churchId: user.churchId, fundId: c.fundId, status: 'SUCCESS', paidAt: { gte: c.startsOn } },
+            where: campaignRaisedWhere(user.churchId, c),
             _sum: { giftMinor: true },
           });
           const pledged = await tx.pledge.aggregate({

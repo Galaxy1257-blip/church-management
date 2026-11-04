@@ -1175,3 +1175,64 @@ service row dated 4 Nov, created by the desk read itself.
 belongs with the shared notice banner in Batch 3. And the dashboard still offers **Check someone in**,
 **All services →** and the *Latest service* card while Services is off; the page answers honestly with
 *"Area switched off"*, so nothing is unsafe, but the card should follow the switch. Also Batch 3.
+
+## 2026-11-04 — Audit round 4, Batch 2: the money on screen told the truth (`uncommitted`)
+
+**Owner ask:** the same approved line — *"FIX ALL Feature reality, IMPLEMENT Minor and polish AND FIX
+Major — 10 findings"* — with Batch 2 covering the four money findings: welfare showed ciphertext, a
+special-offering campaign counted every later gift forever, the dashboard's money card had no date, and the
+member statement PDF did not exist. The two fake-success blockers were **not** approved and are untouched.
+
+**The encrypted notes had never been readable, by anyone.** `encryptNote` sealed with AES-256-GCM and threw
+the 16-byte auth tag away, so `decryptNote` could not authenticate a single note ever written — and the
+welfare list shipped `descriptionCipher`, `nonce` and `keyVersion` to the browser instead of the words. The
+tag now travels appended to the ciphertext (no schema column), `decryptNote` sets it on read, and the list
+returns `description` in words with the cipher material kept on the server. Rows written before the fix
+cannot be recovered (GCM without its tag cannot be opened at all), so `openNote` returns `null` for those
+and one dead row no longer 500s the whole screen. Proven live with an admin token: `GET /welfare` returned
+*"Two months of rent behind; the family is keeping it quiet."* and no cipher fields; `Approve` in the
+browser flipped the badge to Approved and the waiting count 2 → 1.
+
+**Welfare had no screen its own approvers could reach.** `/care` is usher/teacher-only on purpose (owner
+decision), but `welfare:read` belongs to finance, follow-up and elder — so the decrypted list had no live
+consumer. Welfare moved to its own **/welfare** page in the Money area, gated by `welfare:read` and by the
+Care switch (the endpoints are `@ForModule('care')`). `/care` lost the welfare card and kept the prayer wall
+and visits. Verified at 390px: admin sees the table with the situation text, the table card scrolls 190px
+to reach Approve/Decline, and the usher's `/care` and its two-link rail are unchanged; the usher has no
+Welfare link (no `welfare:read`).
+
+**Campaign totals counted the future.** A campaign summed gifts from its start with no end, so two campaigns
+on one fund reported the same number forever. `campaignRaisedWhere` now bounds by `paidAt < endsOn + 1 day`
+(the end date is inclusive) and launch accepts an end date. On real demo gifts (Building fund: Sep 494,000 /
+Oct 201,000 pesewas): bounded Sep = **494,000**, open-ended = **695,000**, and the seeded Sanctuary campaign
+shows **GHS 6,950.00** with *"23 Aug 2026 – 19 Feb 2027"* on its card.
+
+**The money card now says which Sunday.** It read `GHS 3338.00` under a bare *"Offering"* label; it now
+reads **"Offering on 18 Oct 2026 (11 entries)"**, verified at desktop and 390px.
+
+**The statement is a real file.** `statement(year)` used to page `myGiving`'s 200 rows and filter in
+JavaScript — a year with more than 200 gifts silently under-reported. It now queries `paidAt` within the
+year in the database and totals every row. The portal downloads it through the same dependency-free PDF
+writer as expenses: **statement-2026.pdf, 1,557 bytes, `%PDF-1.4`**, containing the church name, the member,
+`Total given: GHS 1132.00` and `5 gift(s)` — for a member whose five gifts sum to exactly 113,200 pesewas.
+The statement screen also gained the error banner it never had.
+
+**Member mode keeps the session (owner ask while verifying).** The 30-day portal token lived only in React
+state, so every reload cost the church another SMS code. A *Keep me signed in on this phone* tick (on by
+default) writes the token to this phone's storage; without it the token lives for the open tab only. A
+revoked token lands on the sign-in form, not an error. Verified in the browser: signed in, reloaded —
+still *"Welcome, Akua Danso"*; *Sign out* cleared storage and returned the phone form.
+
+**Found on the way, deliberately not fixed (not approved).** Portal sign-in cannot complete for a church with
+no SMS wallet: the OTP row is created, but no code is queued and the member has nothing to type. The demo
+church has no `SmsWallet` row at all. This sits inside the fake-SMS blocker the owner withheld; the OTP was
+exercised locally by seeding a challenge row (deleted afterwards).
+
+**Counts.** api **128/128** (14 files, +14 this batch: 4 crypto, 4 welfare, 4 campaign window, 2 statement)
+· shared 126/126 (15 files) · `typecheck` clean in both apps · eslint clean · `check:secrets` clean.
+Verified at desktop and 390px on /welfare, /care (admins and ushers), /campaigns, the dashboard card and the
+portal (sign-in, reload, statement, PDF, sign out).
+
+**Local dev fixtures (Postgres only — Neon untouched).** Care and Special offerings were switched on for the
+demo church to test, then restored to off; the two scratch welfare requests and the seeded OTP challenges
+were deleted.

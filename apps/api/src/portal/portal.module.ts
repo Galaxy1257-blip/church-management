@@ -166,10 +166,41 @@ export class PortalService {
     };
   }
 
+  /**
+   * One year of a member's giving, as the statement they are told they can
+   * download.
+   *
+   * This deliberately does not reuse my-giving: that page stops at 200 rows, and
+   * a statement built from a truncated page reports a total that is too small
+   * with nothing on the paper to say so. Here the year is filtered in the
+   * database, so the rows and the total are the same set of gifts.
+   */
   async statement(token: string, year: number) {
-    const rows = await this.myGiving(token);
-    const filtered = rows.filter((r) => (r.date ? new Date(r.date).getUTCFullYear() === year : false));
-    return { year, rows: filtered, totalMinor: filtered.reduce((a, r) => a + r.amountMinor, 0) };
+    const { member, churchId } = await this.portalUser(token);
+    const { from, to } = statementWindow(year);
+    const rows = await withTenant(churchId, null, (tx) =>
+      tx.transaction.findMany({
+        where: {
+          churchId,
+          OR: [{ memberId: member.id }, { giverPhoneE164: member.phoneE164 }],
+          status: 'SUCCESS',
+          paidAt: { gte: from, lt: to },
+        },
+        orderBy: { paidAt: 'asc' },
+        include: { fund: { select: { name: true } } },
+      }),
+    );
+    return {
+      year,
+      rows: rows.map((r) => ({
+        date: r.paidAt,
+        fund: r.fund.name,
+        amountMinor: r.giftMinor,
+        reference: r.reference,
+        channel: r.channel,
+      })),
+      totalMinor: rows.reduce((a, r) => a + r.giftMinor, 0),
+    };
   }
 
   /** Companion home: upcoming services + announcements (member view). */
@@ -296,6 +327,14 @@ export class PortalService {
   }
 }
 
+
+/**
+ * The two instants a year of giving runs between. Kept apart so the boundary is
+ * a fact someone can check rather than a filter buried in a query.
+ */
+export function statementWindow(year: number): { from: Date; to: Date } {
+  return { from: new Date(Date.UTC(year, 0, 1)), to: new Date(Date.UTC(year + 1, 0, 1)) };
+}
 
 function bearer(req: any): string {
   return String(req.headers.authorization ?? '').replace(/^Bearer /, '');

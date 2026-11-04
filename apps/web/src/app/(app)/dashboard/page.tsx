@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
-import { fmtDateTime, ghs } from '../../../lib/format';
+import { fmtDate, fmtDateTime, ghs } from '../../../lib/format';
 import { hasPermission, isCareRole, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import MemberDrawer from '../../../components/member-drawer';
@@ -207,8 +207,23 @@ export default function DashboardPage() {
               ) : null}
               {has('reports:read') && mod('money') ? (
                 <div className="card stat">
-                  <div className="value">{ghs(data.bySunday[0]?.totalMinor ?? 0)}</div>
-                  <div className="label">Offering last Sunday ({data.bySunday[0]?.count ?? 0} entries)</div>
+                  {data.bySunday[0] ? (
+                    <>
+                      <div className="value">{ghs(data.bySunday[0].totalMinor)}</div>
+                      {/* The feed is grouped by the day money came in, not by
+                          Sunday: the newest row is the most recent giving day,
+                          which is often a midweek service or a deposit. The card
+                          says the date it is actually showing. */}
+                      <div className="label">
+                        Offering on {fmtDate(data.bySunday[0].date)} ({data.bySunday[0].count} entries)
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="value">—</div>
+                      <div className="label">No offering recorded yet</div>
+                    </>
+                  )}
                 </div>
               ) : null}
               {careVisible && canOpenProfile ? (
@@ -319,7 +334,7 @@ export default function DashboardPage() {
         return (
           <div className="card">
             <div className="spread">
-              <h2 style={{ margin: 0 }}>Offering trend (last 8 Sundays)</h2>
+              <h2 style={{ margin: 0 }}>Offering trend (last 8 giving days)</h2>
               <Link href="/finance">Offerings →</Link>
             </div>
             {data.bySunday.length ? (
