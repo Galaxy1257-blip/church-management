@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { moduleEnabled, type ModuleFlags } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
+import Notice from '../../../components/notice';
 
 interface Branch { id: string; name: string; code: string }
 interface Household { id: string; name: string; members: { member: { firstName: string; lastName: string } }[] }
@@ -60,8 +61,8 @@ export default function OrgPage() {
   return (
     <div>
       <h1>Organisation</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="grid cols-2">
         {moduleEnabled(modules, 'branches') ? (
         <div className="card">

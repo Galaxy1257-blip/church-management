@@ -60,6 +60,61 @@ export class FinanceService {
     });
   }
 
+  /**
+   * What the door team may do: say how much money was counted. It finds (or
+   * opens) the counting batch for that service, adds the cash figure, and hands
+   * it to the treasurer for approval. Nothing about funds, reports or the
+   * finance sheet is returned.
+   */
+  recordCollection(user: AuthUser, input: { serviceId: string; amountMinor: number; note?: string }, ip?: string) {
+    if (!input.serviceId || typeof input.serviceId !== 'string') {
+      throw new BadRequestException('choose the service first');
+    }
+    if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
+      throw new BadRequestException('enter the amount you counted');
+    }
+    return this.tenant.run(user, async (tx) => {
+      const service = await tx.service.findFirst({ where: { id: input.serviceId, churchId: user.churchId } });
+      if (!service) throw new NotFoundException('service not found');
+      const fund = await tx.fund.findFirst({
+        where: { churchId: user.churchId, isActive: true, type: 'OFFERING' },
+        orderBy: { name: 'asc' },
+      }) ?? (await tx.fund.findFirst({ where: { churchId: user.churchId, isActive: true }, orderBy: { name: 'asc' } }));
+      if (!fund) throw new BadRequestException('no offering fund is set up yet — ask the treasurer');
+      const label = `Door count — ${service.name}`;
+      const batch = (await tx.givingBatch.findFirst({
+        where: { churchId: user.churchId, serviceId: service.id, label, status: 'OPEN' },
+      })) ?? (await tx.givingBatch.create({
+        data: { churchId: user.churchId, branchId: service.branchId, serviceId: service.id, label, status: 'OPEN' },
+      }));
+      const note = input.note?.trim();
+      const row = await tx.transaction.create({
+        data: {
+          churchId: user.churchId,
+          branchId: service.branchId,
+          fundId: fund.id,
+          giftMinor: input.amountMinor,
+          chargedMinor: input.amountMinor,
+          channel: 'CASH',
+          status: 'PENDING',
+          reference: `door-${batch.id.slice(0, 8)}-${Date.now()}`,
+          batchId: batch.id,
+          recordedBy: user.userId,
+          ...(note ? { giverName: note } : {}),
+        },
+      });
+      await appendAudit(tx, {
+        churchId: user.churchId,
+        actorId: user.userId,
+        action: 'finance.collection.record',
+        entity: 'Transaction',
+        entityId: row.id,
+        ip,
+      });
+      return { ok: true, countedMinor: input.amountMinor };
+    });
+  }
+
   addEntries(user: AuthUser, batchId: string, entries: BatchEntryInput[], ip?: string) {
     if (!Array.isArray(entries) || entries.length === 0) throw new BadRequestException('no entries');
     return this.tenant.run(user, async (tx) => {

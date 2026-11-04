@@ -205,6 +205,9 @@ export const NAV_AREAS: NavArea[] = [
       // runs their own class with children:write — the rule lives in canRunChildrenDesk.
       { href: '/children', label: 'Children', permissions: [], test: canRunChildrenDesk, module: 'children' },
       { href: '/groups', label: 'Groups', permissions: ['members:write'], module: 'groups' },
+      // The door team (and the office) shows this as a QR so people can add
+      // themselves to the church without anyone retyping their details.
+      { href: '/join-card', label: 'Join code', permissions: ['members:read'], module: 'people' },
       { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
       // Follow-up plans are for the visitor team, not a care-only teacher.
       { href: '/drip', label: 'Follow-up', permissions: ['visitors:read'], module: 'followup' },
@@ -269,6 +272,8 @@ export const USHER_NAV: NavItem[] = [
   { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'], module: 'worship' },
   { href: '/services', label: 'Attendance', permissions: ['services:read'], module: 'worship' },
   { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'], module: 'people' },
+  // The door worker enters the amount they counted — not the finance sheet.
+  { href: '/collection', label: 'Collection', permissions: ['collection:write'], module: 'money' },
   { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
 ];
 
@@ -287,6 +292,8 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/dashboard', permissions: ['church:read'], label: 'Dashboard' },
   { prefix: '/members', permissions: ['members:read'], label: 'Members' },
   { prefix: '/visitors', permissions: ['visitors:read'], label: 'Visitors' },
+  { prefix: '/join-card', permissions: ['members:read'], label: 'Join code' },
+  { prefix: '/collection', permissions: ['collection:write'], label: 'Collection' },
   { prefix: '/children', permissions: [], test: canRunChildrenDesk, label: 'Children' },
   { prefix: '/care', permissions: ['care:read'], roles: CARE_ROLES, label: 'Care' },
   { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },

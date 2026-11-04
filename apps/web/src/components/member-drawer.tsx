@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { fmtDate, fmtDateTime } from '../lib/format';
+import Notice from './notice';
 
 export interface MemberGroup {
   id: string;
@@ -100,7 +101,7 @@ export default function MemberDrawer({
         </div>
 
         <div className="drawer-body">
-          {error ? <div className="error">{error}</div> : null}
+          {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
           {!member && !error ? <p className="muted">Loading…</p> : null}
           {member ? (
             <>

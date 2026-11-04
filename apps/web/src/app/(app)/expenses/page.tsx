@@ -6,6 +6,7 @@ import { api } from '../../../lib/api';
 import { fmtDate, ghs } from '../../../lib/format';
 import { canShareFiles, pdfBlob, type PdfLine } from '../../../lib/pdf';
 import { peekSession } from '../../../lib/session';
+import Notice from '../../../components/notice';
 
 interface Expense {
   id: string;
@@ -166,8 +167,8 @@ export default function ExpensesPage() {
   return (
     <div>
       <h1>Expenses</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>Month total</h2>

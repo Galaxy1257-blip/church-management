@@ -16,7 +16,7 @@ export class CheckinService {
 
   async checkIn(
     user: AuthUser,
-    input: { serviceId: string; memberId?: string; qrToken?: string; phoneE164?: string; method?: CheckInMethod },
+    input: { serviceId: string; memberId?: string; qrToken?: string; code?: string; phoneE164?: string; method?: CheckInMethod },
     ip?: string,
   ) {
     const method = input.method ?? (input.qrToken ? 'QR' : input.phoneE164 ? 'PHONE_LOOKUP' : 'MANUAL');
@@ -28,13 +28,33 @@ export class CheckinService {
       if (service.status === 'CLOSED') throw new BadRequestException('service is closed');
 
       let memberId = input.memberId ?? null;
-      if (!memberId && input.qrToken) {
-        const hash = createHash('sha256').update(input.qrToken.trim()).digest('hex');
+      // One door input: a scanned card (hashed QR token) or the typed member
+      // number/phone. The same box takes either, so nobody has to choose.
+      const typed = (input.code ?? input.qrToken ?? '').trim();
+      if (!memberId && typed) {
+        const hash = createHash('sha256').update(typed).digest('hex');
+        // A member number is not a phone number; only try the phone lookup when
+        // the text actually parses, otherwise the member-number check never runs.
+        let phone: string | null = null;
+        try {
+          phone = normalizeGhPhone(typed);
+        } catch {
+          phone = null;
+        }
         const member = await tx.member.findFirst({
-          where: { churchId: user.churchId, qrToken: hash, deletedAt: null },
+          where: {
+            churchId: user.churchId,
+            deletedAt: null,
+            status: 'ACTIVE',
+            OR: [
+              { qrToken: hash },
+              { memberNo: { equals: typed, mode: 'insensitive' } },
+              ...(phone ? [{ phoneE164: phone }] : []),
+            ],
+          },
           select: { id: true },
         });
-        if (!member) throw new NotFoundException('no member matches that QR token');
+        if (!member) throw new NotFoundException('no member matches that card or code');
         memberId = member.id;
       }
       if (!memberId && input.phoneE164) {

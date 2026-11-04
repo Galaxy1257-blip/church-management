@@ -2,6 +2,7 @@
 import { FormEvent, use, useEffect, useState } from 'react';
 import { apiRaw } from '../../../lib/api';
 import { ghs, toPesewas } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface ChurchPublic {
   id?: string;
@@ -156,7 +157,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
               </div>
             </div>
           ) : null}
-          {error ? <div className="error">{error}</div> : null}
+          {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
           <button disabled={busy}>{busy ? 'Starting…' : 'Give now'}</button>
         </form>
       </div>

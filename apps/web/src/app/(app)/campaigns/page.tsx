@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate, ghs } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Campaign { id: string; name: string; goalMinor: number; raisedMinor: number; pledgedMinor: number; startsOn: string; endsOn: string | null }
 interface Fund { id: string; name: string }
@@ -56,8 +57,8 @@ export default function CampaignsPage() {
   return (
     <div>
       <h1>Campaigns &amp; Pledges</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="card">
         <h2>Campaigns (progress = actual gifts)</h2>
         {campaigns.map((c) => {

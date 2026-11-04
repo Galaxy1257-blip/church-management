@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ApiError, api, hasSession } from '../../../lib/api';
 import { finishLogin, useChurchLookup, type Tokens } from '../auth-shared';
+import Notice from '../../../components/notice';
 
 /** "Grace Chapel!" → "grace-chapel" — the ID the church will sign in with. */
 function suggestId(name: string): string {
@@ -191,7 +192,7 @@ export default function SignupPage() {
               />
             </label>
 
-            {error ? <div className="error">{error}</div> : null}
+            {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
             <button type="submit" disabled={busy}>
               {busy ? 'Setting up…' : tab === 'new' ? 'Create church workspace' : 'Create my account'}

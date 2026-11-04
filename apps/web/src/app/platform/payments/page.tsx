@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { monthLabel } from '../../../lib/billing';
 import { fmtDate, ghs } from '../../../lib/format';
 import { platformApi, type PlatformPayment } from '../../../lib/platform';
+import Notice from '../../../components/notice';
 
 const METHOD_LABEL: Record<string, string> = {
   PAYSTACK: 'Paystack',
@@ -68,12 +69,8 @@ export default function PlatformPaymentsPage() {
         </div>
       </div>
 
-      {notice ? (
-        <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="seg-toggle" style={{ marginBottom: '0.8rem' }} role="tablist" aria-label="Payment filter">
         {FILTERS.map((filter) => (

@@ -8,6 +8,7 @@ import { hasPermission } from '../../../lib/access';
 import { api } from '../../../lib/api';
 import { getSession } from '../../../lib/session';
 import { fmtDateTime } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Guardian {
   id: string;
@@ -151,8 +152,8 @@ export default function ChildrenPage() {
       {canManage === false ? (
         <p className="muted">You see the children in your Sunday School class, and only them.</p>
       ) : null}
-      {error ? <div className="error">{error}</div> : null}
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
 
       <div className="card">
         {services && services.length === 0 ? (

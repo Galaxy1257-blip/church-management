@@ -3,6 +3,7 @@
 // are created, turned off and given a new password. Onboarders never see it.
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { fmtDate, fmtDateTime } from '../../../lib/format';
+import Notice from '../../../components/notice';
 import {
   platformApi,
   platformUser,
@@ -101,12 +102,8 @@ export default function PlatformTeamPage() {
         </button>
       </div>
 
-      {notice ? (
-        <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {adding ? (
         <form className="card stack" onSubmit={createStaff}>

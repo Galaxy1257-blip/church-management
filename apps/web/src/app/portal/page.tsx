@@ -5,7 +5,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { fmtDateTime, ghs } from '../../lib/format';
 import { pdfBlob } from '../../lib/pdf';
 import { fileToPhotoDataUrl } from '../../lib/photo';
+import QRCode from 'qrcode';
 import BibleDock from '../../components/bible-dock';
+import Notice from '../../components/notice';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -92,6 +94,7 @@ export default function PortalPage() {
   const [unread, setUnread] = useState(0);
   const [paneOpen, setPaneOpen] = useState(false);
   const [assigned, setAssigned] = useState<AssignedWelfare[]>([]);
+  const [checkinQr, setCheckinQr] = useState('');
   const [postForm, setPostForm] = useState({ title: '', body: '' });
   const [postPhoto, setPostPhoto] = useState<string | null>(null);
   const [anonymous, setAnonymous] = useState(false);
@@ -118,6 +121,12 @@ export default function PortalPage() {
     ]);
     setHome(h); setGiving(g); setShifts(sh); setEvents(ev); setPosts(myPosts);
     setReminders(notes.items ?? []); setUnread(notes.unread ?? 0); setAssigned(help);
+    // The door scans this: it carries the member number the check-in looks up.
+    if (h?.member?.memberNo) {
+      void QRCode.toDataURL(h.member.memberNo, { width: 240, margin: 1, color: { dark: '#1f2a24', light: '#fffdf8' } })
+        .then(setCheckinQr)
+        .catch(() => setCheckinQr(''));
+    }
     if (h?.church?.branding?.primaryColor) document.documentElement.style.setProperty('--brand', h.church.branding.primaryColor);
     return true;
   }
@@ -255,7 +264,7 @@ export default function PortalPage() {
     setShifts(await fetch(`${API}/portal/shifts`, { headers: auth() }).then((r) => r.json()));
   }
 
-  // R4.11 export-my-data (Act 843): download everything the church holds about you.
+  // export-my-data (Act 843): download everything the church holds about you.
   async function exportMyData(): Promise<void> {
     try {
       const res = await fetch(`${API}/portal/export`, { headers: auth() });
@@ -328,7 +337,7 @@ export default function PortalPage() {
             <form className="stack" onSubmit={requestOtp}>
               <label>Church slug<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
               <label>Phone<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required /></label>
-              {error ? <div className="error">{error}</div> : null}
+              {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
               <button>Send login code</button>
             </form>
           ) : (
@@ -348,7 +357,7 @@ export default function PortalPage() {
                   ? 'You will not need a new code the next time you open this page on this phone.'
                   : 'This phone signs out when you close the page.'}
               </p>
-              {error ? <div className="error">{error}</div> : null}
+              {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
               <button>Sign in</button>
             </form>
           )}
@@ -407,12 +416,20 @@ export default function PortalPage() {
           ))}
         </div>
       ) : null}
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
       {/* The signed-in view had no error banner at all, so a failed statement or
           prayer simply looked like nothing had happened. */}
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       {tab === 'home' ? (
         <div>
+          <div className="card" style={{ textAlign: 'center' }}>
+            <h2>Your check-in code</h2>
+            {checkinQr ? (
+              <img src={checkinQr} alt={`Check-in QR for ${home?.member?.memberNo ?? 'you'}`} style={{ width: '100%', maxWidth: 220 }} />
+            ) : null}
+            <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', letterSpacing: '0.1em' }}>{home?.member?.memberNo}</div>
+            <p className="muted" style={{ marginBottom: 0, fontSize: '.85rem' }}>Show this at the door — the usher scans it or types the number.</p>
+          </div>
           <div className="card">
             <h2>Upcoming services</h2>
             {home?.services.map((s) => (

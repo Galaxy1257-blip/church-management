@@ -3,6 +3,7 @@
 // then later messages and tasks. The worker runs the published version.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Notice from '../../../components/notice';
 
 interface Step { position: number; type: string; delayMinutes: number; template: string }
 interface Workflow { id: string; name: string; trigger: string; isActive: boolean; versions: { version: number; isPublished: boolean; steps: Step[] }[] }
@@ -57,8 +58,8 @@ export default function FollowUpPage() {
     <div>
       <h1>Follow-up messages</h1>
       <p className="muted">Welcome new visitors automatically — a text on the day they visit, then a few friendly follow-ups.</p>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>Create a plan</h2>

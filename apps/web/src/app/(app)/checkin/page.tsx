@@ -1,6 +1,8 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Notice from '../../../components/notice';
+import QRCode from 'qrcode';
 
 interface Service {
   id: string;
@@ -23,8 +25,19 @@ export default function CheckinPage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [checkedIn, setCheckedIn] = useState<string[]>([]);
+  // Newcomers add themselves with this: the door shows it, they scan and join.
+  const [join, setJoin] = useState<{ enabled: boolean; code: string; slug: string } | null>(null);
+  const [joinQr, setJoinQr] = useState('');
 
   useEffect(() => {
+    void api<{ enabled: boolean; code: string; slug: string }>('/churches/me/join-link')
+      .then(async (j) => {
+        setJoin(j);
+        if (j.enabled && j.slug) {
+          setJoinQr(await QRCode.toDataURL(`${window.location.origin}/join/${j.slug}`, { width: 260, margin: 1 }));
+        }
+      })
+      .catch(() => undefined);
     void api<Service[]>('/services')
       .then((list) => {
         setServices(list);
@@ -62,7 +75,8 @@ export default function CheckinPage() {
 
   async function onQr(e: FormEvent): Promise<void> {
     e.preventDefault();
-    await checkIn({ qrToken: qrToken.trim(), method: 'QR' });
+    // The same box takes a scanned card or the member number typed at the door.
+    await checkIn({ code: qrToken.trim(), method: 'QR' });
     setQrToken('');
   }
 
@@ -88,7 +102,7 @@ export default function CheckinPage() {
           {notice}
         </div>
       ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="grid cols-2">
         <div className="card">
@@ -104,13 +118,21 @@ export default function CheckinPage() {
           </form>
         </div>
         <div className="card">
-          <h2>Scan QR token</h2>
+          <h2>Card or code</h2>
           <form className="stack" onSubmit={onQr}>
-            <input value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="paste scanned token" />
+            <input value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="member number, phone, or scanned card" />
             <button>Check in</button>
           </form>
-          <p className="muted">Camera scanning ships with the mobile build; paste the member&apos;s token here.</p>
+          <p className="muted">Type the member number from the door, or scan the card if this phone has a camera scanner.</p>
         </div>
+        {join?.enabled ? (
+          <div className="card" style={{ textAlign: 'center' }}>
+            <h2>New here?</h2>
+            <p className="muted">Show them this QR — they scan it, type the code once, and they are on the church list.</p>
+            {joinQr ? <img src={joinQr} alt="QR code to join this church" style={{ width: '100%', maxWidth: 240 }} /> : null}
+            <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', letterSpacing: '0.12em' }}>{join.code}</div>
+          </div>
+        ) : null}
       </div>
 
       {checkedIn.length > 0 ? (

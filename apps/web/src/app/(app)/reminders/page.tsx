@@ -6,6 +6,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDateTime } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Reminder {
   id: string;
@@ -88,8 +89,8 @@ export default function RemindersPage() {
         program. If another leader has already sent the same words, you will be told instead of the church getting it
         twice.
       </p>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>New reminder</h2>

@@ -1,10 +1,11 @@
 'use client';
-// R4.5 branch → HQ remittances: submit (branch finance), 2-step approval
+// branch → HQ remittances: submit (branch finance), 2-step approval
 // (trustee approve → finance mark remitted), per-branch/region report.
 // Also branch directory + create (region field for denomination reports).
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate, ghs, toPesewas } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Branch { id: string; name: string; code: string; address: string | null; region: string | null; isHq: boolean; isActive: boolean }
 interface Remittance {
@@ -17,7 +18,7 @@ export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [rows, setRows] = useState<Remittance[]>([]);
   const [report, setReport] = useState<{ byBranch: ReportRow[]; totals: { remittedMinor: number; inFlightMinor: number } } | null>(null);
-  // R4.10 denomination terms (Branch / Society / Parish / Area…)
+  // denomination terms (Branch / Society / Parish / Area…)
   const [unitPlural, setUnitPlural] = useState('Branches');
   const [newBranch, setNewBranch] = useState({ name: '', code: '', region: '', address: '' });
   const [form, setForm] = useState({ fromBranchId: '', amount: '', reference: '', note: '' });
@@ -87,8 +88,8 @@ export default function BranchesPage() {
     <div>
       <h1>{unitPlural} &amp; remittances</h1>
       <p className="muted">{unitPlural.slice(0, -1) || 'Branch'} → HQ transfers with 2-step approval (submit → approve → remit). Reports roll up per {unitPlural.slice(0, -1).toLowerCase()}/region.</p>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {report ? (
         <div className="card">

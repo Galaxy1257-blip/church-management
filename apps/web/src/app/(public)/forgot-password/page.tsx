@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiError, api } from '../../../lib/api';
 import { useChurchLookup } from '../auth-shared';
+import Notice from '../../../components/notice';
 
 const MIN_PASSWORD = 6;
 const RESEND_WAIT = 60;
@@ -192,7 +193,7 @@ export default function ForgotPasswordPage() {
                   </label>
                 ) : null}
 
-                {error ? <div className="error">{error}</div> : null}
+                {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
                 <button type="submit" disabled={busy}>
                   {busy

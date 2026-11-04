@@ -14,6 +14,7 @@ import {
   type BillingStatus,
 } from '../lib/billing';
 import { fmtDate, ghs } from '../lib/format';
+import Notice from './notice';
 
 const METHOD_LABEL: Record<BillingPayment['method'], string> = {
   PAYSTACK: 'Paystack',
@@ -145,12 +146,8 @@ export default function BillingPanel({ paidNotice = false }: { paidNotice?: bool
 
   return (
     <div className="stack">
-      {notice ? (
-        <div className="card" style={{ borderColor: 'var(--accent)', marginBottom: 0 }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <div className="spread" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.6rem' }}>

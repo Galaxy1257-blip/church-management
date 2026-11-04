@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import MemberDrawer from '../../../components/member-drawer';
+import Notice from '../../../components/notice';
 
 interface Prayer { id: string; body: string; isAnonymous: boolean; moderation: string; status: string }
 interface CareTask {
@@ -74,8 +75,8 @@ export default function CarePage() {
     <div>
       <h1>Pastoral care</h1>
       {careClass?.className ? <p className="muted">Care for {careClass.className}.</p> : null}
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="card">
         <h2>Prayer wall</h2>
         <form className="stack" onSubmit={addPrayer}>

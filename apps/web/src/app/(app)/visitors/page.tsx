@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Visitor {
   id: string;
@@ -64,8 +65,8 @@ export default function VisitorsPage() {
   return (
     <div>
       <h1>Visitors</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>Register a visitor</h2>

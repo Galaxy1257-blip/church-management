@@ -7,6 +7,7 @@ import { api } from '../../../lib/api';
 import { fmtDateTime } from '../../../lib/format';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
 import MemberDrawer from '../../../components/member-drawer';
+import Notice from '../../../components/notice';
 
 interface MemberLite {
   id: string;
@@ -128,8 +129,8 @@ export default function AnnouncementsPage() {
   return (
     <div>
       <h1>Announcements</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       {pending.length > 0 ? (
         <div className="card">
           <h2>Waiting for a leader ({pending.length})</h2>

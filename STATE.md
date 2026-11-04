@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session X). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session Z). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -282,6 +282,13 @@ C:\Users\HP\Desktop\church\
   before a program; duplicate text refused with the date it first went out), a companion **notification
   bell/pane** (in-app only — OS push still needs VAPID keys), and welfare requests that can be routed to one
   member (`WelfareRequest.assignedToMemberId`, shown in the companion as *Help you were asked to follow up*).
+  Batch 9 ✅ (owner ask, 4 Nov) — **code-gated self-join** (`/join/<slug>`, 8-char church code, Settings
+  switch + rotate; closed by choice, not open) and one shared **auto-clearing message bar** (`components/notice.tsx`:
+  success 6 s, error 12 s + dismiss) applied across 38 files.
+  Batch 10 ✅ (owner ask, 4 Nov) — usher mode fits the door: check-in by scanned card **or** typed member
+  number/phone, `/collection` (new `collection:write`; the usher enters the counted amount and never sees the
+  finance sheet — `GET /finance/batches` stays 403), real QR codes (join QR on /join-card and inside Check-in;
+  each member's check-in QR in the companion). Requirement tags (`R4.10`) removed from the UI.
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 

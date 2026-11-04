@@ -2,6 +2,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDateTime } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Wallet {
   balanceUnits: number;
@@ -123,8 +124,8 @@ export default function SmsPage() {
           </div>
         ) : null}
       </div>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>New campaign</h2>

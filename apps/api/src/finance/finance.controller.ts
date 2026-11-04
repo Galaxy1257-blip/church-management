@@ -43,6 +43,13 @@ export class FinanceController {
     return this.finance.listBatches(req.user!);
   }
 
+  /** The door team's amount only — no sheet, no fund list, no reports. */
+  @RequirePermissions('collection:write')
+  @Post('collection')
+  recordCollection(@Req() req: AuthedRequest, @Body() body: { serviceId: string; amountMinor: number; note?: string }) {
+    return this.finance.recordCollection(req.user!, body, req.ip);
+  }
+
   @RequirePermissions('finance:read')
   @Post('batches')
   create(@Req() req: AuthedRequest, @Body() dto: CreateBatchDto) {

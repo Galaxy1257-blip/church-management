@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../../lib/api';
 import { fmtDateTime } from '../../../../lib/format';
 import { clientUuid, outboxEnqueue, outboxFlush, outboxPending } from '../../../../lib/outbox';
+import Notice from '../../../../components/notice';
 
 interface Segment {
   segmentKey: string;
@@ -153,7 +154,7 @@ export default function ServiceDetailPage() {
         </span>
       </div>
       <p className="muted">{fmtDateTime(service.startsAt)}</p>
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {capacity > 0 && netTotal / capacity >= 0.85 ? (
         <div

@@ -1305,3 +1305,64 @@ card; 0 overflow.
 **Counts.** api **138/138** (16 files) · shared 126/126 · typecheck clean both apps · eslint clean ·
 `check:secrets` clean. Migration `13_notifications` applied to the **local** Postgres only. Care was switched
 on for the welfare test and restored off; test notifications, the test request and seeded OTP rows deleted.
+
+## 2026-11-04 — Audit round 4, Batch 9: code-gated self-join, and messages that clear themselves (`uncommitted`)
+
+**Owner ask (4 Nov):** *"add the self add such that a single code is given to members … so outsiders do not add
+unnecessarily or do u think we should make it open?"* and *"'approved, everybody can see it now' toast does
+not go away — fix that and all similar instances. push to git when done"*.
+
+**Recommendation, and what was built: keep it closed.** An open join link puts a stranger's record — and
+their phone number — on the church list, and that phone can then read the companion (notices, giving history).
+So self-add is **one church code**, 8 characters with no look-alike letters (no 0/O, 1/I) so it can be read
+out loud. Settings → App sections has the switch, shows the code and the shareable link, and can rotate it.
+The public page is `/join/<church-id>`; the API checks enabled + code (case/space-insensitive) and refuses a
+phone already on the list (*"That phone is already on the church list — sign in instead."*). The new member
+is created immediately with a member number and the right age bracket, so they can sign in to the companion.
+
+**Proven live:** wrong code → **403** *"That code is not right…"*; correct code typed lower-case → **201**
+`M00048` with DOB 1990-05-04 resolved to a bracket; same phone again → **400** duplicate. Page checked at
+390px; the test member was deleted afterwards.
+
+**The sticky toast, fixed as a rule.** Every success/error banner now renders through one component
+(`components/notice.tsx`): success clears in 6 s, errors in 12 s with a close ×. The sweep replaced **38
+files** (33 single-line banners + 5 multi-line ones across the platform console and billing panel); three
+remaining accent cards are real content (check-in ticket, children ticket, graduation list), not messages.
+Verified in the browser: a reminder's *"Sent — it is in everybody's notification pane now."* was visible at
+1.5 s and gone by 7.5 s, and a join-page error cleared by itself after 12 s.
+
+**Counts.** api **142/142** (17 files, +4 join-gate tests) · shared 126/126 · typecheck clean both apps ·
+eslint clean · `check:secrets` clean. Test notification and test member deleted; demo church has self-add on.
+
+## 2026-11-04 — Audit round 4, Batch 10: a door toolkit that fits an usher (`uncommitted`)
+
+**Owner ask (4 Nov):** *"the usher must be able to submit count of members who came, submit count of money
+collection, give members QR to add themselfs… allow usher mode to fit all the functions (although anyone can
+be usher for a particular day)"*, then *"change add member to check in, let usher only be able to enter say
+monies counted not see financial sheet"*, and *"put a actual qr in the app"*.
+
+**Usher mode now holds the whole door.** Check-in takes a scanned card **or** a typed member number/phone in
+one box (`POST /checkin` resolves qrToken hash, memberNo or phone; repeat is idempotent, bogus is 404).
+`/collection` lets the door enter the amount counted only — new `collection:write` permission, a server path
+that opens/uses the `Door count — <service>` batch and records a PENDING cash figure, and **no** finance
+sheet: `GET /finance/batches` stays 403 for the usher while the count returns 201. Attendance counting
+(`headcount:write`) stays on the Attendance page. Any staff member with `headcount:write` + `services:read`
+can switch to usher mode (unchanged).
+
+**Real QR codes.** `qrcode` renders actual scannable codes: the **join QR** (church link) on `/join-card`, the
+office's `Join code` page, and inside Check-in as *"New here?"*; and each member's **own check-in QR** in the
+companion home, built from their member number — the same value the door's check-in resolves. No "paste a
+token" box any more.
+
+**Wording clean-up.** Requirement tags are gone from the UI: "Denomination preset (R4.10)" is now
+"Denomination wording", and stray `R4.x` markers were stripped from page comments.
+
+**Proven live.** Usher `/auth/me` = `headcount:write, checkin:write, collection:write`; finance batches **403**
+vs collection **201** (5,000 → 12,345 pesewas PENDING row in the `Door count` batch); missing service **400**;
+check-in by `DEMO-1001` **200**, repeat (lower-case) `alreadyCheckedIn`, `NOBODY1` **404**. Browser at 390px as
+the usher: nav = Today · Check-in · Attendance · Visitors · Collection (no Add member, no Offering), the
+New-here QR renders, collection shows *"Counted in. The treasurer will approve it."*, 0 overflow.
+
+**Counts.** api 142/142 (17 files) · shared 126/126 · typecheck clean in api/web/shared · eslint clean ·
+`check:secrets` clean. Test money rows, attendance and seeded codes deleted; worship switched on for the test
+and restored off. Neon untouched.

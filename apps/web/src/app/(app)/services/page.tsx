@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { fmtDateTime } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface Service {
   id: string;
@@ -125,8 +126,8 @@ export default function ServicesPage() {
           <button onClick={() => setShowCreate((v) => !v)}>+ Create service</button>
         </div>
       </div>
-      {error ? <div className="error">{error}</div> : null}
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
 
       {schedule ? (
         <form className="card stack" onSubmit={saveSchedule}>

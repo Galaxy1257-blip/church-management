@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { MODULE_KEYS, MODULE_LABELS } from '../../../../lib/access';
 import { STATE_COPY, monthLabel, type BillingState } from '../../../../lib/billing';
 import { fmtDate, fmtDateTime, ghs, toPesewas } from '../../../../lib/format';
+import Notice from '../../../../components/notice';
 import {
   platformApi,
   platformUser,
@@ -140,12 +141,8 @@ export default function PlatformChurchPage() {
         ) : null}
       </div>
 
-      {notice ? (
-        <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       {!data ? <p className="muted">{error ? '' : 'Loading…'}</p> : null}
 
       {data ? (
@@ -629,7 +626,7 @@ function MembersImportCard({
         </button>
       </div>
 
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       {result ? (
         <p className="muted" style={{ marginBottom: 0 }}>
           Imported {result.imported} people{result.failed ? `; ${result.failed} rows were skipped` : ''}.

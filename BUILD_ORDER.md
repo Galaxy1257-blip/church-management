@@ -336,6 +336,21 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
 - [x] Welfare requests can be sent to the leaders (default) or one member, who sees it in the companion.
 - [x] 5 unit tests; live API + browser at 390px; migration `13_notifications` applied locally only.
 
+### Batch 9 — self-join with a code, and self-clearing messages ✅ (owner ask, 4 Nov)
+- [x] `/join/<slug>` with an 8-character church code (no look-alike letters), Settings switch + copy link +
+      rotate. Off by default; refused by the API without the code; duplicate phone refused. 4 unit tests.
+- [x] One shared message bar for the whole app: success clears in 6 s, errors in 12 s with a dismiss button;
+      swept across 38 files.
+
+### Batch 10 — the door toolkit ✅ (owner ask, 4 Nov)
+- [x] Check-in by scanned card or typed member number/phone in one box; idempotent repeats; 404 for a code
+      that matches nobody.
+- [x] `/collection` with `collection:write`: the door enters the amount counted; the treasurer approves it.
+      The finance sheet stays closed to the usher (403 proven).
+- [x] Real QR codes (`qrcode`): join QR on `/join-card` and inside Check-in; each member's own check-in QR in
+      the companion.
+- [x] Requirement tags removed from UI copy and comments.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

@@ -8,6 +8,7 @@ import { fmtDate, ghs, toPesewas } from '../../../lib/format';
 import { hasPermission } from '../../../lib/access';
 import { peekSession } from '../../../lib/session';
 import MemberDrawer from '../../../components/member-drawer';
+import Notice from '../../../components/notice';
 
 interface Welfare {
   id: string;
@@ -135,8 +136,8 @@ export default function WelfarePage() {
         approve or decline it. The situation is kept secret in the database and shown here so you know what you
         are deciding.
       </p>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {canDecide ? (
         <div className="card">

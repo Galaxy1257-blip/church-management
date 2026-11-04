@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
 import MemberDrawer from '../../../components/member-drawer';
+import Notice from '../../../components/notice';
 
 interface Leader {
   id: string;
@@ -193,8 +194,8 @@ export default function GroupsPage() {
           <button onClick={() => setShowCreate((v) => !v)}>+ New group</button>
         </div>
       </div>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {showCreate ? (
         <form className="card stack" onSubmit={createGroup}>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError, api, hasSession } from '../../../lib/api';
 import { finishLogin, useChurchLookup, type Tokens } from '../auth-shared';
+import Notice from '../../../components/notice';
 
 const LAST_CHURCH_KEY = 'chms.lastChurch';
 
@@ -160,7 +161,7 @@ function LoginInner() {
               </div>
             ) : null}
 
-            {error ? <div className="error">{error}</div> : null}
+            {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
             <button type="submit" disabled={busy}>
               {busy ? 'Working…' : mode === 'password' ? 'Sign in' : otpSent ? 'Verify code' : 'Send code'}

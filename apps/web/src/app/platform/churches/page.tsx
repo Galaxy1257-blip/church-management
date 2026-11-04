@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { STATE_COPY, type BillingState } from '../../../lib/billing';
 import { fmtDate, ghs } from '../../../lib/format';
+import Notice from '../../../components/notice';
 import {
   platformApi,
   platformUser,
@@ -83,12 +84,8 @@ export default function PlatformChurchesPage() {
         ) : null}
       </div>
 
-      {notice ? (
-        <div className="card" style={{ borderColor: 'var(--accent)' }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {adding && isOwner ? (
         <form className="card stack" onSubmit={createChurch} style={{ marginBottom: '1rem' }}>

@@ -48,6 +48,8 @@ export const PERMISSIONS = [
   // elders, finance and the pastor handle it; ushers and teachers do not.
   'welfare:read',
   'welfare:write',
+  // A door worker records the cash they counted; see finance.recordCollection.
+  'collection:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -92,6 +94,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'members:read',
     'headcount:write',
     'checkin:write',
+    // The door team enters the money they counted at the service — the amount
+    // only. Reading the finance sheet/reports stays with the treasurer.
+    'collection:write',
     'visitors:read',
     'visitors:write',
     // Ushers run the care queue and the prayer wall alongside the door.
@@ -119,6 +124,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'members:import',
     'headcount:write',
     'checkin:write',
+    // The door team enters the money they counted at the service — the amount
+    // only. Reading the finance sheet/reports stays with the treasurer.
+    'collection:write',
     'visitors:read',
     'visitors:write',
     'giving:read',

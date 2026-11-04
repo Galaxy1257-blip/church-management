@@ -4,6 +4,7 @@ import { api } from '../../../lib/api';
 import { fmtDate } from '../../../lib/format';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
 import MemberDrawer from '../../../components/member-drawer';
+import Notice from '../../../components/notice';
 
 interface Member {
   id: string;
@@ -53,7 +54,7 @@ export default function MembersPage() {
   const [counts, setCounts] = useState<{ ageBracketId: string | null; count: number }[]>([]);
   const [bracketFilter, setBracketFilter] = useState('');
   const [promoResult, setPromoResult] = useState<null | { promotions: { name: string; age: number; fromLabel: string; toLabel: string }[] }>(null);
-  // R4.12 discipleship pathway + R4.11 per-member export.
+  // discipleship pathway + R4.11 per-member export.
   const [stageReport, setStageReport] = useState<{ byStage: { stage: string; count: number }[]; untracked: number } | null>(null);
 
   const STAGES = ['VISITOR', 'NEW_BELIEVER', 'MEMBER', 'WORKER', 'LEADER'];
@@ -252,8 +253,8 @@ export default function MembersPage() {
         </div>
       ) : null}
 
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       {showAdd ? (
         <div className="card">

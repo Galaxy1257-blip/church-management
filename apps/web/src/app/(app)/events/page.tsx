@@ -2,6 +2,7 @@
 // Events + RSVP (capacity/waitlist) with QR tokens for guests.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Notice from '../../../components/notice';
 
 interface EventRow { id: string; title: string; startsAt: string; venue: string | null; capacity: number | null; status: string }
 
@@ -32,8 +33,8 @@ export default function EventsPage() {
   return (
     <div>
       <h1>Events</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="card">
         <h2>Publish event</h2>
         <form className="stack" onSubmit={create}>

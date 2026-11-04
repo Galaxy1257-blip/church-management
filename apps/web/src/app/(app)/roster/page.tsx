@@ -2,6 +2,7 @@
 // Volunteer roster: assign shifts per service, confirm/decline.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import Notice from '../../../components/notice';
 
 interface Shift { id: string; serviceId: string; memberId: string; duty: string; status: string }
 interface Service { id: string; name: string; startsAt: string }
@@ -44,8 +45,8 @@ export default function RosterPage() {
   return (
     <div>
       <h1>Volunteer roster</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="card">
         <label>Service
           <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>

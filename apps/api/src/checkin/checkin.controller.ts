@@ -8,6 +8,8 @@ class CheckInDto {
   @IsString() serviceId!: string;
   @IsOptional() @IsString() memberId?: string;
   @IsOptional() @IsString() qrToken?: string;
+  /** The member number the door team types (M00048). */
+  @IsOptional() @IsString() code?: string;
   @IsOptional() @IsString() phoneE164?: string;
   @IsOptional() @IsIn(['MANUAL', 'QR', 'PHONE_LOOKUP']) method?: 'MANUAL' | 'QR' | 'PHONE_LOOKUP';
 }

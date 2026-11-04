@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
+import Notice from '../../../components/notice';
 import {
   platformApi,
   platformToken,
@@ -72,7 +73,7 @@ export default function PlatformLoginPage() {
               required
             />
           </label>
-          {error ? <div className="error">{error}</div> : null}
+          {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
           <button disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
       </div>

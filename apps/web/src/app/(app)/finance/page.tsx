@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDateTime, ghs } from '../../../lib/format';
+import Notice from '../../../components/notice';
 
 interface FundReport {
   fund: string;
@@ -47,7 +48,7 @@ export default function FinancePage() {
   return (
     <div>
       <h1>Offerings</h1>
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="card">
         <h2>By category</h2>

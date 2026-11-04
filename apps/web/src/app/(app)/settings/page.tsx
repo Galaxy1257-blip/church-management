@@ -7,6 +7,7 @@ import { translationLabel } from '../../../lib/bible';
 import BillingPanel from '../../../components/billing-panel';
 import { clearSession } from '../../../lib/session';
 import { MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
+import Notice from '../../../components/notice';
 import {
   BUILTIN_SMS_TEMPLATES,
   DENOMINATION_PRESETS,
@@ -112,10 +113,10 @@ export default function SettingsPage() {
   const [funds, setFunds] = useState<any[]>([]);
   const [newFund, setNewFund] = useState({ name: '', type: 'OFFERING' });
   const [fees, setFees] = useState<any>({ feeMode: 'CHURCH_ABSORBS', feeBps: 195, feeFlatMinor: 10, feeCapMinor: null, feeDefaultOptIn: true });
-  // R4.3 SMS template locales (Twi/Ga/Ewe/Fante) with English fallback.
+  // SMS template locales (Twi/Ga/Ewe/Fante) with English fallback.
   const [smsLoc, setSmsLoc] = useState<{ defaultLocale: string; templates: Record<string, Record<string, string>> }>({ defaultLocale: 'en', templates: {} });
   const [locKey, setLocKey] = useState('tw');
-  // R4.10 denomination terminology pack.
+  // denomination terminology pack.
   const [denomKey, setDenomKey] = useState('DEFAULT');
   const [terms, setTerms] = useState<{ unit: string; unitPlural: string; unitLeader: string; gathering: string; leadershipBody: string } | null>(null);
   const [gwForm, setGwForm] = useState({ mode: 'mock', label: '', url: '', authHeader: 'Authorization', authValue: '', bodyTemplate: '{"to":"{to}","message":"{message}"}', idPath: 'id', confirmed: false });
@@ -130,6 +131,8 @@ export default function SettingsPage() {
   const [modules, setModules] = useState<Record<string, boolean>>({});
   // Members may send in notices + prayer requests with photos (companion app).
   const [memberPosts, setMemberPosts] = useState(false);
+  // Members can add themselves with this one church code.
+  const [joinCode, setJoinCode] = useState<{ enabled: boolean; code: string }>({ enabled: false, code: '' });
   const [startModules, setStartModules] = useState<Record<string, boolean>>({});
   // Listed as "every church" versus "opt-in", the way the office thinks about it.
   const coreKeys = MODULE_KEYS.filter((key) => startModules[key]);
@@ -157,6 +160,7 @@ export default function SettingsPage() {
     }).catch(() => undefined);
     void api<{ enabled: boolean; translation: string; verse: string }>('/churches/me/devotional').then(setDev).catch(() => undefined);
     void api<{ translations: { code: string; language: string; translation: string }[] }>('/bible').then((r) => setTranslations(r.translations)).catch(() => undefined);
+    void api<{ enabled: boolean; code: string }>('/churches/me/join-code').then(setJoinCode).catch(() => undefined);
     void api<any>('/churches/me/profile').then((p) => {
       setProf(p);
       if (p.branding?.primaryColor) document.documentElement.style.setProperty('--brand', p.branding.primaryColor);
@@ -325,8 +329,8 @@ export default function SettingsPage() {
   return (
     <div>
       <h1>Settings</h1>
-      {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
-      {error ? <div className="error">{error}</div> : null}
+      {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
+      {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
       <div className="seg-toggle" style={{ margin: '0.4rem 0 1rem', flexWrap: 'wrap' }} role="tablist" aria-label="Settings sections">
         {([
@@ -760,7 +764,7 @@ export default function SettingsPage() {
       </form>
 
       <form className="card stack" onSubmit={saveDenomination} hidden={tab !== 'church'}>
-        <h2>Denomination preset (R4.10)</h2>
+        <h2>Denomination wording</h2>
         <p className="muted">Terminology pack — renames units and leadership labels across the app (branches page, headings). Data model stays neutral.</p>
         <div className="row">
           <label style={{ flex: 2 }}>
@@ -872,6 +876,42 @@ export default function SettingsPage() {
             )}
           </>
         )}
+        <div className="stack" style={{ marginTop: 8 }}>
+          <h3 style={{ margin: 0 }}>Members adding themselves</h3>
+          <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={joinCode.enabled}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                void api<{ enabled: boolean; code: string }>('/churches/me/join-code', { method: 'POST', body: { enabled } })
+                  .then(setJoinCode)
+                  .catch(() => setJoinCode(joinCode));
+              }}
+            />
+            <span>
+              <strong>Let people add themselves with a code</strong>
+              <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                Share this code and link with your members. Anyone without the code cannot add themselves.
+              </span>
+            </span>
+          </label>
+          {joinCode.code ? (
+            <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+              <span className="badge ok" style={{ fontFamily: 'monospace', fontSize: '1rem' }}>{joinCode.code}</span>
+              <span className="muted" style={{ fontSize: '0.85rem', wordBreak: 'break-all' }}>
+                {typeof window !== 'undefined' ? `${window.location.origin}/join/${prof.slug ?? ''}` : ''}
+              </span>
+              <button
+                type="button"
+                className="small secondary"
+                onClick={() => void api<{ enabled: boolean; code: string }>('/churches/me/join-code', { method: 'POST', body: { rotate: true } }).then(setJoinCode)}
+              >
+                New code
+              </button>
+            </div>
+          ) : null}
+        </div>
         <div className="stack" style={{ marginTop: 8 }}>
           <h3 style={{ margin: 0 }}>From your members</h3>
           <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
