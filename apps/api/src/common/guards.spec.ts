@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ExecutionContext, ForbiddenException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ExecutionContext, ForbiddenException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { hasPermission, MODULE_KEYS, type ModuleFlags } from '@chms/shared';
 import { JwtAuthGuard, ModuleGuard, PermissionsGuard, AuthUser } from './guards';
-import { AUTHENTICATED_KEY, MODULE_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
+import { ANY_PERMISSIONS_KEY, AUTHENTICATED_KEY, INTAKE_KEY, MODULE_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
 import type { ModuleFlagsService } from './module-flags';
 
 function makeContext(
@@ -104,6 +104,28 @@ describe('PermissionsGuard (default-deny)', () => {
     attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
     // The permission list wins whenever it is present on the handler.
     expect(guard.canActivate(ctx)).toBe(false);
+  });
+
+  it('@AnyPermission lets through a role holding one of the listed permissions', () => {
+    const ctx = makeContext({ [ANY_PERMISSIONS_KEY]: ['members:write', 'checkin:write', 'children:write'] });
+    attachUser(ctx, makeUser({ roles: ['SUNDAY_SCHOOL'], permissions: ['children:write'] }));
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('@AnyPermission refuses a session that holds none of them', () => {
+    const ctx = makeContext({ [ANY_PERMISSIONS_KEY]: ['members:write', 'checkin:write', 'children:write'] });
+    attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
+    expect(guard.canActivate(ctx)).toBe(false);
+  });
+
+  it('@AnyPermission refuses an empty list (an empty choice is not a policy)', () => {
+    const ctx = makeContext({ [ANY_PERMISSIONS_KEY]: [] });
+    expect(() => guard.canActivate(ctx)).toThrow(InternalServerErrorException);
+  });
+
+  it('@AnyPermission is an access policy, so it satisfies default-deny', () => {
+    const ctx = makeContext({ [ANY_PERMISSIONS_KEY]: ['children:write'] });
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
   });
 });
 
@@ -224,6 +246,33 @@ describe('ModuleGuard (App-section switches, enforced server-side)', () => {
   it('never closes a @Public() door: the giving page and webhooks stay open', async () => {
     const ctx = makeContext({ [PUBLIC_KEY]: true, [MODULE_KEY]: 'money' });
     await expect(guardFor(['money']).canActivate(ctx)).resolves.toBe(true);
+  });
+
+  describe('the give link (@PublicIntake)', () => {
+    function door(closed: boolean) {
+      const flags = {
+        flagsFor: async () => ({}) as ModuleFlags,
+        givingDoorClosedForSlug: async () => closed,
+      } as unknown as ModuleFlagsService;
+      return new ModuleGuard(reflector, flags);
+    }
+    function intakeCtx(slug?: string) {
+      const ctx = makeContext({ [PUBLIC_KEY]: true, [INTAKE_KEY]: 'money' });
+      (ctx.switchToHttp().getRequest() as { body?: unknown }).body = slug ? { churchSlug: slug } : undefined;
+      return ctx;
+    }
+
+    it('stays open when the church kept it open, even with the books off', async () => {
+      await expect(door(false).canActivate(intakeCtx('accra'))).resolves.toBe(true);
+    });
+
+    it('closes when the church answered "stop online giving too"', async () => {
+      await expect(door(true).canActivate(intakeCtx('accra'))).rejects.toThrow(/switched off .* stopped online giving/i);
+    });
+
+    it('refuses a request that does not name a church', async () => {
+      await expect(door(false).canActivate(intakeCtx())).rejects.toThrow(BadRequestException);
+    });
   });
 
   it('is not a security check: an anonymous request passes to the guard above it', async () => {

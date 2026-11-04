@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session AA). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session AB). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -220,6 +220,26 @@ C:\Users\HP\Desktop\church\
    got **Keep me signed in on this phone**, so a reload no longer costs the church another SMS code.
    Open finding, not approved to fix: portal sign-in cannot complete when the church has no `SmsWallet`
    (no code is queued) — part of the withheld fake-SMS blocker.
+0g. **Session AB — audit round 5 approved; Batch 12 (giving door + desk permissions).** Owner reply to the
+   round-5 report: *"for the point one give a prompt when turning books off, app should act on user response,
+   impement audit log and point 2. do 4 and 5 and 6. decide on 7"* — points **1, 2, 3, 4, 5, 6 approved**,
+   point **7 is mine to decide**. Shipped here (see BUILD_ORDER Batch 12, LOGS 2026-11-04 Batch 12):
+   Settings → App sections asks what happens to the public give link when Offerings is unticked, the answer
+   is stored in `Church.settings.moneyOffStopsGiving`, and `@PublicIntake('money')` + `ModuleGuard` enforce
+   it; and the three children's-desk routes declare `@AnyPermission(...)` instead of relying only on
+   `class-scope.ts`. **A real blocker came out of it**: `POST /giving/quote` and `/giving/initialize`
+   demanded staff permissions although their only caller is the anonymous `/give/<slug>` page, so online
+   giving had never worked for a giver — both are now public intake keyed by `churchSlug` (fund checked
+   against that church, audit row with `actor_id: null` + ip, 30/min and 8/min per IP).
+   **Next units, in the owner's order:** (3) the read-only audit-log screen on `audit:read` — the table is
+   trigger-append-only and hash-chained, worth saying on the screen; (4) usher mode keyed on `checkin:write`
+   not `headcount:write` (`(app)/layout.tsx:54,108`); (5) `/collection` route rule missing `module:'money'`
+   (`lib/access.ts:315`, nav has it at `:295`); (6) `ELDER` + `FOLLOWUP_TEAM` hold `care:*` but
+   `CARE_ROLES` (`lib/access.ts:175`) hides Care from them; (7) my decision = add `demographics:write` and
+   `branches:write` granted to exactly the roles that already do those things, so the gate exists with no
+   behaviour change. The six dead grants from finding 3 shrink to five once `audit:read` has a screen.
+   **Still not approved to touch:** `dev.controller.ts:41` mock-Paystack completion and simulated SMS/gift
+   success. Migrations `12_member_posts` / `13_notifications` are local Postgres only.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

@@ -8,6 +8,7 @@ import { seedChurchDefaults } from '@chms/db';
 import {
   normalizeGhPhone,
   denominationPreset,
+  givingStopsWithBooks,
   isModuleKey,
   MODULE_DEFAULTS,
   resolveDevotional,
@@ -164,6 +165,8 @@ export class ChurchesService {
       branding: s.branding ?? null, // { logoDataUrl?, tagline?, primaryColor? }
       contact: s.contact ?? null, // { phone?, email?, address?, socialUrl? }
       givingInstructions: s.givingInstructions ?? null, // { momoMerchant?, momoNumber?, ussd?, bankName?, bankAccount? }
+      // The office closed the books AND answered "stop online giving too".
+      givingClosed: !resolveModules(s).money && givingStopsWithBooks(s),
       funds,
     };
   }
@@ -189,6 +192,8 @@ export class ChurchesService {
       // The same resolveModules() the API guard uses, so the shell and the guard
       // can never disagree about what is on.
       modules: resolveModules(s),
+      /** The answer Settings asked when Offerings was switched off: give link open or closed. */
+      moneyOffStopsGiving: givingStopsWithBooks(s),
       // What a new church starts with, so Settings can label "part of every week"
       // versus "add when your church runs it" without keeping its own copy.
       moduleDefaults: MODULE_DEFAULTS,
@@ -228,6 +233,8 @@ export class ChurchesService {
       retention?: { memberDataYears?: number; transactionYears?: number };
       /** Module switches: false hides an area of the app; true/absent shows it. */
       modules?: Partial<Record<ModuleKey, boolean>>;
+      /** Answer to the Offerings prompt: stop the public give link with the books. */
+      moneyOffStopsGiving?: boolean;
       /** Members may send notices and prayer requests (with photos) from the companion. */
       memberPosts?: boolean;
     },
@@ -259,6 +266,7 @@ export class ChurchesService {
           : {}),
         ...(patch.retention !== undefined ? { retention: { ...(prev.retention ?? {}), ...patch.retention } } : {}),
         ...(patch.memberPosts !== undefined ? { memberPosts: patch.memberPosts === true } : {}),
+        ...(patch.moneyOffStopsGiving !== undefined ? { moneyOffStopsGiving: patch.moneyOffStopsGiving === true } : {}),
         // Module switches merge flag-by-flag; unknown keys and non-booleans are
         // dropped so a malformed body cannot brick the shell.
         ...(patch.modules !== undefined
@@ -296,7 +304,7 @@ export class ChurchesService {
       // After the commit, so the API guard stops serving the old flags at once.
       // Invalidating inside the transaction would let a concurrent request
       // re-populate the cache with the pre-save values.
-      if (patch.modules !== undefined) this.moduleFlags.invalidate(user.churchId);
+      if (patch.modules !== undefined || patch.moneyOffStopsGiving !== undefined) this.moduleFlags.invalidate(user.churchId);
       return profile;
     });
   }

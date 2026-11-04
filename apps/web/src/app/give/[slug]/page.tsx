@@ -12,6 +12,7 @@ interface ChurchPublic {
   smsSenderId?: string | null;
   branding?: { logoDataUrl?: string | null; tagline?: string; primaryColor?: string } | null;
   givingInstructions?: { momoMerchant?: string; momoNumber?: string; ussd?: string; bankName?: string; bankAccount?: string } | null;
+  givingClosed?: boolean;
   funds: { id: string; name: string; type: string }[];
 }
 
@@ -49,11 +50,14 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
       .catch(() => setNotFound(true));
   }, [slug]);
 
-  async function refreshQuote(): Promise<void> {
-    const pesewas = toPesewas(amount);
+  async function refreshQuote(typed?: string): Promise<void> {
+    // The state has not landed yet when this is called from the keystroke, so the
+    // value the user just typed is passed in — otherwise the first amount typed
+    // shows no quote at all.
+    const pesewas = toPesewas(typed ?? amount);
     if (!pesewas || !fundId) return;
     try {
-      const res = await apiRaw('/giving/quote', { fundId, amountMinor: pesewas, feeChoice });
+      const res = await apiRaw('/giving/quote', { churchSlug: slug, fundId, amountMinor: pesewas, feeChoice });
       if (res.ok) setQuote((await res.json()) as Quote);
     } catch {
       /* quote is advisory */
@@ -71,6 +75,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
     setBusy(true);
     try {
       const res = await apiRaw('/giving/initialize', {
+        churchSlug: slug,
         fundId,
         amountMinor: pesewas,
         feeChoice,
@@ -100,6 +105,14 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
           {church.branding?.tagline ? `${church.branding.tagline} · ` : ''}
           Mobile money or card. You&apos;ll get a text message receipt.
         </p>
+        {/* The office switched the books off and chose to close online giving with
+            them — so this door says so instead of letting a giver type an amount. */}
+        {church.givingClosed ? (
+          <p className="error" role="status">
+            {church.name} is not taking online giving right now. Use one of the other ways to give below, or ask the church
+            office.
+          </p>
+        ) : (
         <form className="stack" onSubmit={give}>
           <label>
             What is this offering for?
@@ -117,7 +130,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
-                void refreshQuote();
+                void refreshQuote(e.target.value);
               }}
               inputMode="decimal"
               placeholder="50.00"
@@ -160,6 +173,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
           {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
           <button disabled={busy}>{busy ? 'Starting…' : 'Give now'}</button>
         </form>
+        )}
       </div>
       {church.givingInstructions && (church.givingInstructions.momoNumber || church.givingInstructions.bankAccount) ? (
         <div className="card" style={{ marginTop: '1rem' }}>

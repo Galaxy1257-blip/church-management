@@ -371,8 +371,37 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       the church in its URL. 9 API door tests + 4 shared card tests.
 
 ### Audit round 5 — permissions per user (owner ask, 4 Nov)
-- [ ] Recommendations from the role audit are awaiting the owner's approval; nothing in this section is built
-      until a line is approved. See LOGS 2026-11-04 "Audit round 5".
+Owner reply: *"for the point one give a prompt when turning books off, app should act on user response,
+implement audit log and point 2. do 4 and 5 and 6. decide on 7"* — so items 1, 2, 3, 4, 5, 6 are approved
+and 7 is mine to decide. Point 3 (the audit log screen) needs `audit:read`, which nothing required before
+this round, so it is the next unit; 4–7 follow.
+
+### Batch 12 — the giving door answers to the church, and the desk says who it is open to ✅ (4 Nov)
+- [x] **Switching Offerings off now asks what happens to online giving.** Settings → App sections shows
+      "The link members use to give online" with two plain-English choices — *Keep it open — only close the
+      books* (default) or *Stop online giving too* — saved to `Church.settings.moneyOffStopsGiving` (no
+      migration) and the prompt disappears again when Offerings is switched back on.
+- [x] **The API acts on that answer.** New `@PublicIntake('money')` decorator: `ModuleGuard` reads
+      `churchSlug` from the body, looks up the church through the TTL-cached platform client and 403s with
+      *"Offerings is switched off for this church, and the church has stopped online giving too."* Only the
+      give-link routes carry it; the office setup routes stay readable so Settings can rebuild the section.
+- [x] **Fixed a blocker found while proving it: anonymous online giving had never worked.** `POST
+      /giving/quote` and `POST /giving/initialize` demanded staff permissions, but the only caller is the
+      public `/give/<slug>` page. They are now `@Public()` intake keyed by `churchSlug`, with the church
+      looked up from the slug and the fund checked against *that* church; rate limits 30/min and 8/min per
+      IP. The dead `byPhone` bucket was removed (it keyed off `phoneE164`, which these bodies never send).
+- [x] **The give page tells people, instead of failing on submit**: `getPublicBySlug` returns `givingClosed`
+      and the form is replaced by "Demo Church is not taking online giving right now…". Verified at 390px.
+- [x] **The children's desk declares its permission instead of hiding it three layers down.** `POST /checkin`,
+      `POST /checkout` and `GET /roster` now carry the new `@AnyPermission(...)` (an OR list — members /
+      check-in / children for the desk, members / children for the roster), so `PermissionsGuard`, the boot
+      check and a reviewer all see the rule. `deskMoveChildIds()` / `deskRosterChildIds()` stay exactly as
+      they were: the class narrowing is still the second lock, and a member with none of those is refused
+      before any write.
+- [x] 4 guard tests (OR passes/fails, empty list is a boot error, `@AnyPermission` satisfies default-deny) +
+      3 give-door tests + 3 desk-metadata tests + 3 shared `givingStopsWithBooks` tests.
+      **165/165 API (19 files), 132/132 shared (16 files)**, api + web typechecks, lint, `check:secrets` clean.
+      Live at 390px: prompt rendered, "stop" → 403 + closed give page, "keep" → 200 quote, demo restored.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*

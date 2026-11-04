@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -19,7 +20,7 @@ import {
   type ModuleKey,
   type RoleKey,
 } from '@chms/shared';
-import { AUTHENTICATED_KEY, PUBLIC_KEY, PERMISSIONS_KEY, MODULE_KEY } from './decorators';
+import { ANY_PERMISSIONS_KEY, AUTHENTICATED_KEY, INTAKE_KEY, PUBLIC_KEY, PERMISSIONS_KEY, MODULE_KEY } from './decorators';
 import { ModuleFlagsService } from './module-flags';
 import type { Env } from '../env';
 
@@ -126,10 +127,15 @@ export class PermissionsGuard implements CanActivate {
     if (isPublic) return true;
 
     const required = this.reflector.getAllAndOverride<Permission[] | undefined>(PERMISSIONS_KEY, targets);
+    const anyOf = this.reflector.getAllAndOverride<Permission[] | undefined>(ANY_PERMISSIONS_KEY, targets);
     const isAuthenticatedOnly = this.reflector.getAllAndOverride<boolean>(AUTHENTICATED_KEY, targets) === true;
 
-    // Default-deny: a handler must declare @RequirePermissions, @Authenticated() or @Public().
-    if (!isAuthenticatedOnly && (!required || required.length === 0)) {
+    const hasRequired = !!required && required.length > 0;
+    const hasAnyOf = !!anyOf && anyOf.length > 0;
+
+    // Default-deny: a handler must declare @RequirePermissions, @AnyPermission,
+    // @Authenticated() or @Public().
+    if (!isAuthenticatedOnly && !hasRequired && !hasAnyOf) {
       throw new InternalServerErrorException(
         'route is missing @RequirePermissions (default-deny): add the decorator, @Authenticated() or @Public()',
       );
@@ -141,12 +147,15 @@ export class PermissionsGuard implements CanActivate {
 
     // Explicit permissions always win over @Authenticated(), so accidentally
     // stacking both decorators can never widen access.
-    if (required && required.length > 0) {
-      for (const perm of required) {
+    if (hasRequired) {
+      for (const perm of required as Permission[]) {
         if (!hasPermission(user.permissions, perm)) return false;
       }
-      return true;
     }
+    if (hasAnyOf) {
+      if (!(anyOf as Permission[]).some((perm) => hasPermission(user.permissions, perm))) return false;
+    }
+    if (hasRequired || hasAnyOf) return true;
 
     // @Authenticated(): any valid session, including a MEMBER with zero permissions.
     return true;
@@ -157,8 +166,9 @@ export class PermissionsGuard implements CanActivate {
  * App-section switches, enforced server-side. A route names the section it
  * belongs to with @ForModule(); when that section is switched off for the
  * church, the data is not available — not even to a role holding every
- * permission for it. @Public() intake (the giving page, webhooks) is untouched:
- * a congregation can still give when the office has switched the reports off.
+ * permission for it. A @Public() door is different: the congregation is not the
+ * office. The give link closes with the books only if that is what the church
+ * answered in Settings, which is what @PublicIntake reads.
  */
 @Injectable()
 export class ModuleGuard implements CanActivate {
@@ -169,7 +179,20 @@ export class ModuleGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const targets = [context.getHandler(), context.getClass()];
-    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets)) return true;
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets);
+    const intake = this.reflector.getAllAndOverride<ModuleKey | undefined>(INTAKE_KEY, targets);
+
+    if (intake) {
+      const req = context.switchToHttp().getRequest<AuthedRequest>();
+      const slug = String((req.body as { churchSlug?: unknown } | undefined)?.churchSlug ?? '');
+      if (!slug) throw new BadRequestException('this giving request names no church');
+      if (await this.flags.givingDoorClosedForSlug(slug)) {
+        throw new ForbiddenException(`${MODULE_LABELS[intake].label} is switched off for this church, and the church has stopped online giving too.`);
+      }
+      return true;
+    }
+
+    if (isPublic) return true;
 
     const key = this.reflector.getAllAndOverride<ModuleKey | undefined>(MODULE_KEY, targets);
     if (!key) return true;

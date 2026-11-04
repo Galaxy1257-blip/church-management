@@ -79,7 +79,7 @@ async function makeChurch(slug: string): Promise<{ user: AuthUser; second: AuthU
     permissions: ['*'],
     branchIds: [],
   });
-  return { user: mk(admin.id, 'Admin'), second: mk(secondId, 'Second'), third: mk(thirdId, 'Third') };
+  return { slug, user: mk(admin.id, 'Admin'), second: mk(secondId, 'Second'), third: mk(thirdId, 'Third') };
 }
 
 d('integration', () => {
@@ -159,7 +159,7 @@ d('integration', () => {
   it('webhook: duplicate charge.success settles once (one SUCCESS, no double settle)', async () => {
     const funds = new GivingService(tenant, new MockPaymentProvider(fakeEnv), fakeQueues);
     const fund = await platformPrisma.fund.findFirst({ where: { churchId: ctx.user.churchId } });
-    const init = await funds.initialize(ctx.user, {
+    const init = await funds.initializeForSlug(ctx.slug, {
       fundId: fund!.id,
       amountMinor: 10000,
       giverPhoneE164: '0249998887',
@@ -189,7 +189,7 @@ d('integration', () => {
   it('webhook: amount mismatch does not settle (held in PROCESSING)', async () => {
     const funds = new GivingService(tenant, new MockPaymentProvider(fakeEnv), fakeQueues);
     const fund = await platformPrisma.fund.findFirst({ where: { churchId: ctx.user.churchId } });
-    const init = await funds.initialize(ctx.user, { fundId: fund!.id, amountMinor: 5000 });
+    const init = await funds.initializeForSlug(ctx.slug, { fundId: fund!.id, amountMinor: 5000 });
     const res = await funds.handlePaystackEvent({
       id: `evt_mismatch_${Date.now()}`,
       event: 'charge.success',

@@ -57,77 +57,98 @@ export class GivingService {
     );
   }
 
-  async quote(user: AuthUser, input: QuoteInput) {
-    return this.tenant.run(user, async (tx) => {
-      const fund = await tx.fund.findFirst({
-        where: { id: input.fundId, churchId: user.churchId, isActive: true },
-      });
-      if (!fund) throw new NotFoundException('fund not found');
-      if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
-        throw new BadRequestException('amountMinor must be a positive integer (pesewas)');
-      }
-      const settings = await this.feeSettings(tx, user.churchId);
-      return feeQuote(input.amountMinor, settings, { feeChoice: input.feeChoice });
-    });
+  /**
+   * The give link. A giver has no session, so the church comes from the slug the
+   * page was opened with and the fund is checked against that church. Nothing
+   * here is attributed to a user: the audit row records the door, not a staff id.
+   */
+  async quoteForSlug(slug: string, input: QuoteInput) {
+    const churchId = await this.churchIdBySlug(slug);
+    return this.tenant.runAsChurch(churchId, (tx) => this.quoteCore(tx, churchId, input));
   }
 
-  async initialize(user: AuthUser, input: InitializeGiftInput, ip?: string) {
-    const phone = input.giverPhoneE164 ? normalizeGhPhone(input.giverPhoneE164) : null;
-    return this.tenant.run(user, async (tx) => {
-      const fund = await tx.fund.findFirst({
-        where: { id: input.fundId, churchId: user.churchId, isActive: true },
-      });
-      if (!fund) throw new NotFoundException('fund not found');
-      if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
-        throw new BadRequestException('amountMinor must be a positive integer (pesewas)');
-      }
-      const settings = await this.feeSettings(tx, user.churchId);
-      const q = feeQuote(input.amountMinor, settings, { feeChoice: input.feeChoice });
-
-      const reference = `chms_${uuidv7()}`;
-      const txRow = await tx.transaction.create({
-        data: {
-          churchId: user.churchId,
-          fundId: fund.id,
-          giverName: input.giverName?.trim() || null,
-          giverPhoneE164: phone,
-          giftMinor: q.giftMinor,
-          feeCoverMinor: q.feeCoverMinor,
-          chargedMinor: q.chargedMinor,
-          feeEstimateMinor: q.feeMinor,
-          currency: 'GHS',
-          status: 'PENDING',
-          reference,
-          isAnonymous: input.isAnonymous ?? false,
-        },
-      });
-
-      const init = await this.provider.initialize({
-        reference,
-        amountMinor: q.chargedMinor,
-        currency: 'GHS',
-        callbackUrl: input.returnUrl,
-        metadata: { churchId: user.churchId, fundId: fund.id, kind: 'giving' },
-      });
-
-      await appendAudit(tx, {
-        churchId: user.churchId,
-        actorId: user.userId,
-        action: 'giving.initialize',
-        entity: 'Transaction',
-        entityId: txRow.id,
-        after: { reference, giftMinor: q.giftMinor, chargedMinor: q.chargedMinor, fundId: fund.id },
-        ip,
-      });
-
-      return {
-        transactionId: txRow.id,
-        authorizationUrl: init.authorizationUrl,
-        reference,
-        quote: q,
-        amountLabel: formatGhs(q.chargedMinor),
-      };
+  private async quoteCore(tx: Db, churchId: string, input: QuoteInput) {
+    const fund = await tx.fund.findFirst({
+      where: { id: input.fundId, churchId, isActive: true },
     });
+    if (!fund) throw new NotFoundException('fund not found');
+    if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
+      throw new BadRequestException('amountMinor must be a positive integer (pesewas)');
+    }
+    const settings = await this.feeSettings(tx, churchId);
+    return feeQuote(input.amountMinor, settings, { feeChoice: input.feeChoice });
+  }
+
+  async initializeForSlug(slug: string, input: InitializeGiftInput, ip?: string) {
+    const churchId = await this.churchIdBySlug(slug);
+    return this.tenant.runAsChurch(churchId, (tx) => this.initializeCore(tx, churchId, input, ip));
+  }
+
+  private async initializeCore(tx: Db, churchId: string, input: InitializeGiftInput, ip?: string) {
+    const fund = await tx.fund.findFirst({
+      where: { id: input.fundId, churchId, isActive: true },
+    });
+    if (!fund) throw new NotFoundException('fund not found');
+    if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
+      throw new BadRequestException('amountMinor must be a positive integer (pesewas)');
+    }
+    const phone = input.giverPhoneE164 ? normalizeGhPhone(input.giverPhoneE164) : null;
+    const settings = await this.feeSettings(tx, churchId);
+    const q = feeQuote(input.amountMinor, settings, { feeChoice: input.feeChoice });
+
+    const reference = `chms_${uuidv7()}`;
+    const txRow = await tx.transaction.create({
+      data: {
+        churchId,
+        fundId: fund.id,
+        giverName: input.giverName?.trim() || null,
+        giverPhoneE164: phone,
+        giftMinor: q.giftMinor,
+        feeCoverMinor: q.feeCoverMinor,
+        chargedMinor: q.chargedMinor,
+        feeEstimateMinor: q.feeMinor,
+        currency: 'GHS',
+        status: 'PENDING',
+        reference,
+        isAnonymous: input.isAnonymous ?? false,
+      },
+    });
+
+    const init = await this.provider.initialize({
+      reference,
+      amountMinor: q.chargedMinor,
+      currency: 'GHS',
+      callbackUrl: input.returnUrl,
+      metadata: { churchId, fundId: fund.id, kind: 'giving' },
+    });
+
+    await appendAudit(tx, {
+      churchId,
+      // No session behind this door, so the row records the act, not a staff id.
+      actorId: null,
+      action: 'giving.initialize',
+      entity: 'Transaction',
+      entityId: txRow.id,
+      after: { reference, giftMinor: q.giftMinor, chargedMinor: q.chargedMinor, fundId: fund.id },
+      ip,
+    });
+
+    return {
+      transactionId: txRow.id,
+      authorizationUrl: init.authorizationUrl,
+      reference,
+      quote: q,
+      amountLabel: formatGhs(q.chargedMinor),
+    };
+  }
+
+  private async churchIdBySlug(slug: string): Promise<string> {
+    const church = await prisma.church.findUnique({
+      where: { slug: slug.trim().toLowerCase() },
+      select: { id: true },
+    });
+    if (!church) throw new NotFoundException('church not found');
+    return church.id;
   }
 
   /**

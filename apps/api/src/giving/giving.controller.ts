@@ -10,16 +10,19 @@ import {
   RawBodyRequest,
   Req,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
-import { ForModule, Public, RequirePermissions } from '../common/decorators';
+import { ForModule, Public, PublicIntake, RequirePermissions } from '../common/decorators';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { AuthedRequest } from '../common/guards';
 import { BillingService } from '../billing/billing.service';
 import { GivingService, paystackSecret, verifyPaystackSignature } from './giving.service';
 import { Env } from '../env';
 
 class QuoteDto {
+  @IsString() churchSlug!: string;
   @IsString() fundId!: string;
   @IsInt() @Min(1) amountMinor!: number;
   @IsOptional() @IsBoolean() feeChoice?: boolean;
@@ -46,18 +49,30 @@ export class GivingController {
     return this.giving.funds(req.user!);
   }
 
-  @RequirePermissions('giving:read')
+  /**
+   * The give link (/give/<slug>) is a door for the congregation, not the office:
+   * no session, so the church is named in the body and the fund is checked
+   * against it. @PublicIntake makes it the one public route a section switch can
+   * close — but only on the answer the office gave in Settings.
+   */
+  @Public()
+  @PublicIntake('money')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ key: 'giving:ip', limit: 30, windowMs: 60_000 })
   @Post('quote')
   @HttpCode(200)
-  quote(@Req() req: AuthedRequest, @Body() dto: QuoteDto) {
-    return this.giving.quote(req.user!, dto);
+  quote(@Body() dto: QuoteDto) {
+    return this.giving.quoteForSlug(dto.churchSlug, dto);
   }
 
-  @RequirePermissions('giving:write')
+  @Public()
+  @PublicIntake('money')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ key: 'giving-start:ip', limit: 8, windowMs: 60_000 })
   @Post('initialize')
   @HttpCode(200)
-  initialize(@Req() req: AuthedRequest, @Body() dto: InitializeDto) {
-    return this.giving.initialize(req.user!, dto, req.ip);
+  initialize(@Body() dto: InitializeDto, @Req() req: RawBodyRequest<Request>) {
+    return this.giving.initializeForSlug(dto.churchSlug, dto, req.ip);
   }
 
   // The Offerings switch hides the gift list; the fund picker and the fee

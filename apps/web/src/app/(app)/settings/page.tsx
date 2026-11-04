@@ -129,6 +129,11 @@ export default function SettingsPage() {
   // starting set come from the API (/churches/me/profile) — the one table lives
   // in packages/shared/src/modules.ts, and this page keeps no copy of it.
   const [modules, setModules] = useState<Record<string, boolean>>({});
+  /**
+   * The answer the office gives when they switch Offerings off: keep the public
+   * give link open, or close it with the books. Asked once, honoured by the API.
+   */
+  const [stopGiving, setStopGiving] = useState(false);
   // Members may send in notices + prayer requests with photos (companion app).
   const [memberPosts, setMemberPosts] = useState(false);
   // Members can add themselves with this one church code.
@@ -169,6 +174,7 @@ export default function SettingsPage() {
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
       if (p.moduleDefaults) setStartModules(p.moduleDefaults);
       if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
+      if (typeof p.moneyOffStopsGiving === 'boolean') setStopGiving(p.moneyOffStopsGiving);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
     void api<any>('/giving/settings').then((s) => s && setFees(s)).catch(() => undefined);
@@ -203,7 +209,13 @@ export default function SettingsPage() {
    */
   async function saveModules(): Promise<void> {
     try {
-      const p = await api<any>('/churches/me/profile', { method: 'POST', body: { modules, memberPosts } });
+      // While Offerings is on the question is not asked, so the stored answer is
+      // cleared — otherwise switching the section back off would silently restore
+      // a decision nobody is looking at.
+      const p = await api<any>('/churches/me/profile', {
+        method: 'POST',
+        body: { modules, memberPosts, moneyOffStopsGiving: modules.money ? false : stopGiving },
+      });
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
       setError('');
       clearSession();
@@ -873,6 +885,36 @@ export default function SettingsPage() {
                   ))}
                 </div>
               ),
+            )}
+            {/* Asked only while Offerings is off, and the API acts on the answer. */}
+            {modules.money ? null : (
+              <div className="card">
+                <h3 style={{ margin: 0 }}>The link members use to give online</h3>
+                <p className="muted" style={{ marginBottom: 0 }}>
+                  You have switched Offerings off. Choose what happens to the giving page members and visitors open from
+                  your flyer and your WhatsApp link.
+                </p>
+                <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <input type="radio" name="give-door" checked={!stopGiving} onChange={() => setStopGiving(false)} />
+                  <span>
+                    <strong>Keep it open — only close the books</strong>
+                    <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                      People can still give online and money still arrives in the fund. Your own money reports and the
+                      giving list stay hidden until you switch Offerings back on.
+                    </span>
+                  </span>
+                </label>
+                <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <input type="radio" name="give-door" checked={stopGiving} onChange={() => setStopGiving(true)} />
+                  <span>
+                    <strong>Stop online giving too</strong>
+                    <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                      The giving page tells people this church is not taking online giving right now, and no payment can
+                      be started. Turn Offerings back on to open it again.
+                    </span>
+                  </span>
+                </label>
+              </div>
             )}
           </>
         )}

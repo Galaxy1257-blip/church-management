@@ -5,7 +5,7 @@
 // route belongs to the Children section, not the Services one.
 import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
-import { MODULE_KEY, PERMISSIONS_KEY } from '../common/decorators';
+import { ANY_PERMISSIONS_KEY, MODULE_KEY, PERMISSIONS_KEY } from '../common/decorators';
 import type { AuthUser } from '../common/guards';
 import { ChildrenController, ChildrenService } from './children.module';
 
@@ -41,5 +41,32 @@ describe('the desk’s own service list', () => {
   it('is gated by the Children section, not the Services one', () => {
     expect(Reflect.getMetadata(MODULE_KEY, ChildrenController)).toBe('children');
     expect(Reflect.getMetadata(PERMISSIONS_KEY, ChildrenController.prototype.deskServices)).toEqual(['services:read']);
+  });
+});
+
+// The desk routes used to be @Authenticated(), which meant the API said nothing
+// about who may work the desk and relied entirely on the class-scope helper to
+// refuse. The permission choice is now stated on the route; the scope helper
+// stays as the second lock.
+describe('who the desk says it is open to', () => {
+  const desk = ['members:write', 'checkin:write', 'children:write'];
+
+  it('names office, door team and teacher for the two writes', () => {
+    expect(Reflect.getMetadata(ANY_PERMISSIONS_KEY, ChildrenController.prototype.checkIn)).toEqual(desk);
+    expect(Reflect.getMetadata(ANY_PERMISSIONS_KEY, ChildrenController.prototype.checkout)).toEqual(desk);
+  });
+
+  it('keeps the roster away from the door team because it names the collectable adults', () => {
+    expect(Reflect.getMetadata(ANY_PERMISSIONS_KEY, ChildrenController.prototype.roster)).toEqual([
+      'members:write',
+      'children:write',
+    ]);
+  });
+
+  it('declares no AND permission list, so the OR is the only policy', () => {
+    for (const name of ['checkIn', 'checkout', 'roster'] as const) {
+      const perms = Reflect.getMetadata(PERMISSIONS_KEY, ChildrenController.prototype[name]);
+      expect(perms === undefined || perms.length === 0).toBe(true);
+    }
   });
 });

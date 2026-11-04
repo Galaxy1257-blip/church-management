@@ -6,7 +6,7 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 import { MetadataScanner } from '@nestjs/core/metadata-scanner';
 import { ModulesContainer } from '@nestjs/core';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
-import { PUBLIC_KEY, PERMISSIONS_KEY, AUTHENTICATED_KEY } from './decorators';
+import { PUBLIC_KEY, PERMISSIONS_KEY, ANY_PERMISSIONS_KEY, AUTHENTICATED_KEY } from './decorators';
 
 interface RouteViolation {
   controller: string;
@@ -53,7 +53,10 @@ export class BootCheckService implements OnApplicationBootstrap {
           const isPublic = Reflect.getMetadata(PUBLIC_KEY, handler) === true;
           const isAuthenticatedOnly = Reflect.getMetadata(AUTHENTICATED_KEY, handler) === true;
           const perms = Reflect.getMetadata(PERMISSIONS_KEY, handler);
-          if (!isPublic && !isAuthenticatedOnly && (!perms || (perms as unknown[]).length === 0)) {
+          const anyPerms = Reflect.getMetadata(ANY_PERMISSIONS_KEY, handler);
+          const declares =
+            (perms as unknown[] | undefined)?.length || (anyPerms as unknown[] | undefined)?.length;
+          if (!isPublic && !isAuthenticatedOnly && !declares) {
             violations.push({ controller: metatype.name, method: methodName });
           }
         }

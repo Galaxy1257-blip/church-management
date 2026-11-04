@@ -6,8 +6,9 @@
 //
 // The switch hides the area in the web shell AND gates the API: a route tagged
 // @ForModule(key) returns 403 while the flag is off, so a hand-typed URL cannot
-// read a section the church turned off. @Public() intake (the giving page,
-// webhooks) stays reachable — the switch is about the office's own areas.
+// read a section the church turned off. Public intake (the give link, webhooks)
+// is a separate question, answered in Settings when Offerings is switched off —
+// see givingStopsWithBooks.
 export const MODULE_KEYS = [
   'people',
   'worship',
@@ -92,6 +93,17 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
 
 export function isModuleKey(value: unknown): value is ModuleKey {
   return typeof value === 'string' && (MODULE_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * What the office answered when Settings asked them to switch Offerings off:
+ * "keep the give link open" or "stop online giving too". Absent means keep —
+ * that is what a church has always had, and the question is only ever asked at
+ * the moment the switch is turned off.
+ */
+export function givingStopsWithBooks(settings: unknown): boolean {
+  const s = (settings ?? {}) as { moneyOffStopsGiving?: unknown };
+  return s.moneyOffStopsGiving === true;
 }
 
 /** Stored flags merged over the defaults; unknown/absent keys use MODULE_DEFAULTS. */

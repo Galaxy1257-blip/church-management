@@ -1476,3 +1476,59 @@ public-give exemption · put a declarable permission on the three children's-des
 grants · re-key usher mode off `checkin:write` · give `/collection` its `module:'money'` route rule ·
 decide whether ELDER/FOLLOWUP_TEAM keep `care:*` at all · separate `promotions:run` / `branches:write`
 permissions.
+
+## 2026-11-04 — Audit round 5 approved, Batch 12: the giving door answers to the church (`committed`)
+
+**Owner:** "for the point one give a prompt when turning books off, app should act on user response,
+implement audit log and point 2. do 4 and 5 and 6. decide on 7" — points **1, 2, 3, 4, 5, 6 approved**,
+point **7 is mine to decide**. Point 3 (the audit-log screen) is built on `audit:read`, which was one of the
+six grants that opened no door (`round 5` finding 3), so it is the next unit rather than part of this one.
+
+**Point 1 — the switch asks, and the API obeys.** `apps/web/src/app/(app)/settings/page.tsx` renders "The
+link members use to give online" only while `!modules.money`: two radios, *Keep it open — only close the
+books* (default, and forced back to that whenever Offerings is on) or *Stop online giving too*. The answer
+rides on the same `POST /churches/me/profile` call as the section switches, lands in
+`Church.settings.moneyOffStopsGiving` (Json column — no migration), and invalidates the module-flag cache.
+`givingStopsWithBooks()` in `packages/shared/src/modules.ts:1` is the one reader of that flag; the web app
+never has to know it, because the closure is enforced server-side.
+
+`@PublicIntake('money')` (`apps/api/src/common/decorators.ts`) marks a `@Public()` door a section switch may
+close. `ModuleGuard` (`guards.ts`) now checks the intake key **before** the `@Public` early-return, reads
+`req.body.churchSlug` (guards run after body-parser, before validation — the same fact `rate-limit.ts` relies
+on), and calls `givingDoorClosedForSlug()` in `common/module-flags.ts`: a TTL-cached platform lookup of the
+slug, and an unknown slug counts as closed so a typo cannot get through. The message names the church's own
+answer, not a section id.
+
+**A blocker that was hiding under point 1: anonymous giving had never worked.** The only caller of
+`POST /giving/quote` / `POST /giving/initialize` is the public `/give/<slug>` page, and both carried
+`@RequirePermissions('giving:read')` — so a giver with no session got `401 missing bearer token`. This is why
+the controller had no class-level `@ForModule('money')`: gating it as it stood would have closed the door the
+round-5 report said was already closed. Fixed by making them slug-keyed public intake: `quoteForSlug` /
+`initializeForSlug` resolve the church from the slug and then check the fund with
+`where: { id, churchId, isActive: true }`, so a giver cannot pay into another church's fund. The two
+user-session methods were deleted (no caller), and the shared `quoteCore`/`initializeCore` bodies now audit
+with `actorId: null` plus the request ip — the row records the act, not a staff id. **Audit log still to
+build (point 3); this unit only makes sure the anonymous rows are honest when it is read.**
+
+**Point 2 — the desk declares its rule.** `@AnyPermission(...)` is the OR form of `@RequirePermissions`
+(`PermissionsGuard` ANDs one list, ORs the other; `boot-check.ts` accepts either, so default-deny still
+fails a route that declares neither). `POST /checkin` + `POST /checkout` = `members:write` / `checkin:write`
+/ `children:write`; `GET /roster` = `members:write` / `children:write`. `class-scope.ts` is untouched — the
+office/door/own-class narrowing is still the second lock, and a Sunday School teacher still cannot move a
+child outside their class. What changed is that the rule is now visible to the guard chain, the boot check
+and whoever reads the controller.
+
+**Coverage.** 165/165 API tests over 19 files, 132/132 shared over 16 files; api + web typechecks clean;
+`eslint .` clean; `check:secrets` clean. New: 4 `AnyPermission` guard tests, 3 give-door guard tests,
+3 desk-metadata tests, 3 `givingStopsWithBooks` tests, 2 integration tests re-pointed at the slug methods.
+Live at 390px (chrome-devtools, `demo` church, signed in as the super admin): prompt appears when
+Offerings is unticked and vanishes when it is re-ticked → "Stop online giving too" + Save →
+`POST /giving/quote` **403** with the church's own wording and `/give/demo` shows the closed notice with no
+form → "Keep it open" + Save → **200** `{"chargedMinor":5000,"netToFundMinor":4892}` with Offerings still
+off → Offerings back on → **200**, and the DB reads `modules.money: true, moneyOffStopsGiving: false`.
+Anonymous quote + initialize were also proven earlier in this unit (200 with a mock `authorizationUrl`,
+`audit_event` row with `actor_id: null`, `ip: "::1"`).
+
+**Still honest about:** the give page was verified against the mock Paystack path only, so "money arrives in
+the fund" is the pre-existing live-keys gap — not a new one. Camera QR scanning, OS-level push (no VAPID
+keys), and the usher's manual headcount counter behind the Services switch are unchanged.

@@ -5,7 +5,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { IsOptional, IsString } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
 import { uuidv7 } from '@chms/shared';
-import { Authenticated, ForModule, RequirePermissions } from '../common/decorators';
+import { AnyPermission, ForModule, RequirePermissions } from '../common/decorators';
 import { deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
@@ -249,13 +249,13 @@ export class ChildrenController {
   }
 
   /**
-   * The desk writes. @Authenticated() rather than one permission because three
-   * roles legitimately work the desk and no single permission covers them: the
-   * office (members:write), the door team (checkin:write) and the class teacher
-   * (children:write). deskMoveChildIds() is what decides, and it narrows the
-   * teacher to their own class before anything is written.
+   * The desk writes. Three roles legitimately work it and no single permission
+   * covers them all, so the route names the choice instead of opening to anyone
+   * signed in: the office (members:write), the door team (checkin:write) and the
+   * class teacher (children:write). deskMoveChildIds() is the second lock — it
+   * narrows the teacher to their own class before anything is written.
    */
-  @Authenticated()
+  @AnyPermission('members:write', 'checkin:write', 'children:write')
   @Post('checkin')
   checkIn(@Req() req: AuthedRequest, @Body() dto: ChildInDto) {
     return this.svc.checkInChild(req.user!, dto, req.ip);
@@ -266,7 +266,7 @@ export class ChildrenController {
    * that names the adults allowed to collect a child, so the door role does not
    * get it — only the office and the teacher's own class (deskRosterChildIds).
    */
-  @Authenticated()
+  @AnyPermission('members:write', 'children:write')
   @Get('roster')
   roster(@Req() req: AuthedRequest) {
     return this.svc.roster(req.user!);
@@ -289,7 +289,7 @@ export class ChildrenController {
     return this.svc.listActive(req.user!, serviceId);
   }
 
-  @Authenticated()
+  @AnyPermission('members:write', 'checkin:write', 'children:write')
   @Post('checkout')
   checkout(@Req() req: AuthedRequest, @Body() dto: { childId: string; serviceId: string; code: string }) {
     return this.svc.checkOut(req.user!, dto.childId, dto.serviceId, dto.code, req.ip);

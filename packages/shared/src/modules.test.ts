@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODULE_DEFAULTS, MODULE_KEYS, isModuleKey, resolveModules, type ModuleKey } from './modules';
+import { MODULE_DEFAULTS, MODULE_KEYS, givingStopsWithBooks, isModuleKey, resolveModules, type ModuleKey } from './modules';
 
 const defaults = {
   people: true,
@@ -100,5 +100,20 @@ describe('isModuleKey', () => {
     expect(isModuleKey('spaceship')).toBe(false);
     expect(isModuleKey(42)).toBe(false);
     expect(isModuleKey(undefined)).toBe(false);
+  });
+});
+
+// Settings asks this question only at the moment Offerings is switched off, so
+// the absent answer must mean the door the church has always had: open.
+describe('givingStopsWithBooks', () => {
+  it('keeps online giving open until the church says otherwise', () => {
+    expect(givingStopsWithBooks(undefined)).toBe(false);
+    expect(givingStopsWithBooks({})).toBe(false);
+    expect(givingStopsWithBooks({ moneyOffStopsGiving: 'yes' })).toBe(false);
+  });
+
+  it('is true only when that was the answer', () => {
+    expect(givingStopsWithBooks({ moneyOffStopsGiving: true })).toBe(true);
+    expect(givingStopsWithBooks({ modules: { money: false }, moneyOffStopsGiving: true })).toBe(true);
   });
 });
