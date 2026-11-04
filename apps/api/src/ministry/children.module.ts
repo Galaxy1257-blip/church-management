@@ -1,20 +1,36 @@
 // Children's security check-in: dual ticket (child tag + guardian pickup
 // code). Checkout requires a guardian listed in MemberGuardian + code match.
-import { BadRequestException, Body, Controller, Get, Injectable, Module, Post, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Injectable, Module, Post, Query, Req } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { IsOptional, IsString } from 'class-validator';
-import { appendAudit } from '@chms/db';
+import { appendAudit, Db } from '@chms/db';
 import { uuidv7 } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { Authenticated, ForModule, RequirePermissions } from '../common/decorators';
+import { deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
+import { ServicesModule } from '../services/services.module';
+import { ServicesService } from '../services/services.service';
 
 @Injectable()
 export class ChildrenService {
-  constructor(private readonly tenant: TenantService) {}
+  constructor(private readonly tenant: TenantService, private readonly services: ServicesService) {}
+
+  /**
+   * A Sunday School teacher may only move a child from the class the office gave
+   * them. The office and the door team keep the whole church — same rule as the
+   * care queue (common/class-scope.ts).
+   */
+  private async assertDeskChild(tx: Db, user: AuthUser, childId: string): Promise<void> {
+    const ids = await deskMoveChildIds(tx, user);
+    if (ids && !ids.includes(childId)) {
+      throw new ForbiddenException('That child is not in your class.');
+    }
+  }
 
   async checkInChild(user: AuthUser, input: { serviceId: string; childId: string; guardianId: string }, ip?: string) {
     return this.tenant.run(user, async (tx) => {
+      await this.assertDeskChild(tx, user, input.childId);
       const child = await tx.member.findFirst({ where: { id: input.childId, churchId: user.churchId, deletedAt: null } });
       if (!child) throw new BadRequestException('that child is not in this church');
       const guardian = await tx.memberGuardian.findFirst({
@@ -52,16 +68,39 @@ export class ChildrenService {
   }
 
   /**
+   * The service picker for the desk. It asks ServicesService directly instead of
+   * sending the caller to GET /services, because that route belongs to the
+   * Services section (worship) and a Sunday School that has switched Services off
+   * still has to be able to check children in. Going through the service rather
+   * than the table keeps the one rule that matters: the same read that opens
+   * today's service on the first person in on Sunday morning. A rolling week back
+   * is the whole window the desk works in.
+   */
+  async deskServices(user: AuthUser) {
+    const from = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const rows = await this.services.list(user, { from });
+    return rows.slice(0, 8).map((s) => ({ id: s.id, name: s.name, status: s.status, startsAt: s.startsAt }));
+  }
+
+  /**
    * Who is in the room right now. ChildCheckIn has no relations in the schema,
    * so the names come back in a second read of the member rows.
    */
   async listActive(user: AuthUser, serviceId: string) {
-    const rows = await this.tenant.run(user, (tx) =>
-      tx.childCheckIn.findMany({
-        where: { churchId: user.churchId, serviceId, checkedOutAt: null },
+    const rows = await this.tenant.run(user, async (tx) => {
+      const mine = await deskMoveChildIds(tx, user);
+      const found = await tx.childCheckIn.findMany({
+        where: {
+          churchId: user.churchId,
+          serviceId,
+          checkedOutAt: null,
+          ...(mine ? { childId: { in: mine } } : {}),
+        },
         orderBy: { checkedInAt: 'asc' },
-      }),
-    );
+      });
+      // A teacher sees their own class inside, not the count of every other room.
+      return mine ? found.filter((row) => mine.includes(row.childId)) : found;
+    });
     const ids = [...new Set(rows.flatMap((row) => [row.childId, row.guardianId]))];
     const people = await this.tenant.run(user, (tx) =>
       tx.member.findMany({
@@ -82,13 +121,17 @@ export class ChildrenService {
    * them up. Check-in desks work from names, not member UUIDs, so the picker
    * needs both lists in one call. A child is defined here as a member with a
    * recorded guardian.
+   *
+   * A Sunday School teacher gets only their own class — see deskRosterChildIds.
+   * The office (members:write) gets the whole list, exactly as before.
    */
   roster(user: AuthUser) {
     return this.tenant.run(user, async (tx) => {
+      const mine = await deskRosterChildIds(tx, user);
       const links = await tx.memberGuardian.findMany({
         where: {
           canPickup: true,
-          child: { churchId: user.churchId, deletedAt: null, status: 'ACTIVE' },
+          child: { churchId: user.churchId, deletedAt: null, status: 'ACTIVE', ...(mine ? { id: { in: mine } } : {}) },
         },
         include: {
           child: { select: { id: true, firstName: true, lastName: true, memberNo: true } },
@@ -158,6 +201,7 @@ export class ChildrenService {
 
   checkOut(user: AuthUser, childId: string, serviceId: string, code: string, ip?: string) {
     return this.tenant.run(user, async (tx) => {
+      await this.assertDeskChild(tx, user, childId);
       const row = await tx.childCheckIn.findFirst({
         where: { churchId: user.churchId, childId, serviceId, checkedOutAt: null },
       });
@@ -192,6 +236,8 @@ class GuardianDto {
   @IsOptional() @IsString() relation?: string;
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('children')
 @Controller('children')
 export class ChildrenController {
   constructor(private readonly svc: ChildrenService) {}
@@ -202,16 +248,39 @@ export class ChildrenController {
     return this.svc.setGuardian(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('checkin:write')
+  /**
+   * The desk writes. @Authenticated() rather than one permission because three
+   * roles legitimately work the desk and no single permission covers them: the
+   * office (members:write), the door team (checkin:write) and the class teacher
+   * (children:write). deskMoveChildIds() is what decides, and it narrows the
+   * teacher to their own class before anything is written.
+   */
+  @Authenticated()
   @Post('checkin')
   checkIn(@Req() req: AuthedRequest, @Body() dto: ChildInDto) {
     return this.svc.checkInChild(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('members:write')
+  /**
+   * The desk list. Same shape as the two writes, but narrower: this is the one
+   * that names the adults allowed to collect a child, so the door role does not
+   * get it — only the office and the teacher's own class (deskRosterChildIds).
+   */
+  @Authenticated()
   @Get('roster')
   roster(@Req() req: AuthedRequest) {
     return this.svc.roster(req.user!);
+  }
+
+  /**
+   * The desk's service picker. It sits here rather than on GET /services so a
+   * church that switched the Services section off can still run the children's
+   * desk; the class-level @ForModule('children') is what guards it.
+   */
+  @RequirePermissions('services:read')
+  @Get('services')
+  deskServices(@Req() req: AuthedRequest) {
+    return this.svc.deskServices(req.user!);
   }
 
   @RequirePermissions('services:read')
@@ -220,7 +289,7 @@ export class ChildrenController {
     return this.svc.listActive(req.user!, serviceId);
   }
 
-  @RequirePermissions('checkin:write')
+  @Authenticated()
   @Post('checkout')
   checkout(@Req() req: AuthedRequest, @Body() dto: { childId: string; serviceId: string; code: string }) {
     return this.svc.checkOut(req.user!, dto.childId, dto.serviceId, dto.code, req.ip);
@@ -230,6 +299,7 @@ export class ChildrenController {
 
 
 @Module({
+  imports: [ServicesModule],
   providers: [TenantService, ChildrenService],
   controllers: [ChildrenController],
 })

@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
-import { Public, RequirePermissions } from '../common/decorators';
+import { ForModule, Public, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { BillingService } from '../billing/billing.service';
 import { GivingService, paystackSecret, verifyPaystackSignature } from './giving.service';
@@ -60,6 +60,10 @@ export class GivingController {
     return this.giving.initialize(req.user!, dto, req.ip);
   }
 
+  // The Offerings switch hides the gift list; the fund picker and the fee
+  // settings stay readable because Settings → Giving needs them to set the
+  // section back up.
+  @ForModule('money')
   @RequirePermissions('giving:read')
   @Get('transactions')
   transactions(@Req() req: AuthedRequest, @Query('status') status?: string) {

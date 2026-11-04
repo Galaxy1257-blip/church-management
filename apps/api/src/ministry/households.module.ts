@@ -1,7 +1,7 @@
 // Households: unified family linking (head/spouse/child/other).
 import { Body, Controller, Get, Injectable, Module, Param, Post, Req } from '@nestjs/common';
 import { IsOptional, IsString, MinLength } from 'class-validator';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -49,6 +49,8 @@ export class HouseholdsService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('departments')
 @Controller('households')
 export class HouseholdsController {
   constructor(private readonly svc: HouseholdsService) {}

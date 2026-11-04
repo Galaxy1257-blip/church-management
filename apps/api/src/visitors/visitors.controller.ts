@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 import { VisitorStatus } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { VisitorsService } from './visitors.service';
 
@@ -16,6 +16,8 @@ class RegisterVisitorDto {
   @IsOptional() @IsString() notes?: string;
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('people')
 @Controller('visitors')
 export class VisitorsController {
   constructor(private readonly visitors: VisitorsService) {}

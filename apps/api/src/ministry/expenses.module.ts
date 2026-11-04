@@ -2,7 +2,7 @@
 import { Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit } from '@chms/db';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -124,6 +124,8 @@ export class ExpensesService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('expenses')
 @Controller('expenses')
 export class ExpensesController {
   constructor(private readonly svc: ExpensesService) {}

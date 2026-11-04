@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { BatchEntryInput, FinanceService } from './finance.service';
 
@@ -31,6 +31,8 @@ class DepositDto {
   @IsString() depositRef!: string;
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('money')
 @Controller('finance')
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}

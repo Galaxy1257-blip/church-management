@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
 import { IsIn, IsOptional, IsString } from 'class-validator';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { CheckinService } from './checkin.service';
 
@@ -12,6 +12,8 @@ class CheckInDto {
   @IsOptional() @IsIn(['MANUAL', 'QR', 'PHONE_LOOKUP']) method?: 'MANUAL' | 'QR' | 'PHONE_LOOKUP';
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('worship')
 @Controller('checkin')
 export class CheckinController {
   constructor(private readonly checkin: CheckinService) {}

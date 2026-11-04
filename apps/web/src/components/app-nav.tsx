@@ -188,7 +188,11 @@ export default function AppNav({
               ))}
 
               {filtered.length === 0 ? (
-                <p className="side-empty">No page matches “{query.trim()}”.</p>
+                <p className="side-empty">
+                  {query.trim()
+                    ? `No page matches “${query.trim()}”.`
+                    : 'Nothing is switched on for your role yet. The Dashboard is still yours, and the office can open an area in Settings → App sections.'}
+                </p>
               ) : null}
 
               {hasPermission(me.permissions, 'settings:write') ? (

@@ -16,6 +16,7 @@ import {
   moduleEnabled,
   moduleForPath,
   routeAccess,
+  switchesForPath,
   visibleNavGroups,
   visibleUsherNav,
   type SessionUser,
@@ -103,28 +104,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       items: [{ href: '/extras', label: 'Extras', permissions: ['church:read'] }],
     });
   }
-  const usherNav = visibleUsherNav(perms);
+  const usherNav = visibleUsherNav(perms, me.modules, me.roles);
   const canUsherMode = hasPermission(perms, 'headcount:write') && hasPermission(perms, 'services:read');
   const showUsher = usherMode && canUsherMode;
   const rule = routeAccess(pathname);
   // Usher mode is a curated subset of screens (Today / Check-in / Attendance /
-  // Visitors); the church may switch the whole Worship area off and ushers must
-  // still be able to count attendance. Anything outside that subset still needs
-  // the normal permission + module check.
+  // Visitors / Care) with big touch targets; leaders toggle it off. The same
+  // App-section switches apply here as everywhere else, because the API now
+  // refuses a switched-off section — a rail that led to a 403 would be a lie.
   const usherAllowed =
     showUsher &&
-    visibleUsherNav(perms).some(
-      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-    );
+    usherNav.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const denied = !usherAllowed && !canAccessPath(perms, pathname, me.modules, me.roles);
   // Which of the two possible reasons applies: a switched-off section or a
   // missing permission/role. The copy below has to say the right one, or the
   // operator will go hunting for a role that was never the problem.
   const area = rule ? areaForItem(rule.prefix) : null;
   const section = moduleForPath(pathname);
-  const areaOff = section ? !moduleEnabled(me.modules, section) : false;
+  const areaOff = switchesForPath(pathname).some((key) => !moduleEnabled(me.modules, key));
   const sectionLabel = section ? MODULE_LABELS[section].label : (area?.label ?? 'This area');
-  const home = groups[0]?.items[0]?.href ?? '/dashboard';
+  // The brand mark always means the dashboard. Deriving it from the first menu
+  // item made it point at /members for an admin, and then listed /members twice.
+  const home = hasPermission(perms, 'church:read') ? '/dashboard' : (groups[0]?.items[0]?.href ?? '/about');
 
   return (
     <div className={`app-shell${showUsher ? ' usher-shell' : ''}`}>

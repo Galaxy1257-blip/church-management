@@ -2,6 +2,8 @@
 // Organisation: branches, member transfers (2-step), households.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { moduleEnabled, type ModuleFlags } from '../../../lib/access';
+import { getSession } from '../../../lib/session';
 
 interface Branch { id: string; name: string; code: string }
 interface Household { id: string; name: string; members: { member: { firstName: string; lastName: string } }[] }
@@ -14,20 +16,32 @@ export default function OrgPage() {
   const [hhForm, setHhForm] = useState({ name: '', headMemberId: '' });
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  // Branches is its own App section, so this page must keep working — households —
+  // when it is switched off. The API refuses /branches then, so do not ask.
+  const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
 
-  async function load(): Promise<void> {
+  async function load(showBranches: boolean): Promise<void> {
     try {
-      const [b, h] = await Promise.all([api<Branch[]>('/branches'), api<Household[]>('/households')]);
+      const [b, h] = await Promise.all([
+        showBranches ? api<Branch[]>('/branches') : Promise.resolve<Branch[]>([]),
+        api<Household[]>('/households'),
+      ]);
       setBranches(b); setHouseholds(h);
       if (!transfer.toBranchId && b[0]) setTransfer((p) => ({ ...p, toBranchId: b[0].id }));
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'failed'); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void (async () => {
+      const mods = await getSession().then((s) => s.modules).catch(() => undefined);
+      setModules(mods);
+      await load(moduleEnabled(mods, 'branches'));
+    })();
+  }, []);
 
   async function addBranch(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/branches', { method: 'POST', body: branchForm }); setBranchForm({ name: '', code: '' }); setNotice('Branch added'); await load(); }
+    try { await api('/branches', { method: 'POST', body: branchForm }); setBranchForm({ name: '', code: '' }); setNotice('Branch added'); await load(true); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
@@ -39,7 +53,7 @@ export default function OrgPage() {
 
   async function addHousehold(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/households', { method: 'POST', body: { name: hhForm.name, headMemberId: hhForm.headMemberId || undefined } }); setHhForm({ name: '', headMemberId: '' }); setNotice('Household created'); await load(); }
+    try { await api('/households', { method: 'POST', body: { name: hhForm.name, headMemberId: hhForm.headMemberId || undefined } }); setHhForm({ name: '', headMemberId: '' }); setNotice('Household created'); await load(moduleEnabled(modules, 'branches')); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
@@ -49,6 +63,7 @@ export default function OrgPage() {
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
       {error ? <div className="error">{error}</div> : null}
       <div className="grid cols-2">
+        {moduleEnabled(modules, 'branches') ? (
         <div className="card">
           <h2>Branches</h2>
           <form className="row" onSubmit={addBranch}>
@@ -66,6 +81,7 @@ export default function OrgPage() {
             <button>Request transfer (needs 2nd approval)</button>
           </form>
         </div>
+        ) : null}
         <div className="card">
           <h2>Households</h2>
           <form className="row" onSubmit={addHousehold}>

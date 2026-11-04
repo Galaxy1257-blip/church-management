@@ -4,9 +4,10 @@
 // off needs no migration. A missing key means the key's default below, which
 // keeps every existing church working without a data backfill.
 //
-// This is a visibility switch for the web shell, not an authorisation boundary:
-// the API still enforces permissions, so a hand-typed URL never returns data the
-// role could not otherwise read — it just stops showing whole areas of the app.
+// The switch hides the area in the web shell AND gates the API: a route tagged
+// @ForModule(key) returns 403 while the flag is off, so a hand-typed URL cannot
+// read a section the church turned off. @Public() intake (the giving page,
+// webhooks) stays reachable — the switch is about the office's own areas.
 export const MODULE_KEYS = [
   'people',
   'worship',
@@ -31,14 +32,19 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
 export type ModuleFlags = Record<ModuleKey, boolean>;
 
 /**
- * What a new church starts with. The five above the line carry the week: the
- * directory, the service, the offering, the news and the Bible. Everything below
- * it is opt-in, because most churches do not run all of it — they tick what they
- * use in Settings → App sections and the rest never appears.
+ * What a new church starts with. The four above the line carry the week: the
+ * directory, the offering, the news and the Bible. Everything below it is
+ * opt-in, because most churches do not run all of it — they tick what they use
+ * in Settings → App sections and the rest never appears.
+ *
+ * These values are the ONLY defaults in the app. The API resolves them into
+ * `GET /auth/me` and `/churches/me/profile`, and the web shell reads that
+ * resolved set instead of keeping its own copy, so a switch cannot mean one
+ * thing to the menu and another to the API.
  */
 export const MODULE_DEFAULTS: ModuleFlags = {
   people: true,
-  worship: true,
+  worship: false,
   money: true,
   reach: true,
   bible: true,

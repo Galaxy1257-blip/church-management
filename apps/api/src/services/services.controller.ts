@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { ServicesService } from './services.service';
 
@@ -20,6 +20,8 @@ class SaveScheduleDto {
   @IsOptional() @IsArray() @IsString({ each: true }) skipDates?: string[];
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('worship')
 @Controller('services')
 export class ServicesController {
   constructor(private readonly services: ServicesService) {}

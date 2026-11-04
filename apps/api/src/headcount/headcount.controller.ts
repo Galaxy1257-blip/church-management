@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
 import { IsArray, IsInt, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Public, RequirePermissions } from '../common/decorators';
+import { ForModule, Public, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { HeadcountService, SyncEvent } from './headcount.service';
 
@@ -20,6 +20,9 @@ class SyncBatchDto {
   @IsArray() @ValidateNested({ each: true }) @Type(() => SyncEventDto) events!: SyncEventDto[];
 }
 
+// Attendance is the Services section, so its switch closes these too. The @Public()
+// wall-display stream below is exempt: the guard answers @Public() first.
+@ForModule('worship')
 @Controller()
 export class HeadcountController {
   constructor(private readonly headcount: HeadcountService) {}

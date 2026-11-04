@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -9,8 +10,17 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { hasPermission, Permission, resolveDataScope, type DataScope, type RoleKey } from '@chms/shared';
-import { AUTHENTICATED_KEY, PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import {
+  hasPermission,
+  MODULE_LABELS,
+  Permission,
+  resolveDataScope,
+  type DataScope,
+  type ModuleKey,
+  type RoleKey,
+} from '@chms/shared';
+import { AUTHENTICATED_KEY, PUBLIC_KEY, PERMISSIONS_KEY, MODULE_KEY } from './decorators';
+import { ModuleFlagsService } from './module-flags';
 import type { Env } from '../env';
 
 export interface AuthUser {
@@ -140,5 +150,38 @@ export class PermissionsGuard implements CanActivate {
 
     // @Authenticated(): any valid session, including a MEMBER with zero permissions.
     return true;
+  }
+}
+
+/**
+ * App-section switches, enforced server-side. A route names the section it
+ * belongs to with @ForModule(); when that section is switched off for the
+ * church, the data is not available — not even to a role holding every
+ * permission for it. @Public() intake (the giving page, webhooks) is untouched:
+ * a congregation can still give when the office has switched the reports off.
+ */
+@Injectable()
+export class ModuleGuard implements CanActivate {
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly flags: ModuleFlagsService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const targets = [context.getHandler(), context.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets)) return true;
+
+    const key = this.reflector.getAllAndOverride<ModuleKey | undefined>(MODULE_KEY, targets);
+    if (!key) return true;
+
+    const req = context.switchToHttp().getRequest<AuthedRequest>();
+    const user = req.user;
+    // JwtAuthGuard runs first, so a session is always present by here.
+    if (!user) return true;
+
+    if ((await this.flags.flagsFor(user.churchId))[key]) return true;
+    throw new ForbiddenException(
+      `${MODULE_LABELS[key].label} is switched off for this church. Turn it on in Settings → App sections.`,
+    );
   }
 }

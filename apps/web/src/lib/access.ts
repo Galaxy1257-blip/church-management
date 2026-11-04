@@ -84,8 +84,20 @@ export interface NavItem {
   label: string;
   /** Any one of these permissions opens the page (and shows the link). */
   permissions: Permission[];
+  /**
+   * For the one page whose access is not a single permission: this replaces the
+   * list above with the rule the API itself applies. A menu item that promises a
+   * screen the endpoint then refuses is the same lie as a switch that does nothing.
+   */
+  test?: (granted: readonly Permission[]) => boolean;
   /** Which app-section switch hides this page (absent = the area's switch). */
   module?: ModuleKey;
+  /**
+   * Other sections this page cannot work without. The rota and the check-in desk
+   * both start by picking a service, so with Services switched off they are dead
+   * screens — the switch that gates the API has to gate the link too.
+   */
+  requires?: readonly ModuleKey[];
   /** When set, only these role keys may see/open the page. */
   roles?: readonly string[];
 }
@@ -100,8 +112,11 @@ export interface NavGroup {
 // area (components/app-nav.tsx); usher mode swaps it for a labelled rail and
 // phones get the same list as a drawer. No route was deleted to get there.
 //
-// Mirrors packages/shared/src/modules.ts (this app does not import the workspace
-// package; the access smoke test is what catches drift).
+// The key list and the wording live here because the web app cannot import the
+// workspace package (same reason as lib/shared-constants.ts). WHAT IS ON is not
+// duplicated anywhere: the API resolves packages/shared MODULE_DEFAULTS into
+// `GET /auth/me`, and this file only ever reads that resolved set. A switch
+// therefore cannot mean one thing to the menu and another to the API.
 export const MODULE_KEYS = [
   'people',
   'worship',
@@ -121,31 +136,8 @@ export const MODULE_KEYS = [
   'branches',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
-export type ModuleFlags = Partial<Record<ModuleKey, boolean>>;
-
-/**
- * Must match packages/shared MODULE_DEFAULTS. The first five carry the week —
- * directory, service, offering, news, Bible — and everything after them is
- * opt-in.
- */
-export const MODULE_DEFAULTS: Record<ModuleKey, boolean> = {
-  people: true,
-  worship: true,
-  money: true,
-  reach: true,
-  bible: true,
-  care: false,
-  roster: false,
-  events: false,
-  children: false,
-  groups: false,
-  followup: false,
-  special_offerings: false,
-  expenses: false,
-  sms: false,
-  departments: false,
-  branches: false,
-};
+/** Always the full set, as resolved by the API for this church. */
+export type ModuleFlags = Record<ModuleKey, boolean>;
 
 export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> = {
   people: { label: 'Members & visitors', hint: 'The directory, visitors and giving history' },
@@ -175,6 +167,17 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
 /** Care is for the people who look after the congregation week to week. */
 export const CARE_ROLES: readonly string[] = ['USHER', 'SUNDAY_SCHOOL'];
 
+/**
+ * Who the children's desk lets in — the same rule the API applies
+ * (apps/api/src/common/class-scope.ts#deskRosterChildIds): the office
+ * (members:write) gets every child, a class teacher (children:write) gets their
+ * own class, and an usher with checkin:write is not given this page, because the
+ * list it opens names the adults allowed to collect a child.
+ */
+export function canRunChildrenDesk(granted: readonly Permission[]): boolean {
+  return hasPermission(granted, 'members:write') || hasPermission(granted, 'children:write');
+}
+
 export function isCareRole(roles: readonly string[] | undefined): boolean {
   return !!roles && roles.some((role) => CARE_ROLES.includes(role));
 }
@@ -198,7 +201,9 @@ export const NAV_AREAS: NavArea[] = [
     items: [
       { href: '/members', label: 'Members', permissions: ['members:read'] },
       { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
-      { href: '/children', label: 'Children', permissions: ['members:write'], module: 'children' },
+      // The office runs the desk with members:write and a Sunday School teacher
+      // runs their own class with children:write — the rule lives in canRunChildrenDesk.
+      { href: '/children', label: 'Children', permissions: [], test: canRunChildrenDesk, module: 'children' },
       { href: '/groups', label: 'Groups', permissions: ['members:write'], module: 'groups' },
       { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
       // Follow-up plans are for the visitor team, not a care-only teacher.
@@ -212,7 +217,7 @@ export const NAV_AREAS: NavArea[] = [
     items: [
       { href: '/services', label: 'Services', permissions: ['services:read'] },
       { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
-      { href: '/roster', label: 'Serving team', permissions: ['members:write'], module: 'roster' },
+      { href: '/roster', label: 'Serving team', permissions: ['members:write'], module: 'roster', requires: ['worship'] },
       { href: '/events', label: 'Events', permissions: ['services:write', 'members:write'], module: 'events' },
     ],
   },
@@ -250,18 +255,23 @@ export const NAV_AREAS: NavArea[] = [
 export const NAV_GROUPS: NavGroup[] = NAV_AREAS.map(({ label, hint, items }) => ({ label, hint, items }));
 
 // Usher Mode: ONE app, role-scoped shell. Ushers get a mobile-first subset
-// (Today / Check-in / Visitors) with big touch targets; leaders toggle it off.
+// (Today / Check-in / Attendance / Visitors / Care) with big touch targets;
+// leaders toggle it off. The same switches as the normal menu apply — a church
+// that switched Services off has no service to check people in to.
 export const USHER_NAV: NavItem[] = [
   { href: '/dashboard', label: 'Today', permissions: ['church:read'] },
-  { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'] },
-  { href: '/services', label: 'Attendance', permissions: ['services:read'] },
-  { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'] },
+  { href: '/checkin', label: 'Check-in', permissions: ['checkin:write'], module: 'worship' },
+  { href: '/services', label: 'Attendance', permissions: ['services:read'], module: 'worship' },
+  { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'], module: 'people' },
+  { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
 ];
 
 export interface AccessRule {
   prefix: string;
   permissions: Permission[];
   label: string;
+  /** The same rule the nav item uses, so a link and its guard never disagree. */
+  test?: (granted: readonly Permission[]) => boolean;
   /** When set, only these role keys may open the route. */
   roles?: readonly string[];
 }
@@ -271,7 +281,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/dashboard', permissions: ['church:read'], label: 'Dashboard' },
   { prefix: '/members', permissions: ['members:read'], label: 'Members' },
   { prefix: '/visitors', permissions: ['visitors:read'], label: 'Visitors' },
-  { prefix: '/children', permissions: ['members:write'], label: 'Children' },
+  { prefix: '/children', permissions: [], test: canRunChildrenDesk, label: 'Children' },
   { prefix: '/care', permissions: ['care:read'], roles: CARE_ROLES, label: 'Care' },
   { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },
   { prefix: '/services', permissions: ['services:read'], label: 'Services' },
@@ -303,10 +313,19 @@ export function routeAccess(pathname: string): AccessRule | null {
   return match;
 }
 
-/** A church can switch an area off; absent flags use the church defaults. */
+/**
+ * A church can switch an area off. The flags always arrive fully resolved from
+ * `GET /auth/me` (the API owns the defaults), so the only case here is a session
+ * payload from a server that predates the field — then nothing is hidden.
+ */
 export function moduleEnabled(modules: ModuleFlags | undefined, key: ModuleKey | undefined): boolean {
   if (!key) return true;
-  return modules?.[key] ?? MODULE_DEFAULTS[key];
+  return modules?.[key] !== false;
+}
+
+/** Every switch a page needs: its own (or its area's) plus anything it depends on. */
+function itemSwitches(item: NavItem, areaModule?: ModuleKey): ModuleKey[] {
+  return [item.module ?? areaModule, ...(item.requires ?? [])].filter((k): k is ModuleKey => !!k);
 }
 
 /** The area a nav href belongs to (maps a route rule back to its module). */
@@ -323,18 +342,28 @@ export function moduleForItem(href: string): ModuleKey | undefined {
   return undefined;
 }
 
-/** The module switch for the current pathname (longest matching item wins). */
-export function moduleForPath(pathname: string): ModuleKey | undefined {
-  let match: { href: string; module: ModuleKey } | null = null;
+/** The nav item a pathname belongs to (longest matching item wins). */
+function itemForPath(pathname: string): { item: NavItem; area: NavArea } | null {
+  let match: { item: NavItem; area: NavArea } | null = null;
   for (const area of NAV_AREAS) {
     for (const item of area.items) {
       const hit = pathname === item.href || pathname.startsWith(`${item.href}/`);
-      if (hit && (!match || item.href.length > match.href.length)) {
-        match = { href: item.href, module: item.module ?? area.module };
-      }
+      if (hit && (!match || item.href.length > match.item.href.length)) match = { item, area };
     }
   }
-  return match?.module;
+  return match;
+}
+
+/** The module switch for the current pathname (longest matching item wins). */
+export function moduleForPath(pathname: string): ModuleKey | undefined {
+  const match = itemForPath(pathname);
+  return match ? match.item.module ?? match.area.module : undefined;
+}
+
+/** Every switch this pathname needs switched on to be usable at all. */
+export function switchesForPath(pathname: string): ModuleKey[] {
+  const match = itemForPath(pathname);
+  return match ? itemSwitches(match.item, match.area.module) : [];
 }
 
 /** The area the current pathname lives in, with its full item list. */
@@ -350,7 +379,7 @@ export function areaForPath(pathname: string): { area: NavArea; items: NavItem[]
 }
 
 function mayOpen(granted: readonly string[], item: NavItem, roles?: readonly string[]): boolean {
-  if (!hasAnyPermission(granted, item.permissions)) return false;
+  if (item.test ? !item.test(granted) : !hasAnyPermission(granted, item.permissions)) return false;
   if (item.roles && !item.roles.some((role) => roles?.includes(role))) return false;
   return true;
 }
@@ -369,10 +398,10 @@ export function canAccessPath(
 ): boolean {
   const rule = routeAccess(pathname);
   if (!rule) return true;
-  if (!hasAnyPermission(granted, rule.permissions)) return false;
+  if (rule.test ? !rule.test(granted) : !hasAnyPermission(granted, rule.permissions)) return false;
   if (rule.roles && !rule.roles.some((role) => roles?.includes(role))) return false;
   if (rule.prefix === '/settings') return true;
-  return moduleEnabled(modules, moduleForPath(pathname));
+  return switchesForPath(pathname).every((key) => moduleEnabled(modules, key));
 }
 
 /** Nav groups with inaccessible items and switched-off sections removed. */
@@ -386,12 +415,17 @@ export function visibleNavGroups(
     hint: area.hint,
     items: area.items.filter(
       (item) =>
-        moduleEnabled(modules, item.module ?? area.module) && mayOpen(granted, item, roles),
+        itemSwitches(item, area.module).every((key) => moduleEnabled(modules, key)) &&
+        mayOpen(granted, item, roles),
     ),
   })).filter((group) => group.items.length > 0);
 }
 
-/** Usher-mode links this user may open. */
-export function visibleUsherNav(granted: readonly string[]): NavItem[] {
-  return USHER_NAV.filter((item) => mayOpen(granted, item));
+/** Usher-mode links this user may open, with the same section switches. */
+export function visibleUsherNav(granted: readonly string[], modules?: ModuleFlags, roles?: readonly string[]): NavItem[] {
+  return USHER_NAV.filter(
+    (item) =>
+      itemSwitches(item, item.module ?? 'worship').every((key) => moduleEnabled(modules, key)) &&
+      mayOpen(granted, item, roles),
+  );
 }

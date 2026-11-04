@@ -4,7 +4,9 @@
 // The desk works from names: the roster endpoint returns every registered child
 // with the adults allowed to collect them, so nobody types a member UUID.
 import { useEffect, useMemo, useState } from 'react';
+import { hasPermission } from '../../../lib/access';
 import { api } from '../../../lib/api';
+import { getSession } from '../../../lib/session';
 import { fmtDateTime } from '../../../lib/format';
 
 interface Guardian {
@@ -41,10 +43,14 @@ interface MemberOption {
 const picked = { background: 'var(--brand)', color: 'var(--brand-ink)', borderColor: 'var(--brand)' };
 
 export default function ChildrenPage() {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<Service[] | null>(null);
   const [serviceId, setServiceId] = useState('');
   const [roster, setRoster] = useState<Child[]>([]);
   const [people, setPeople] = useState<MemberOption[]>([]);
+  // The office keeps the pickup lists; a class teacher only runs the desk. Null
+  // until the session answers, so the office-only form is never shown to someone
+  // the API would refuse.
+  const [canManage, setCanManage] = useState<boolean | null>(null);
   const [link, setLink] = useState({ childId: '', guardianId: '', relation: 'Parent' });
   const [active, setActive] = useState<Active[]>([]);
   const [search, setSearch] = useState('');
@@ -57,13 +63,21 @@ export default function ChildrenPage() {
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    void api<Service[]>('/services').then((s) => {
+    // The desk needs a service, and it asks the children's own endpoint for it:
+    // GET /services belongs to the Services section, which a church can switch
+    // off while still running Sunday School.
+    void api<Service[]>('/children/services').then((s) => {
       setServices(s);
       const open = s.find((x) => x.status === 'OPEN') ?? s[0];
       if (open) setServiceId(open.id);
-    });
+    }).catch(() => undefined);
     void api<Child[]>('/children/roster').then(setRoster).catch(() => undefined);
-    void api<{ items: MemberOption[] }>('/members?pageSize=200').then((r) => setPeople(r.items)).catch(() => undefined);
+    void getSession().then((s) => {
+      const manage = hasPermission(s.permissions, 'members:write');
+      setCanManage(manage);
+      // The directory behind the pickup-list picker is the office's, not the teacher's.
+      if (manage) void api<{ items: MemberOption[] }>('/members?pageSize=200').then((r) => setPeople(r.items)).catch(() => undefined);
+    }).catch(() => undefined);
   }, []);
   useEffect(() => {
     if (serviceId) void api<Active[]>(`/children/active?serviceId=${serviceId}`).then(setActive).catch(() => undefined);
@@ -134,15 +148,27 @@ export default function ChildrenPage() {
   return (
     <div>
       <h1>Children</h1>
+      {canManage === false ? (
+        <p className="muted">You see the children in your Sunday School class, and only them.</p>
+      ) : null}
       {error ? <div className="error">{error}</div> : null}
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
 
       <div className="card">
-        <label>Service
-          <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-            {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
-          </select>
-        </label>
+        {services && services.length === 0 ? (
+          // An empty picker with no reason is how the desk used to fail when the
+          // Services section was switched off. Say what is missing instead.
+          <p className="muted">
+            No service to check into yet. The desk works from the Sunday service, so one has to exist. A church
+            admin can switch Services on in Settings → App sections and add it there.
+          </p>
+        ) : (
+          <label>Service
+            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+              {services?.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>) ?? null}
+            </select>
+          </label>
+        )}
       </div>
 
       {ticket ? (
@@ -166,7 +192,9 @@ export default function ChildrenPage() {
         <h2>Drop off</h2>
         {roster.length === 0 ? (
           <p className="muted">
-            No children are registered yet. Add a child in Members, then record who is allowed to pick them up.
+            {canManage === false
+              ? 'No child in your class is on the list yet. The office adds the children and records who may collect them.'
+              : 'No children are registered yet. Add a child in Members, then record who is allowed to pick them up.'}
           </p>
         ) : (
           <>
@@ -223,35 +251,37 @@ export default function ChildrenPage() {
         )}
       </div>
 
-      <div className="card">
-        <h2>Who may collect</h2>
-        <details>
-          <summary className="muted" style={{ fontSize: '0.85rem' }}>Add a parent or guardian to a child</summary>
-          <div className="stack" style={{ marginTop: '0.6rem' }}>
-            <label>Child
-              <select value={link.childId} onChange={(e) => setLink({ ...link, childId: e.target.value })}>
-                <option value="">Choose a child…</option>
-                {people.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.memberNo})</option>)}
-              </select>
-            </label>
-            <label>Collected by
-              <select value={link.guardianId} onChange={(e) => setLink({ ...link, guardianId: e.target.value })}>
-                <option value="">Choose the person who will pick up…</option>
-                {people.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.memberNo})</option>)}
-              </select>
-            </label>
-            <label>Relation
-              <input value={link.relation} onChange={(e) => setLink({ ...link, relation: e.target.value })} placeholder="Parent, aunt, grandparent" />
-            </label>
-            <button disabled={!link.childId || !link.guardianId} onClick={() => void saveLink()}>
-              Save pickup list
-            </button>
-            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
-              A child can only be checked in to someone on this list, and only that person can release them with the code.
-            </p>
-          </div>
-        </details>
-      </div>
+      {canManage === true ? (
+        <div className="card">
+          <h2>Who may collect</h2>
+          <details>
+            <summary className="muted" style={{ fontSize: '0.85rem' }}>Add a parent or guardian to a child</summary>
+            <div className="stack" style={{ marginTop: '0.6rem' }}>
+              <label>Child
+                <select value={link.childId} onChange={(e) => setLink({ ...link, childId: e.target.value })}>
+                  <option value="">Choose a child…</option>
+                  {people.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.memberNo})</option>)}
+                </select>
+              </label>
+              <label>Collected by
+                <select value={link.guardianId} onChange={(e) => setLink({ ...link, guardianId: e.target.value })}>
+                  <option value="">Choose the person who will pick up…</option>
+                  {people.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.memberNo})</option>)}
+                </select>
+              </label>
+              <label>Relation
+                <input value={link.relation} onChange={(e) => setLink({ ...link, relation: e.target.value })} placeholder="Parent, aunt, grandparent" />
+              </label>
+              <button disabled={!link.childId || !link.guardianId} onClick={() => void saveLink()}>
+                Save pickup list
+              </button>
+              <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+                A child can only be checked in to someone on this list, and only that person can release them with the code.
+              </p>
+            </div>
+          </details>
+        </div>
+      ) : null}
 
       <div className="card">
         <h2>Pick up</h2>

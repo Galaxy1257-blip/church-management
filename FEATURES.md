@@ -98,6 +98,7 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 * **Secure Child Checkout**: Verifies child pickup against parent credentials and emergency contact authorization.
 * **Medical & Allergy Alerts**: Highlight allergies, dietary restrictions, and special medical conditions on check-in tags.
 * **Room Capacity & Ratios**: Track child-to-teacher safety ratios in Sunday school classrooms.
+* **Who Runs the Desk**: the office (who registers the children and records who may collect them), the door team (who checks a child in at the entrance), and the Sunday School teacher — for the one class assigned to them in the office. A teacher sees their own class list and nobody else's pickup names, and the desk still works in a church that switched the Services section off.
 
 ---
 

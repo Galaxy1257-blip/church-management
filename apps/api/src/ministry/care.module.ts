@@ -3,8 +3,8 @@
 import { BadRequestException, Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
-import { hasPermission } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { classMemberIds, classMemberWhere, classScopeFor } from '../common/class-scope';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 import { decryptNote, encryptNote } from './crypto';
@@ -31,48 +31,8 @@ class WelfareDto {
 export class CareService {
   constructor(private readonly tenant: TenantService) {}
 
-  /**
-   * A Sunday School teacher's care world is the one class the office assigned.
-   * Anyone who can already read the member directory (pastor, usher, elder,
-   * follow-up) is not narrowed: their role is church-wide, even if a class was
-   * left on the user record. A care-only role with no class assigned is still
-   * class-scoped — an empty queue, never "everyone".
-   */
-  private classScope(
-    user: AuthUser,
-  ): { bracketId: string | null; segment: 'ALL' | 'MALE' | 'FEMALE' } | null {
-    if (hasPermission(user.permissions, 'members:read')) return null;
-    const segment =
-      user.careClassSegment === 'MALE' || user.careClassSegment === 'FEMALE' ? user.careClassSegment : 'ALL';
-    return { bracketId: user.careClassBracketId ?? null, segment };
-  }
-
-  private classMemberWhere(user: AuthUser, scope: { bracketId: string; segment: 'ALL' | 'MALE' | 'FEMALE' }) {
-    return {
-      churchId: user.churchId,
-      deletedAt: null,
-      ageBracketId: scope.bracketId,
-      ...(scope.segment === 'MALE'
-        ? { gender: 'MALE' as const }
-        : scope.segment === 'FEMALE'
-          ? { gender: 'FEMALE' as const }
-          : {}),
-    };
-  }
-
-  private async classMemberIds(
-    tx: Db,
-    user: AuthUser,
-    scope: { bracketId: string | null; segment: 'ALL' | 'MALE' | 'FEMALE' },
-  ): Promise<string[]> {
-    const bracketId = scope.bracketId;
-    if (!bracketId) return [];
-    const rows = await tx.member.findMany({ where: this.classMemberWhere(user, { ...scope, bracketId }), select: { id: true } });
-    return rows.map((r) => r.id);
-  }
-
   prayers(user: AuthUser, opts: { wall?: boolean } = {}) {
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     return this.tenant.run(user, (tx) =>
       tx.prayerRequest.findMany({
         // The public wall is for everyone. Everything else on the wall is the
@@ -121,13 +81,13 @@ export class CareService {
   }
 
   async addCounseling(user: AuthUser, input: CounselingDto, ip?: string) {
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     return this.tenant.run(user, async (tx) => {
       const bracketId = scope?.bracketId ?? null;
       if (scope) {
         if (!bracketId) throw new BadRequestException('Your Sunday School class is not set up yet — ask your church office.');
         const subject = await tx.member.findFirst({
-          where: { id: input.subjectId, ...this.classMemberWhere(user, { ...scope, bracketId }) },
+          where: { id: input.subjectId, ...classMemberWhere(user, { ...scope, bracketId }) },
           select: { id: true },
         });
         if (!subject) throw new BadRequestException('That child is not in your class.');
@@ -221,13 +181,13 @@ export class CareService {
 
   /** The teacher's class and the children they may log a visit for. */
   classOverview(user: AuthUser) {
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     const bracketId = scope?.bracketId ?? null;
     if (!scope || !bracketId) return Promise.resolve({ className: null as string | null, members: [] });
     return this.tenant.run(user, async (tx) => {
       const bracket = await tx.ageBracket.findFirst({ where: { id: bracketId, churchId: user.churchId } });
       const members = await tx.member.findMany({
-        where: this.classMemberWhere(user, { ...scope, bracketId }),
+        where: classMemberWhere(user, { ...scope, bracketId }),
         select: { id: true, firstName: true, lastName: true },
         orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       });
@@ -244,9 +204,9 @@ export class CareService {
   }
 
   careTasks(user: AuthUser, opts: { status?: string; type?: string } = {}) {
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     return this.tenant.run(user, async (tx) => {
-      const classIds = scope ? await this.classMemberIds(tx, user, scope) : null;
+      const classIds = scope ? await classMemberIds(tx, user, scope) : null;
       if (classIds && classIds.length === 0) return [];
       const tasks = await tx.careTask.findMany({
         where: {
@@ -280,14 +240,14 @@ export class CareService {
       'MISSING_MEMBER', 'CALL_REQUESTED', 'TASK_STEP',
     ];
     if (!allowed.includes(input.type)) throw new Error(`bad task type ${input.type}`);
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     return this.tenant.run(user, async (tx) => {
       const bracketId = scope?.bracketId ?? null;
       if (scope) {
         if (!bracketId) throw new BadRequestException('Your Sunday School class is not set up yet — ask your church office.');
         if (!input.memberId) throw new BadRequestException('Pick a child from your class.');
         const child = await tx.member.findFirst({
-          where: { id: input.memberId, ...this.classMemberWhere(user, { ...scope, bracketId }) },
+          where: { id: input.memberId, ...classMemberWhere(user, { ...scope, bracketId }) },
           select: { id: true },
         });
         if (!child) throw new BadRequestException('That child is not in your class.');
@@ -317,12 +277,12 @@ export class CareService {
     patch: { status?: string; assignedTo?: string | null; note?: string; dueAt?: string },
     ip?: string,
   ) {
-    const scope = this.classScope(user);
+    const scope = classScopeFor(user);
     return this.tenant.run(user, async (tx) => {
       const t = await tx.careTask.findFirst({ where: { id, churchId: user.churchId } });
       if (!t) throw new Error('care task not found');
       if (scope) {
-        const classIds = await this.classMemberIds(tx, user, scope);
+        const classIds = await classMemberIds(tx, user, scope);
         if (!t.memberId || !classIds.includes(t.memberId)) {
           throw new BadRequestException('That task is not in your class.');
         }
@@ -342,6 +302,8 @@ export class CareService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('care')
 @Controller()
 export class CareController {
   constructor(private readonly svc: CareService) {}

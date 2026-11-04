@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { IsObject, IsOptional, IsString, MinLength } from 'class-validator';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { CampaignAudience, SmsService } from './sms.service';
 
@@ -16,6 +16,8 @@ class PreviewDto {
   @IsOptional() @IsObject() audience?: CampaignAudience;
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('sms')
 @Controller('sms')
 export class SmsController {
   constructor(private readonly sms: SmsService) {}

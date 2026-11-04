@@ -1,10 +1,11 @@
 import { SetMetadata, applyDecorators } from '@nestjs/common';
-import type { Permission } from '@chms/shared';
+import type { ModuleKey, Permission } from '@chms/shared';
 
 export const PERMISSIONS_KEY = 'chms:permissions';
 export const PUBLIC_KEY = 'chms:public';
 export const AUTHENTICATED_KEY = 'chms:authenticated';
 export const BILLING_EXEMPT_KEY = 'chms:billing-exempt';
+export const MODULE_KEY = 'chms:module';
 
 /** Default-deny: every HTTP handler must carry this or @Public(). */
 export const RequirePermissions = (...permissions: Permission[]) => SetMetadata(PERMISSIONS_KEY, permissions);
@@ -25,5 +26,12 @@ export const Public = () => SetMetadata(PUBLIC_KEY, true);
  * checkout and cash claims are how a locked church gets back in.
  */
 export const BillingExempt = () => SetMetadata(BILLING_EXEMPT_KEY, true);
+
+/**
+ * This route belongs to one App section (Settings → App sections). When the
+ * church switches that section off, ModuleGuard rejects the request — the switch
+ * is a real boundary, not just a hidden link.
+ */
+export const ForModule = (key: ModuleKey) => SetMetadata(MODULE_KEY, key);
 
 export const RouteInfo = applyDecorators;

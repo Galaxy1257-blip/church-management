@@ -4,7 +4,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { EnvModule } from './env.module';
 import { BootCheckService } from './common/boot-check';
-import { JwtAuthGuard, PermissionsGuard } from './common/guards';
+import { JwtAuthGuard, ModuleGuard, PermissionsGuard } from './common/guards';
+import { ModuleFlagsModule } from './common/module-flags';
 import { BillingGuard } from './billing/billing.guard';
 import { BillingModule } from './billing/billing.module';
 import { PlatformOfficeModule } from './platform-office/platform.module';
@@ -45,6 +46,7 @@ import { QueuesModule } from './queues/queues.module';
 @Module({
   imports: [
     EnvModule,
+    ModuleFlagsModule,
     ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
     JwtModule.register({ global: true }),
     QueuesModule,
@@ -87,6 +89,9 @@ import { QueuesModule } from './queues/queues.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: BillingGuard },
+    // Last: a switched-off section is not a security failure, so it must not
+    // shadow a 401, a 403 or the subscription lock that comes before it.
+    { provide: APP_GUARD, useClass: ModuleGuard },
   ],
 })
 export class AppModule {}

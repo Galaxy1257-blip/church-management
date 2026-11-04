@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-02 (Session S). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session U). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -67,9 +67,14 @@ C:\Users\HP\Desktop\church\
 - **Roles**: SUPER_ADMIN('*') · FINANCE_ADMIN (money+reports) · USHER (headcount/checkin/visitors+care) ·
   FOLLOWUP_TEAM (visitors+care+sms) · LEADER (ops) · MEMBER (zero staff perms → companion only) ·
   **ELDER** (R4.7: care+visitors+sms) · **SECRETARY** (R4.7: members+services+campaigns+reports) ·
-  **SUNDAY_SCHOOL** (Session P: members+checkin+visitors+care) —
+  **SUNDAY_SCHOOL** (Session U: care for the assigned class + the children's desk for that class) —
   seeded by seedChurchDefaults; presets in shared/permissions.ts. Media was removed entirely in
   Session P. Care is visible only to USHER and SUNDAY_SCHOOL even though other roles may hold care:read.
+- **App-section switches are API boundaries, not menu sugar**: `@ForModule(key)` on the controller and
+  `ModuleGuard` last in the guard chain (`apps/api/src/common/guards.ts`), so a switched-off section 403s
+  with the section named. `module-coverage.spec.ts` fails if any key in `MODULE_KEYS` claims no controller.
+- **One class rule, shared**: `apps/api/src/common/class-scope.ts` is the only place that decides what a
+  Sunday School teacher's class is. Care and the children's desk both read it; nobody re-implements it.
 ## 4. Verification status (**`npm run db:verify` PASSED** — Session K, 22 Oct)
 - **Gate green (26/26)**: `prisma migrate deploy` (0_init) · `extras.sql` (FORCE RLS, triggers,
   hash-chained audit) · app_user + platform_user roles/grants/passwords · seed (demo church,
@@ -153,9 +158,8 @@ C:\Users\HP\Desktop\church\
    `/settings` all return 200. **Never run `next build` while a dev server is live.**
    Dashboard is trimmed to four cards, the rest behind a "Show 3 more cards" line that remembers the
    choice per browser (Edit mode still shows every card).
-   Open owner decision: a Sunday School teacher cannot open `/children` or the check-in desk
-   (`checkin:write` is not in the preset) although the switch hint says the children's page is for
-   them — fix the hint or the role.
+   Owner decision that was open here — a Sunday School teacher could not open `/children` — is settled:
+   Session U gave the role its own `children:write`, scoped to the class the office assigned. See 0e.
 0b. **Session R — the persistent Bible button (`35192ee`, pushed).** Owner asked
    for the Bible to be reachable from anywhere: "just put a button at the top right … but no clutter" and
    "make the bible reader accessible to any type of user". `apps/web/src/components/bible-dock.tsx` is a
@@ -186,8 +190,24 @@ C:\Users\HP\Desktop\church\
    duplicated "Twi (TWI (Asante))" label (`translationLabel`). Honest gap: **Fante shows 24 English
    titles** — that app names its own files in English and its text is AES-encrypted, so the printed titles
    are not recoverable from it.
-1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements
-   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
+0e. **Session U — audit Batch 1 (uncommitted as of 4 Nov).** The owner approved three sections of the
+   Phase 4 report — *feature reality, minor and polish, and the 10 major findings* — and withheld the two
+   fake-success blockers (mock Paystack webhook, simulated SMS/gift success). **Do not "fix" those two**;
+   they are waiting for live keys, not for code.
+   Batch 1 made the App-section switches real: `@ForModule(key)` + `ModuleGuard` last in the chain, so a
+   switched-off section 403s at the API (**9/9 off, 5/5 on**), and `module-coverage.spec.ts` fails the boot
+   if a key in `MODULE_KEYS` is claimed by no controller. Worship is off for a new church by default.
+   The Sunday School desk now works: new `children:write` permission, one class rule shared with Care in
+   `apps/api/src/common/class-scope.ts` (`deskRosterChildIds` = pickup list, office + own class;
+   `deskMoveChildIds` = desk, office + door + own class), and `GET /children/services` so the desk can pick
+   a service while the Services section stays off — it reads through `ServicesService.list`, which is what
+   opens today's service on the first read Sunday morning. The usher lost the Children menu item the hint
+   had promised but the API refused.
+   Local dev fixtures created to prove it (Postgres only, **Neon untouched**): demo user `+233240000110`
+   given the demo password and the *Children Ministry* bracket with segment ALL, two `MemberGuardian` pickup
+   links (Kofi Mensah and Emmanuel Appiah ← Akosua Nyarko), and a service row dated 4 Nov. The demo church's
+   `serviceSchedule.weekday` was temporarily set to Wednesday and restored to Sunday.
+1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in
    Settings→SMS gateway + confirm body fields; Paystack sandbox keys → flip PAYSTACK_MODE; WEB
@@ -232,11 +252,16 @@ C:\Users\HP\Desktop\church\
   `/platform/team`); member-detail UI for milestone dates; WEB translation source; GitHub CI run;
   Turnstile keys; worker has no test files; Paystack live keys and cSMS token (owner gates).
 - **R8 (2 Nov round)**: ✅ dashboard at a glance · rotating verse of the day · the Bible button · the
-  legibility sweep. Open: teacher `checkin:write` vs the Children hint · the daily reading as an in-app
+  legibility sweep · the teacher-vs-Children-hint decision, closed by R9 Batch 1. Open: the daily reading as an in-app
   notification + bell, with its own switch · the Sunday School batch (register, guardian SMS, skip dates,
   teacher-only health note, guardians on the pick-up row, class → offline bundles) · `/flyers` has no entry
   point and FEATURES §15 overstates it · licence line on the /bible footer · the terracotta/gold palette
   decision (owner) · **Render + Vercel need a manual deploy before any of this is live.**
+- **R9 (4 Nov audit round)**: Batch 1 ✅ — switches gate the API (9/9 switched-off sections 403 by name,
+  5/5 switched-on 200), worship off by default, the class-scoped children's desk, the nav empty state.
+  Batches 2–6 approved and not started (money truth · display · accessibility · ops · missing screens).
+  The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
+  and are untouched. See BUILD_ORDER §R9.
 
 ## 8. How to run / verify (quick reference)
 ```bash
@@ -257,6 +282,10 @@ npm run bible:fetch                  # KJV+ASV re-download; scripts/fetch-web.mj
 
 ## 9. Critical edit points
 - Permissions map: packages/shared/src/permissions.ts · guards+boot check: apps/api/src/common/
+- App-section switches: packages/shared/src/modules.ts (keys+defaults+labels) ·
+  apps/api/src/common/module-flags.ts + ModuleGuard in guards.ts · nav/routes: apps/web/src/lib/access.ts
+  (the web mirrors the shared permission list — there is no shared dependency between the two apps)
+- Class scope (Sunday School): apps/api/src/common/class-scope.ts — the only place that decides it
 - **Theme colour rules** (apps/web/src/app/globals.css): `button` is a *filled control* — `color:
   var(--brand-ink)`, near-white. A `<button>` used as a surface must be `button.card` or set its own
   `color: var(--ink)` (`.group-card`, `.theme-card` do). `--brand` is a **fill** in every theme; text that

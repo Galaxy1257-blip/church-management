@@ -252,9 +252,10 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       (2.09–3.03:1) and `--accent` gold as text (2.1–3.0:1). Text that wants the brand tint now uses
       `--link`. Verified 0 WCAG failures at 390px in light and night over 16 screens plus the open dock.
       `Register (idempotent by phone)` → **Save visitor**.
-- [ ] **A Sunday School teacher still cannot open the check-in desk.** `SUNDAY_SCHOOL` holds no
-      `checkin:write`, yet the Children switch hint tells them the page is theirs. Either add the permission
-      or fix the sentence — the hint is currently a lie.
+- [x] **A Sunday School teacher now runs the children's desk** (Session U, Batch 1 — see R9). The hint was
+      made true by giving the role its own permission rather than by widening `checkin:write`: `SUNDAY_SCHOOL`
+      holds `children:write`, which opens the desk for the assigned class only. The door team keeps
+      `checkin:write` and does not get the pickup list.
 - [ ] **The daily reading has no in-app voice.** The rotation engine ships; there is no header bell, no
       reading card on the dashboard or `/portal`, and no switch of its own. Owner asked for the quotation
       plus a very short message as a notification, and (later) a phone widget.
@@ -270,6 +271,44 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       a design change, not a bug fix — so they were left alone.
 - [ ] **Deploy is manual.** A push only runs CI; Render and Vercel keep serving the old build until a deploy
       is started in each console. Nothing in R8 is live on the hosted site until the owner does that.
+
+## R9. Owner round 4 (3–4 Nov 2026 — full audit, then fix in batches)
+Audit ran in four phases (function, working features in the running app, UI/UX, recommendations).
+The owner approved three of the four report sections — *"FIX ALL Feature reality, IMPLEMENT Minor and
+polish AND FIX Major — 10 findings"* — and did **not** approve the two fake-success blockers (mock Paystack
+webhook, simulated SMS/gift success). Those stay as they are until asked for.
+
+### Batch 1 — switches are real boundaries, and every role can reach what its role allows ✅
+- [x] **A switch that only hides a link is not a switch.** `@ForModule(key)` + `ModuleGuard` (last in the
+      guard chain) reject the endpoint itself: **9 of 9** switched-off sections answered 403 by name,
+      **5 of 5** switched-on sections answered 200. `module-coverage.spec.ts` fails the boot if a switch in
+      the shared table is claimed by no controller, so no key can be decorative.
+- [x] **Worship off by default** for a new church, with `MODULE_DEFAULTS` as the single source.
+- [x] **The Sunday School desk, scoped** — new `children:write`, one class rule in
+      `apps/api/src/common/class-scope.ts` shared by Care and the desk, `deskRosterChildIds` (pickup list:
+      office + own class only) and `deskMoveChildIds` (desk: office + door + own class). 12 unit tests.
+- [x] **The desk needs a service without the Services section** — `GET /children/services` reads through
+      `ServicesService.list`, so the Sunday-morning auto-open still runs. Proven live: the read created
+      today's service for a church with worship switched off.
+- [x] **Nav never prints a dead end**: the empty menu says which of the two reasons applies, and the brand
+      mark goes to `/dashboard` for every role.
+- [x] Verified in the running app at desktop and 390px as teacher, office and usher — full check-in and
+      code release cycle, `0` overflow, office-only form hidden from the teacher.
+- Gates: shared 126/126 · api 114/114 · both typechecks · eslint · `check:secrets` clean.
+
+### Batches 2–6 (approved, not started)
+- [ ] **Batch 2 — money truth:** welfare decrypt on screen, campaign window, gift card label, statement PDF.
+- [ ] **Batch 3 — display:** GH₵ formatting everywhere, one shared notice banner component, accent legibility.
+- [ ] **Batch 4 — phone and keyboard accessibility sweep.**
+- [ ] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
+- [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
+
+### Found in Batch 1, deliberately left for the batch that owns it
+- [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
+      while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.
+- [ ] The dashboard keeps offering **Check someone in** and **All services →**, and the *Latest service*
+      card, while the Services section is switched off. The page itself answers with "Area switched off",
+      so nothing is unsafe — it is the card that should follow the switch. Batch 3.
 
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed

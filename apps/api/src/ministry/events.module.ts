@@ -3,7 +3,7 @@ import { Body, Controller, Get, Injectable, Module, Param, Post, Req } from '@ne
 import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit } from '@chms/db';
 import { uuidv7 } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -89,6 +89,8 @@ export class EventsService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('events')
 @Controller('events')
 export class EventsController {
   constructor(private readonly svc: EventsService) {}

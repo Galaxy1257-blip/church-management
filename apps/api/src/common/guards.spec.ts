@@ -1,20 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { ExecutionContext, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { hasPermission } from '@chms/shared';
-import { JwtAuthGuard, PermissionsGuard, AuthUser } from './guards';
-import { AUTHENTICATED_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
+import { hasPermission, MODULE_KEYS, type ModuleFlags } from '@chms/shared';
+import { JwtAuthGuard, ModuleGuard, PermissionsGuard, AuthUser } from './guards';
+import { AUTHENTICATED_KEY, MODULE_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators';
+import type { ModuleFlagsService } from './module-flags';
 
-function makeContext(handlerMeta: Record<string | symbol, unknown> = {}): ExecutionContext {
+function makeContext(
+  handlerMeta: Record<string | symbol, unknown> = {},
+  classMeta: Record<string | symbol, unknown> = {},
+): ExecutionContext {
   const handler = () => undefined;
   for (const [k, v] of Object.entries(handlerMeta)) {
     Reflect.defineMetadata(k, v, handler);
   }
+  const cls = class TestController {};
+  for (const [k, v] of Object.entries(classMeta)) {
+    Reflect.defineMetadata(k, v, cls);
+  }
   const request = { headers: { authorization: 'Bearer x' } as Record<string, string> };
   return {
     getHandler: () => handler,
-    getClass: () => class TestController {},
+    getClass: () => cls,
     switchToHttp: () => ({
       getRequest: () => request,
       getResponse: () => ({}),
@@ -174,5 +182,58 @@ describe('JwtAuthGuard', () => {
     const req = ctx.switchToHttp().getRequest() as { headers: Record<string, string> };
     req.headers.authorization = `Bearer ${refresh}`;
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+  });
+});
+
+describe('ModuleGuard (App-section switches, enforced server-side)', () => {
+  const reflector = new Reflector();
+  const onOff = (off: readonly string[]): ModuleFlagsService =>
+    ({
+      flagsFor: async () =>
+        Object.fromEntries(MODULE_KEYS.map((k) => [k, !off.includes(k)])) as ModuleFlags,
+    }) as unknown as ModuleFlagsService;
+
+  function guardFor(off: readonly string[]) {
+    return new ModuleGuard(reflector, onOff(off));
+  }
+
+  it('allows a route that belongs to no section', async () => {
+    const ctx = makeContext({ [PERMISSIONS_KEY]: ['church:read'] });
+    attachUser(ctx, makeUser());
+    await expect(guardFor(['worship']).canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('refuses the data, not just the link, when the section is off', async () => {
+    const ctx = makeContext({ [MODULE_KEY]: 'worship', [PERMISSIONS_KEY]: ['services:read'] });
+    attachUser(ctx, makeUser({ roles: ['PASTOR'], permissions: ['*'] }));
+    await expect(guardFor(['worship']).canActivate(ctx)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('says which section to switch back on', async () => {
+    const ctx = makeContext({ [MODULE_KEY]: 'money' });
+    attachUser(ctx, makeUser());
+    await expect(guardFor(['money']).canActivate(ctx)).rejects.toThrow(/Offerings is switched off/);
+  });
+
+  it('lets the same route through when the section is on', async () => {
+    const ctx = makeContext({ [MODULE_KEY]: 'worship' });
+    attachUser(ctx, makeUser());
+    await expect(guardFor([]).canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('never closes a @Public() door: the giving page and webhooks stay open', async () => {
+    const ctx = makeContext({ [PUBLIC_KEY]: true, [MODULE_KEY]: 'money' });
+    await expect(guardFor(['money']).canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('is not a security check: an anonymous request passes to the guard above it', async () => {
+    const ctx = makeContext({ [MODULE_KEY]: 'people' });
+    await expect(guardFor(['people']).canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('reads the switch on the controller when the handler does not name one', async () => {
+    const ctx = makeContext({ [PERMISSIONS_KEY]: ['members:read'] }, { [MODULE_KEY]: 'people' });
+    attachUser(ctx, makeUser());
+    await expect(guardFor(['people']).canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 });

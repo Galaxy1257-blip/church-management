@@ -3,7 +3,7 @@
 import { Body, Controller, Get, Injectable, Module, Param, Post, Req } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator';
 import { appendAudit } from '@chms/db';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -87,6 +87,8 @@ export class FollowupAdminService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('followup')
 @Controller('followup')
 export class FollowupAdminController {
   constructor(private readonly svc: FollowupAdminService) {}

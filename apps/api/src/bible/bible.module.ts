@@ -1,5 +1,8 @@
 // Bible controller/module: every bundle in apps/api/data/bible/*.json is
 // served; `translation` query selects one (see bible.service.ts).
+// The scripture reads stay @Public() on purpose — the member companion and the
+// Settings devotional preview use them. The Bible switch is enforced on the
+// staff notes below, which is the data the section owns (bible-notes.ts).
 import {
   Body,
   Controller,
@@ -14,7 +17,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { AuthedRequest } from '../common/guards';
-import { Authenticated, Public } from '../common/decorators';
+import { Authenticated, ForModule, Public } from '../common/decorators';
 import { BibleNotesService } from './bible-notes';
 import { BibleService } from './bible.service';
 
@@ -63,7 +66,12 @@ export class BibleController {
  * is private to whoever wrote it, so an usher, a teacher, a pastor and the
  * office admin all keep the same one tool. Members on the companion app get the
  * same service through /portal/bible-notes (see portal.module.ts).
+ *
+ * The notes are the data the Bible section owns, so the switch closes here —
+ * including the save and delete paths, which the service check alone did not
+ * cover.
  */
+@ForModule('bible')
 @Controller('bible/notes')
 export class BibleNotesController {
   constructor(private readonly svc: BibleNotesService) {}

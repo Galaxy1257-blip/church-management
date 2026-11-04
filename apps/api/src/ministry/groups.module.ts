@@ -17,7 +17,7 @@ import {
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
 import { uuidv7 } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -257,6 +257,8 @@ export class GroupsService {
   }
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('groups')
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly svc: GroupsService) {}

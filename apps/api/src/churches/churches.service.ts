@@ -8,6 +8,7 @@ import {
   normalizeGhPhone,
   denominationPreset,
   isModuleKey,
+  MODULE_DEFAULTS,
   resolveDevotional,
   resolveModules,
   type DevotionalSettings,
@@ -15,6 +16,7 @@ import {
 } from '@chms/shared';
 import { uuidv7 } from '@chms/shared';
 import { timingSafeEqualStr } from '../common/crypto';
+import { ModuleFlagsService } from '../common/module-flags';
 import { trialEndsAt } from '../billing/billing.logic';
 import type { Env } from '../env';
 
@@ -38,7 +40,10 @@ export interface CreatedChurch {
 
 @Injectable()
 export class ChurchesService {
-  constructor(@Inject('ENV') private readonly env: Env) {}
+  constructor(
+    @Inject('ENV') private readonly env: Env,
+    private readonly moduleFlags: ModuleFlagsService,
+  ) {}
 
   create(input: CreateChurchInput): Promise<CreatedChurch> {
     // Constant-time compare: a plain !== leaks the matching prefix length of a
@@ -158,7 +163,12 @@ export class ChurchesService {
       care: s.care ?? { enabled: true, missingSundays: 3, digestPhones: [] },
       smsLocales: s.smsLocales ?? { defaultLocale: 'en', templates: {} },
       // Which areas of the app are switched on for this church (Settings → Modules).
+      // The same resolveModules() the API guard uses, so the shell and the guard
+      // can never disagree about what is on.
       modules: resolveModules(s),
+      // What a new church starts with, so Settings can label "part of every week"
+      // versus "add when your church runs it" without keeping its own copy.
+      moduleDefaults: MODULE_DEFAULTS,
       denomination: {
         key: s.denominationKey ?? 'DEFAULT',
         terms: s.terminology ?? denominationPreset(s.denominationKey).terms,
@@ -256,6 +266,12 @@ export class ChurchesService {
         ip,
       });
       return this.getProfile(user.churchId);
+    }).then((profile) => {
+      // After the commit, so the API guard stops serving the old flags at once.
+      // Invalidating inside the transaction would let a concurrent request
+      // re-populate the cache with the pre-save values.
+      if (patch.modules !== undefined) this.moduleFlags.invalidate(user.churchId);
+      return profile;
     });
   }
 

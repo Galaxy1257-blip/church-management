@@ -36,19 +36,33 @@ describe('permissions', () => {
     expect(hasStaffAccess(permissionsForRoles(['MEMBER']))).toBe(false);
   });
 
-  it('sunday school teachers get the care queue for their class and nothing else', () => {
+  it('sunday school teachers get their class queue and the children’s desk', () => {
     const teacher = permissionsForRoles(['SUNDAY_SCHOOL']);
     expect(hasPermission(teacher, 'care:read')).toBe(true);
     expect(hasPermission(teacher, 'care:write')).toBe(true);
-    // No directory, no check-in, no publishing to the wall, no welfare or money.
+    // The desk: pick the service, check a child of their class in and out.
+    expect(hasPermission(teacher, 'services:read')).toBe(true);
+    expect(hasPermission(teacher, 'children:write')).toBe(true);
+    // Not checkin:write — that is the door register for the whole service, and
+    // the children's desk is a smaller job than that.
+    expect(hasPermission(teacher, 'checkin:write')).toBe(false);
+    // No directory, no publishing to the wall, no welfare or money. The class
+    // scope is what keeps the desk safe, not a wider grant.
     expect(hasPermission(teacher, 'members:read')).toBe(false);
     expect(hasPermission(teacher, 'members:write')).toBe(false);
-    expect(hasPermission(teacher, 'checkin:write')).toBe(false);
     expect(hasPermission(teacher, 'visitors:read')).toBe(false);
     expect(hasPermission(teacher, 'care:moderate')).toBe(false);
     expect(hasPermission(teacher, 'welfare:read')).toBe(false);
     expect(hasPermission(teacher, 'finance:read')).toBe(false);
     expect(hasPermission(teacher, 'settings:write')).toBe(false);
+  });
+
+  it('the door team keeps the service register but not the children’s desk', () => {
+    const usher = permissionsForRoles(['USHER']);
+    expect(hasPermission(usher, 'checkin:write')).toBe(true);
+    // The pickup list is the office's and the class teacher's; check-in rights
+    // for the Sunday door do not hand over who may collect somebody's child.
+    expect(hasPermission(usher, 'children:write')).toBe(false);
   });
 
   it('ushers can run the care queue they are allowed to see, but not welfare', () => {

@@ -1115,3 +1115,63 @@ what we know.
 **Also this session:** the Today shortcuts read as one sentence ("Check someone in Record offering Register
 a visitor Add a member") and the last wrapped mid-thought on a phone — `.quick-links` now puts a muted dot
 after each item except the last, on both dashboard link rows (`57ad211`).
+
+## 2026-11-04 — Audit round 4, Batch 1: switches are boundaries, and the Sunday School desk works (`uncommitted`)
+
+**Owner ask:** after the four-phase audit, *"FIX ALL Feature reality, IMPLEMENT Minor and polish AND FIX
+Major — 10 findings"*. Three of the four report sections were approved. The two fake-success blockers
+(mock Paystack webhook, simulated SMS/gift success) were **not**, so they are exactly as they were — this
+log entry does not claim otherwise.
+
+**The switch was the shared rule.** `@ForModule(key)` on the controller plus `ModuleGuard` last in the
+chain means Settings → App sections closes the endpoint, not only the link. Measured against the running
+API with a wildcard-permission token, so only the switch could produce the refusal: **9 of 9 switched-off
+sections 403 with the section named** (Services ×2 endpoints, Care ×2, Serving team, Events, Follow-up,
+Special offerings, SMS, Departments, Branches) and **5 of 5 switched-on sections 200** (Members, Expenses,
+Finance, News, Children roster). `module-coverage.spec.ts` fails the boot if a key in `MODULE_KEYS` claims
+no controller, and rejects a typo like `@ForModule('peple')` — a switch cannot be decorative and cannot be
+misspelled into silence.
+
+**The desk, and the one class rule.** `SUNDAY_SCHOOL` did not hold `checkin:write`, so the Children hint
+promised a page the role could not open. Granting `checkin:write` was rejected: it is the door register for
+the whole service, and it would have put `/children` in the usher's menu while the API still refused it.
+The role got its own `children:write` instead, and the narrowing lives in one file
+(`apps/api/src/common/class-scope.ts`) that Care and the desk both read — `deskRosterChildIds` for the
+pickup list (office + the teacher's own class), `deskMoveChildIds` for the desk (office + door team + own
+class). The usher's existing desk access is unchanged, so nothing was taken away to give the teacher theirs.
+
+**Proven in the running app, not in a test.** Teacher roster = own class only (Kofi Mensah); office roster
+= both children; usher roster = 403 naming the office and the class teacher; teacher check-in of a class
+child = 201 with tag + code; teacher check-in of another class's child = 403 *"That child is not in your
+class."*; teacher `POST /checkin` = 403 (no widening); usher desk = 201 as before; release by code = 201 and
+the room list back to empty. Then the same cycle by hand in the browser at desktop and at 390px: pick child,
+pick guardian, ticket **T481329 / 721261**, release on the code, *"Kofi Mensah was handed over."*, Inside
+now 0 → 1 → 0.
+
+**What the browser found that the API test did not.** With Services switched off the desk's service picker
+rendered **empty and unexplained** — `GET /services` is worship-gated, so the feature just approved was
+unusable in exactly the churches the switch is meant for. Fixed by `GET /children/services`, which reads
+through `ServicesService.list` rather than the table: that keeps the one rule that opens today's service on
+the first read of a Sunday morning. Verified by pointing the demo church's weekly day at today — the desk
+read created the service row itself, the picker filled, and the schedule was restored to Sunday afterwards.
+An empty list now says why instead of showing a blank box.
+
+**Two more dead ends closed.** The nav's empty state used to print nothing at all; it now separates *"No
+page matches …"* from *"Nothing is switched on for your role yet…"*, verified by switching Children back off
+under the teacher. And the brand mark went to `/dashboard` for every role instead of inheriting the first
+menu item.
+
+**Counts.** shared 126/126 (15 files) · api 114/114 (10 files, +15 this batch: 12 class-scope, 3 desk) ·
+`typecheck` clean in both apps · eslint clean · `check:secrets` clean. Verified at desktop and 390px over
+the children's desk, the teacher/usher/office menus and the switched-off `/checkin`.
+
+**Local dev fixtures (Postgres only — Neon was not touched).** Demo user `+233240000110` given the demo
+password, made active, and assigned the *Children Ministry* bracket with segment ALL; two `MemberGuardian`
+pickup links (Kofi Mensah and Emmanuel Appiah ← Akosua Nyarko), because the demo church had none; one
+service row dated 4 Nov, created by the desk read itself.
+
+**Left for the batch that owns it, not silently fixed.** `PermissionsGuard` returns `false`, so a permission
+403 prints Nest's generic *"Forbidden resource"* while a switch 403 names the section — one voice for both
+belongs with the shared notice banner in Batch 3. And the dashboard still offers **Check someone in**,
+**All services →** and the *Latest service* card while Services is off; the page answers honestly with
+*"Area switched off"*, so nothing is unsafe, but the card should follow the switch. Also Batch 3.

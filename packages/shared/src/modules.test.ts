@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { MODULE_DEFAULTS, MODULE_KEYS, isModuleKey, resolveModules } from './modules';
+import { MODULE_DEFAULTS, MODULE_KEYS, isModuleKey, resolveModules, type ModuleKey } from './modules';
 
 const defaults = {
   people: true,
-  worship: true,
+  worship: false,
   money: true,
   reach: true,
   bible: true,
@@ -32,7 +32,17 @@ describe('resolveModules', () => {
     expect(flags.money).toBe(false);
     expect(flags.people).toBe(true);
     expect(flags.care).toBe(false);
-    expect(flags.worship).toBe(true);
+    expect(flags.worship).toBe(false);
+  });
+
+  it('starts a new church with the four areas that carry the week', () => {
+    const flags = resolveModules(undefined);
+    expect(Object.keys(flags).filter((key) => flags[key as ModuleKey])).toEqual([
+      'people',
+      'money',
+      'reach',
+      'bible',
+    ]);
   });
 
   it('turns opt-in sections on when the church ticks them', () => {
@@ -58,10 +68,14 @@ describe('resolveModules', () => {
     expect(flags.expenses).toBe(true);
   });
 
-  it('lets a church switch one of the always-on areas off', () => {
-    const flags = resolveModules({ modules: { worship: false } });
-    expect(flags.worship).toBe(false);
-    expect(flags.people).toBe(true);
+  it('lets a church switch one of the areas it starts with off', () => {
+    const flags = resolveModules({ modules: { people: false } });
+    expect(flags.people).toBe(false);
+    expect(flags.money).toBe(true);
+  });
+
+  it('turns the Services area on when the church ticks it', () => {
+    expect(resolveModules({ modules: { worship: true } }).worship).toBe(true);
   });
 
   it('ignores unknown keys and non-object settings', () => {

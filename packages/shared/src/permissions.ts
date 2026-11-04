@@ -18,6 +18,10 @@ export const PERMISSIONS = [
   'services:write',
   'headcount:write',
   'checkin:write',
+  // The children's desk (check a child in, release them on a pickup code) is its
+  // own job: a Sunday School teacher runs it for their class without being handed
+  // checkin:write, which is the door register for the whole service.
+  'children:write',
   'visitors:read',
   'visitors:write',
   'giving:read',
@@ -149,11 +153,15 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'campaigns:write',
     'reports:read',
   ],
-  // Sunday School teachers see ONE thing: the care queue for the class the
-  // office assigned to them. No member directory, no welfare (it carries
-  // money), no check-in, no finance or settings. The Care section itself is an
-  // opt-in switch, so a new church has to turn it on before this role is useful.
-  SUNDAY_SCHOOL: ['church:read', 'care:read', 'care:write'],
+  // Sunday School teachers run two things: the care queue for the class the
+  // office assigned and the children's check-in desk for that same class. The
+  // desk has its own permission rather than checkin:write, because that one is
+  // the door register for the whole service. Nothing here opens the member
+  // directory, welfare, the wall or money — the class scope is applied in the API
+  // (apps/api/src/common/class-scope.ts), not by a wider grant. The Care and
+  // Children sections are opt-in switches, so a new church has to turn them on
+  // before this role is useful.
+  SUNDAY_SCHOOL: ['church:read', 'services:read', 'care:read', 'care:write', 'children:write'],
 };
 
 export function permissionsForRoles(roles: readonly RoleKey[]): Permission[] {

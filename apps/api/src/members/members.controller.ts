@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { Gender, MemberStatus } from '@chms/shared';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { CreateMemberInput, MembersService } from './members.service';
 import { ImportRowInput, MembersImportService } from './members-import.service';
@@ -56,6 +56,8 @@ class ImportConfirmDto {
   @IsArray() rows!: ImportRowInput[];
 }
 
+// Switched off in Settings → App sections means switched off here too.
+@ForModule('people')
 @Controller('members')
 export class MembersController {
   constructor(
