@@ -161,6 +161,8 @@ export class ChurchesService {
       contact: s.contact ?? {},
       givingInstructions: s.givingInstructions ?? {},
       care: s.care ?? { enabled: true, missingSundays: 3, digestPhones: [] },
+      /** Members may send notices + prayer requests with photos from the companion. */
+      memberPosts: s.memberPosts === true,
       smsLocales: s.smsLocales ?? { defaultLocale: 'en', templates: {} },
       // Which areas of the app are switched on for this church (Settings → Modules).
       // The same resolveModules() the API guard uses, so the shell and the guard
@@ -205,6 +207,8 @@ export class ChurchesService {
       retention?: { memberDataYears?: number; transactionYears?: number };
       /** Module switches: false hides an area of the app; true/absent shows it. */
       modules?: Partial<Record<ModuleKey, boolean>>;
+      /** Members may send notices and prayer requests (with photos) from the companion. */
+      memberPosts?: boolean;
     },
     ip?: string,
   ) {
@@ -233,6 +237,7 @@ export class ChurchesService {
             }
           : {}),
         ...(patch.retention !== undefined ? { retention: { ...(prev.retention ?? {}), ...patch.retention } } : {}),
+        ...(patch.memberPosts !== undefined ? { memberPosts: patch.memberPosts === true } : {}),
         // Module switches merge flag-by-flag; unknown keys and non-booleans are
         // dropped so a malformed body cannot brick the shell.
         ...(patch.modules !== undefined

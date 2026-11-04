@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session V). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session W). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -274,9 +274,10 @@ C:\Users\HP\Desktop\church\
   5/5 switched-on 200), worship off by default, the class-scoped children's desk, the nav empty state.
   Batch 2 ✅ — welfare decrypt + its own /welfare page, campaign end date, dashboard money label, statement
   PDF, member-mode keep-signed-in. Batches 3–6 approved and not started (display · accessibility · ops ·
-  missing screens). Owner asked during Batch 2 (4 Nov) for **member mode to send in announcements and prayer
-  requests with photos, announcements going to leaders for approval before they show to everybody** —
-  planned as Batch 7.
+  missing screens). Batch 7 ✅ (owner ask, 4 Nov) — members send notices and prayer requests with photos
+  from the companion; a notice waits as PENDING for a leader on /announcements and only shows to everybody
+  once approved. Gated by `Church.settings.memberPosts` (off by default; demo is on) **and** the News
+  section, enforced in the API.
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 

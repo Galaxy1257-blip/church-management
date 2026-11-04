@@ -35,11 +35,14 @@ const MEMBER_SUMMARY = {
 export class AnnouncementsService {
   constructor(private readonly tenant: TenantService) {}
 
-  list(user: AuthUser, category?: string) {
+  list(user: AuthUser, category?: string, pending = false) {
     return this.tenant.run(user, async (tx) => {
       const rows = await tx.announcement.findMany({
         where: {
           churchId: user.churchId,
+          // The leaders' queue is the pending member notices; the normal list is
+          // what everybody may see.
+          moderation: pending ? 'PENDING' : 'APPROVED',
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
           ...(category && category !== 'ALL' ? { category } : {}),
         },
@@ -57,6 +60,8 @@ export class AnnouncementsService {
           expiresAt: true,
           memberId: true,
           createdBy: true,
+          moderation: true,
+          submittedByMemberId: true,
         },
       });
       const memberIds = [...new Set(rows.map((r) => r.memberId).filter((v): v is string => Boolean(v)))];
@@ -115,6 +120,23 @@ export class AnnouncementsService {
       return a;
     });
   }
+
+  /** A leader decides a member's notice: approved ones show to everybody. */
+  moderate(user: AuthUser, id: string, approve: boolean, ip?: string) {
+    return this.tenant.run(user, async (tx) => {
+      const a = await tx.announcement.findFirst({ where: { id, churchId: user.churchId } });
+      if (!a) throw new NotFoundException('announcement not found');
+      const updated = await tx.announcement.update({
+        where: { id },
+        data: {
+          moderation: approve ? 'APPROVED' : 'REJECTED',
+          ...(approve ? { publishAt: new Date() } : {}),
+        },
+      });
+      await appendAudit(tx, { churchId: user.churchId, actorId: user.userId, action: approve ? 'announcement.approve' : 'announcement.reject', entity: 'Announcement', entityId: id, ip });
+      return updated;
+    });
+  }
 }
 
 // Switched off in Settings → App sections means switched off here too.
@@ -125,8 +147,8 @@ export class AnnouncementsController {
 
   @RequirePermissions('campaigns:read')
   @Get()
-  list(@Req() req: AuthedRequest, @Query('category') category?: string) {
-    return this.svc.list(req.user!, category);
+  list(@Req() req: AuthedRequest, @Query('category') category?: string, @Query('pending') pending?: string) {
+    return this.svc.list(req.user!, category, pending === 'true');
   }
 
   /** Detail (with the published photo, e.g. the deceased) behind a click. */
@@ -140,6 +162,12 @@ export class AnnouncementsController {
   @Post()
   create(@Req() req: AuthedRequest, @Body() dto: AnnouncementDto) {
     return this.svc.create(req.user!, dto, req.ip);
+  }
+
+  @RequirePermissions('campaigns:write')
+  @Post(':id/moderate')
+  moderate(@Req() req: AuthedRequest, @Param('id') id: string, @Body('approve') approve: boolean) {
+    return this.svc.moderate(req.user!, id, approve !== false, req.ip);
   }
 }
 

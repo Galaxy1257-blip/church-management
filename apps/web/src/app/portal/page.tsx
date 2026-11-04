@@ -4,6 +4,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { fmtDateTime, ghs } from '../../lib/format';
 import { pdfBlob } from '../../lib/pdf';
+import { fileToPhotoDataUrl } from '../../lib/photo';
 import BibleDock from '../../components/bible-dock';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -54,15 +55,18 @@ interface HomeData {
     contact?: { phone?: string; email?: string; address?: string } | null;
   } | null;
   services: { id: string; name: string; startsAt: string; status: string }[];
-  announcements: { id: string; title: string; body: string; publishAt: string }[];
+  announcements: { id: string; title: string; body: string; publishAt: string; photoDataUrl?: string | null }[];
   /** False when the church switched the Bible area off in its settings. */
   bibleOn?: boolean;
+  /** Members may send notices and prayer requests with photos. */
+  memberPostsOn?: boolean;
   links: { give: string; bible: string };
 }
 interface Shift { id: string; duty: string; status: string; service: { name: string; startsAt: string } | null }
 interface EventRow { id: string; title: string; startsAt: string; venue: string | null; capacity: number | null }
+interface MyPost { id: string; title: string; body: string; moderation: string; publishAt: string; photoDataUrl?: string | null }
 
-type Tab = 'home' | 'giving' | 'shifts' | 'events' | 'prayer';
+type Tab = 'home' | 'giving' | 'shifts' | 'events' | 'prayer' | 'notices';
 
 export default function PortalPage() {
   const [step, setStep] = useState<'phone' | 'code' | 'in'>('phone');
@@ -80,6 +84,10 @@ export default function PortalPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [prayerBody, setPrayerBody] = useState('');
+  const [prayerPhoto, setPrayerPhoto] = useState<string | null>(null);
+  const [posts, setPosts] = useState<MyPost[]>([]);
+  const [postForm, setPostForm] = useState({ title: '', body: '' });
+  const [postPhoto, setPostPhoto] = useState<string | null>(null);
   const [anonymous, setAnonymous] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -92,12 +100,13 @@ export default function PortalPage() {
     const first = await fetch(`${API}/portal/home`, { headers });
     if (!first.ok) return false;
     const h = (await first.json()) as HomeData;
-    const [g, sh, ev] = await Promise.all([
+    const [g, sh, ev, myPosts] = await Promise.all([
       fetch(`${API}/portal/my-giving`, { headers }).then((r) => r.json()),
       fetch(`${API}/portal/shifts`, { headers }).then((r) => r.json()),
       fetch(`${API}/portal/events`, { headers }).then((r) => r.json()),
+      fetch(`${API}/portal/posts`, { headers }).then((r) => (r.ok ? r.json() : [])),
     ]);
-    setHome(h); setGiving(g); setShifts(sh); setEvents(ev);
+    setHome(h); setGiving(g); setShifts(sh); setEvents(ev); setPosts(myPosts);
     if (h?.church?.branding?.primaryColor) document.documentElement.style.setProperty('--brand', h.church.branding.primaryColor);
     return true;
   }
@@ -196,13 +205,34 @@ export default function PortalPage() {
 
   async function submitPrayer(e: FormEvent): Promise<void> {
     e.preventDefault();
+    setError('');
     const res = await fetch(`${API}/portal/prayer`, {
       method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: prayerBody, anonymous }),
+      body: JSON.stringify({ body: prayerBody, anonymous, ...(prayerPhoto ? { photoDataUrl: prayerPhoto } : {}) }),
     });
     if (res.ok) {
-      setPrayerBody('');
+      setPrayerBody(''); setPrayerPhoto(null);
       setNotice('Prayer request sent to the care team (appears on the wall after moderation) ✓');
+    } else {
+      const data = (await res.json().catch(() => null)) as { message?: string } | null;
+      setError(data?.message ?? 'Could not send the prayer request.');
+    }
+  }
+
+  async function submitPost(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    setError('');
+    const res = await fetch(`${API}/portal/posts`, {
+      method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...postForm, ...(postPhoto ? { photoDataUrl: postPhoto } : {}) }),
+    });
+    if (res.ok) {
+      setPostForm({ title: '', body: '' }); setPostPhoto(null);
+      setNotice('Notice sent to the church leaders. It appears to everybody once they approve it.');
+      setPosts(await fetch(`${API}/portal/posts`, { headers: auth() }).then((r) => r.json()));
+    } else {
+      const data = (await res.json().catch(() => null)) as { message?: string } | null;
+      setError(data?.message ?? 'Could not send the notice.');
     }
   }
 
@@ -306,7 +336,7 @@ export default function PortalPage() {
           </div>
         <p style={{ margin: '4px 0' }}>Welcome, <b>{home?.member?.firstName} {home?.member?.lastName}</b></p>
         <nav className="portal-tabs" aria-label="Member sections">
-          {(['home', 'giving', 'shifts', 'events', 'prayer'] as Tab[]).map((t) => (
+          {([...(['home', 'giving', 'shifts', 'events', 'prayer'] as Tab[]), ...(home?.memberPostsOn ? (['notices'] as Tab[]) : [])]).map((t) => (
             <button
               key={t}
               type="button"
@@ -314,7 +344,7 @@ export default function PortalPage() {
               aria-current={tab === t ? 'page' : undefined}
               onClick={() => setTab(t)}
             >
-              {t === 'home' ? 'Home' : t === 'giving' ? 'Offerings' : t === 'shifts' ? 'Shifts' : t === 'events' ? 'Events' : 'Prayer'}
+              {t === 'home' ? 'Home' : t === 'giving' ? 'Offerings' : t === 'shifts' ? 'Shifts' : t === 'events' ? 'Events' : t === 'notices' ? 'Notices' : 'Prayer'}
             </button>
           ))}
         </nav>
@@ -346,6 +376,9 @@ export default function PortalPage() {
               <div key={a.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                 <b>{a.title}</b>
                 <div className="muted">{a.body}</div>
+                {a.photoDataUrl ? (
+                  <img src={a.photoDataUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 6 }} />
+                ) : null}
               </div>
             ))}
             {home && home.announcements.length === 0 ? <p className="muted">Nothing new.</p> : null}
@@ -450,6 +483,44 @@ export default function PortalPage() {
         </div>
       ) : null}
 
+      {tab === 'notices' && home?.memberPostsOn ? (
+        <div className="card">
+          <h2>Send a notice</h2>
+          <p className="muted">Funerals, outdooring, a church event — write it here. It goes to the church leaders, and everybody sees it once they approve it.</p>
+          <form className="stack" onSubmit={submitPost}>
+            <label>Title<input value={postForm.title} onChange={(e) => setPostForm({ ...postForm, title: e.target.value })} maxLength={120} required /></label>
+            <label>What should people know?<textarea value={postForm.body} onChange={(e) => setPostForm({ ...postForm, body: e.target.value })} maxLength={2000} required /></label>
+            <label>
+              Photo (optional)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) { setPostPhoto(null); return; }
+                  void fileToPhotoDataUrl(f).then(setPostPhoto).catch((err: Error) => setError(err.message));
+                }}
+              />
+            </label>
+            {postPhoto ? <img src={postPhoto} alt="The photo you chose" style={{ maxWidth: '100%', borderRadius: 8 }} /> : null}
+            <button>Send to the leaders</button>
+          </form>
+          <h2 style={{ marginTop: 16 }}>My notices</h2>
+          {posts.length === 0 ? <p className="muted">You have not sent a notice yet.</p> : null}
+          {posts.map((p) => (
+            <div key={p.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+              <div className="spread">
+                <b>{p.title}</b>
+                <span className={`badge ${p.moderation === 'APPROVED' ? 'ok' : p.moderation === 'REJECTED' ? 'err' : 'warn'}`}>
+                  {p.moderation === 'APPROVED' ? 'Approved' : p.moderation === 'REJECTED' ? 'Not approved' : 'Waiting for a leader'}
+                </span>
+              </div>
+              <div className="muted">{p.body}</div>
+              {p.photoDataUrl ? <img src={p.photoDataUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 6 }} /> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {tab === 'prayer' ? (
         <div className="card">
           <h2>Prayer request</h2>
@@ -459,6 +530,23 @@ export default function PortalPage() {
               <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} />
               Submit anonymously
             </label>
+            {home?.memberPostsOn ? (
+              <>
+                <label>
+                  Photo (optional)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) { setPrayerPhoto(null); return; }
+                      void fileToPhotoDataUrl(f).then(setPrayerPhoto).catch((err: Error) => setError(err.message));
+                    }}
+                  />
+                </label>
+                {prayerPhoto ? <img src={prayerPhoto} alt="The photo you chose" style={{ maxWidth: '100%', borderRadius: 8 }} /> : null}
+              </>
+            ) : null}
             <button>Send to care team</button>
           </form>
           <p className="muted">Requests are reviewed before appearing on the church wall. Replies arrive by SMS.</p>

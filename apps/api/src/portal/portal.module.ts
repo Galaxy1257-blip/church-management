@@ -1,15 +1,27 @@
 // Member self-service portal: OTP login bound to a Member record (no staff
 // account needed), my-giving history, giving statement (JSON/print-ready).
-import { Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
 import { normalizeGhPhone, resolveModules, uuidv7, localizedSmsBody } from '@chms/shared';
 import { Public } from '../common/decorators';
+import { normalizePhotoDataUrl } from '../common/photo';
 import { BibleModule } from '../bible/bible.module';
 import { BibleNotesService } from '../bible/bible-notes';
 
 const OTP_TTL = 10 * 60_000;
+
+/**
+ * Member posts are on only when the church switched them on AND the News section
+ * is on — a notice has nowhere to appear with News switched off, and the leaders'
+ * approval queue lives on that page. The portal refuses the write itself, so the
+ * switch is a boundary, not a hidden button.
+ */
+export function memberPostsOn(settings: unknown): boolean {
+  const s = (settings ?? {}) as { memberPosts?: unknown; modules?: { reach?: unknown } };
+  return s.memberPosts === true && s.modules?.reach !== false;
+}
 
 @Injectable()
 export class PortalService {
@@ -215,10 +227,14 @@ export class PortalService {
         select: { id: true, name: true, startsAt: true, status: true },
       }),
       announcements: await tx.announcement.findMany({
-        where: { churchId, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        where: {
+          churchId,
+          moderation: 'APPROVED',
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
         orderBy: { publishAt: 'desc' },
         take: 5,
-        select: { id: true, title: true, body: true, publishAt: true },
+        select: { id: true, title: true, body: true, publishAt: true, photoDataUrl: true },
       }),
     }));
     const s = (church?.settings ?? {}) as any;
@@ -239,6 +255,7 @@ export class PortalService {
       // The church switched the Bible panel off in Settings → App sections, so
       // the companion app must not show the button either.
       bibleOn: resolveModules(church?.settings).bible !== false,
+      memberPostsOn: memberPostsOn(church?.settings),
       links: { give: `/give/${church?.slug ?? ''}`, bible: '/bible' },
     };
   }
@@ -298,9 +315,14 @@ export class PortalService {
     });
   }
 
-  async prayer(token: string, body: string, anonymous: boolean) {
+  async prayer(token: string, body: string, anonymous: boolean, photoDataUrl?: string) {
     const { member, churchId } = await this.portalUser(token);
     if (!body || body.trim().length < 3) throw new Error('prayer request too short');
+    const church = await prisma.church.findUnique({ where: { id: churchId }, select: { settings: true } });
+    const photo = photoDataUrl ? normalizePhotoDataUrl(photoDataUrl) : null;
+    if (photo && !memberPostsOn(church?.settings)) {
+      throw new ForbiddenException('Sending a photo with a prayer request has not been switched on by your church.');
+    }
     return withTenant(churchId, null, async (tx) =>
       tx.prayerRequest.create({
         data: {
@@ -311,9 +333,57 @@ export class PortalService {
           shareToWall: true,
           visibility: 'FOLLOWUP_TEAM',
           moderation: 'PENDING',
+          ...(photo ? { photoDataUrl: photo } : {}),
         },
       }),
     );
+  }
+
+  /** A member's own notices, with where each one stands. */
+  async myPosts(token: string) {
+    const { member, churchId } = await this.portalUser(token);
+    return withTenant(churchId, null, (tx) =>
+      tx.announcement.findMany({
+        where: { churchId, submittedByMemberId: member.id },
+        orderBy: { publishAt: 'desc' },
+        take: 20,
+        select: { id: true, title: true, body: true, moderation: true, publishAt: true, photoDataUrl: true },
+      }),
+    );
+  }
+
+  /**
+   * A notice sent in from the companion. It waits for a leader: only an approved
+   * one is shown to everybody (portal home, staff news list).
+   */
+  async submitPost(token: string, input: { title?: unknown; body?: unknown; photoDataUrl?: unknown }) {
+    const { member, churchId } = await this.portalUser(token);
+    const church = await prisma.church.findUnique({ where: { id: churchId }, select: { settings: true } });
+    if (!memberPostsOn(church?.settings)) {
+      throw new ForbiddenException('Your church has not switched on notices from members yet.');
+    }
+    const title = String(input.title ?? '').trim();
+    const body = String(input.body ?? '').trim();
+    if (title.length < 3 || title.length > 120) throw new Error('the title needs 3 to 120 characters');
+    if (body.length < 3 || body.length > 2000) throw new Error('the notice needs 3 to 2000 characters');
+    const photo = input.photoDataUrl ? normalizePhotoDataUrl(String(input.photoDataUrl)) : null;
+    const row = await withTenant(churchId, null, (tx) =>
+      tx.announcement.create({
+        data: {
+          churchId,
+          title,
+          body,
+          category: 'GENERAL',
+          channels: ['INAPP'],
+          audience: {} as never,
+          moderation: 'PENDING',
+          submittedByMemberId: member.id,
+          createdBy: member.id,
+          ...(photo ? { photoDataUrl: photo } : {}),
+        },
+      }),
+    );
+    return { id: row.id, moderation: row.moderation };
   }
 
   /** Member answers their own roster shift (portal token, not staff JWT). */
@@ -413,8 +483,21 @@ export class PortalController {
   @Public()
   @Post('prayer')
   @HttpCode(200)
-  prayer(@Req() req: any, @Body() body: { body: string; anonymous?: boolean }) {
-    return this.svc.prayer(bearer(req), String(body?.body ?? ''), body?.anonymous === true);
+  prayer(@Req() req: any, @Body() body: { body: string; anonymous?: boolean; photoDataUrl?: string }) {
+    return this.svc.prayer(bearer(req), String(body?.body ?? ''), body?.anonymous === true, body?.photoDataUrl);
+  }
+
+  @Public()
+  @Get('posts')
+  myPosts(@Req() req: any) {
+    return this.svc.myPosts(bearer(req));
+  }
+
+  @Public()
+  @Post('posts')
+  @HttpCode(202)
+  submitPost(@Req() req: any, @Body() body: { title?: unknown; body?: unknown; photoDataUrl?: unknown }) {
+    return this.svc.submitPost(bearer(req), body ?? {});
   }
 
   @Public()

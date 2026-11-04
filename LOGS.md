@@ -1236,3 +1236,35 @@ portal (sign-in, reload, statement, PDF, sign out).
 **Local dev fixtures (Postgres only — Neon untouched).** Care and Special offerings were switched on for the
 demo church to test, then restored to off; the two scratch welfare requests and the seeded OTP challenges
 were deleted.
+
+## 2026-11-04 — Audit round 4, Batch 7: members send notices, leaders approve (`uncommitted`)
+
+**Owner ask (4 Nov):** *"allow member mode to put in announcements and prayer requests, with ability to
+attach pics"*, then *"the announcement put in must go to church leaders and if approved shows to
+everybody"*.
+
+**What was built.** Schema `12_member_posts`: `Announcement.submittedByMemberId`, `Announcement.moderation`
+(default APPROVED so staff notices are untouched), `PrayerRequest.photoDataUrl`. The companion gained a
+**Notices** tab: a member writes a notice (title, body, optional photo) and sees where each one stands —
+*Waiting for a leader* / *Approved* / *Not approved*. Prayer requests accept a photo too. Photos go through
+the same `fileToPhotoDataUrl` shrink (≤ ~200 KB) and server-side `normalizePhotoDataUrl` as member photos.
+
+**The leaders' queue.** `/announcements` shows **Waiting for a leader (n)** above the published list;
+Approve/Decline calls `POST /announcements/:id/moderate` (`campaigns:write`, audited as
+`announcement.approve|reject`). The public list (`GET /announcements`, portal home, portal own-notices)
+only ever reads `moderation: 'APPROVED'`.
+
+**The switch, on the API path.** Settings → App sections has *"Let members send in notices and prayer
+requests"*, stored as `Church.settings.memberPosts` (off by default). `memberPostsOn()` requires it **and**
+News to be on — with News off a notice has nowhere to appear and the leaders' queue lives on that page.
+`POST /portal/posts` and a prayer with a photo are refused by the API when it is off, not merely hidden.
+
+**Proven.** Unit: 5 new (`member-posts.spec.ts`) — switch truth table (3) + approved/pending list filters (2).
+Live, API: submit 202 PENDING → leaders' `?pending=true` shows it, the public list does not → approve →
+public list does; switch off → **403** on the notice and on a prayer photo; switch on → prayer photo **200**.
+Live, browser at 390px: Notices tab, notice sent, *"Waiting for a leader"*, staff queue **Waiting for a
+leader (1)** → Approve → *"Approved — everybody can see it now."* and it appears under Published; 0 overflow.
+
+**Counts.** api **133/133** (15 files) · shared 126/126 · typecheck clean in both apps · eslint clean ·
+`check:secrets` clean. Demo church has the switch **on** so the owner can try it; the scratch notices,
+prayer rows and seeded OTP challenges were deleted. Migration applied to the **local** Postgres only.

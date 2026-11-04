@@ -673,6 +673,7 @@ model PrayerRequest {
   shareToWall Boolean          @default(false)
   moderation  String           @default("PENDING") // PENDING|APPROVED|REJECTED
   status      String           @default("OPEN") // OPEN|PRAYED|ANSWERED|ARCHIVED
+  photoDataUrl String?         @db.Text
   assignedTo  String?          @db.Uuid
   createdAt   DateTime         @default(now())
 
@@ -1234,6 +1235,10 @@ model Announcement {
   publishAt DateTime  @default(now())
   expiresAt DateTime?
   createdBy String    @db.Uuid
+  /// The member who sent it in from the companion (null for staff notices).
+  submittedByMemberId String? @db.Uuid
+  /// PENDING|APPROVED|REJECTED — staff notices start APPROVED.
+  moderation String   @default("APPROVED")
 }
 
 model PushSubscription {

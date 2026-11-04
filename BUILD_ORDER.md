@@ -319,9 +319,14 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
 - [ ] **Batch 4 — phone and keyboard accessibility sweep.**
 - [ ] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
 - [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
-- [ ] **Batch 7 — member posts (owner ask, 4 Nov):** in member mode, send in announcements and prayer
-      requests with photos; announcements go to church leaders and only appear to everybody once approved.
-      Needs a Settings switch in the same unit, gated on the API too.
+### Batch 7 — member posts ✅ (owner ask, 4 Nov)
+- [x] Notices tab in the companion: title, body, optional photo; *Waiting for a leader* / *Approved* / *Not
+      approved*. Prayer requests take a photo too.
+- [x] Leaders' queue on /announcements; approve/decline audited; only `APPROVED` reaches the public list and
+      the portal home.
+- [x] Settings switch *"Let members send in notices and prayer requests"* (`settings.memberPosts`, off by
+      default), enforced by the portal API together with the News section. 5 unit tests; proven live
+      (202 PENDING → approve → public; switch off → 403).
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*

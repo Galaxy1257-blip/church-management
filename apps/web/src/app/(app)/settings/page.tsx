@@ -128,6 +128,8 @@ export default function SettingsPage() {
   // starting set come from the API (/churches/me/profile) — the one table lives
   // in packages/shared/src/modules.ts, and this page keeps no copy of it.
   const [modules, setModules] = useState<Record<string, boolean>>({});
+  // Members may send in notices + prayer requests with photos (companion app).
+  const [memberPosts, setMemberPosts] = useState(false);
   const [startModules, setStartModules] = useState<Record<string, boolean>>({});
   // Listed as "every church" versus "opt-in", the way the office thinks about it.
   const coreKeys = MODULE_KEYS.filter((key) => startModules[key]);
@@ -162,6 +164,7 @@ export default function SettingsPage() {
       if (p.denomination) { setDenomKey(p.denomination.key ?? 'DEFAULT'); setTerms(p.denomination.terms ?? null); }
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
       if (p.moduleDefaults) setStartModules(p.moduleDefaults);
+      if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
     void api<any>('/giving/settings').then((s) => s && setFees(s)).catch(() => undefined);
@@ -196,7 +199,7 @@ export default function SettingsPage() {
    */
   async function saveModules(): Promise<void> {
     try {
-      const p = await api<any>('/churches/me/profile', { method: 'POST', body: { modules } });
+      const p = await api<any>('/churches/me/profile', { method: 'POST', body: { modules, memberPosts } });
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
       setError('');
       clearSession();
@@ -869,6 +872,19 @@ export default function SettingsPage() {
             )}
           </>
         )}
+        <div className="stack" style={{ marginTop: 8 }}>
+          <h3 style={{ margin: 0 }}>From your members</h3>
+          <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <input type="checkbox" checked={memberPosts} onChange={(e) => setMemberPosts(e.target.checked)} />
+            <span>
+              <strong>Let members send in notices and prayer requests</strong>
+              <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                In their companion app they can write a notice (with a photo) or a prayer request (with a photo). A notice
+                goes to the leaders first and only appears to everybody after it is approved. Works only while News is on.
+              </span>
+            </span>
+          </label>
+        </div>
         <button>Save app sections</button>
         <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
           Saving reloads the app so the menu updates. Care stays visible only to ushers and Sunday School teachers, even

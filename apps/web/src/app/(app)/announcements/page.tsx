@@ -43,10 +43,13 @@ export default function AnnouncementsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AnnouncementDetail | null>(null);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  // Notices members sent in from the companion, waiting for a leader.
+  const [pending, setPending] = useState<Announcement[]>([]);
 
   async function load(cat = filter): Promise<void> {
     try {
       setItems(await api<Announcement[]>(`/announcements${cat && cat !== 'ALL' ? `?category=${cat}` : ''}`));
+      setPending(await api<Announcement[]>('/announcements?pending=true').catch(() => []));
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'failed'); }
   }
@@ -104,6 +107,14 @@ export default function AnnouncementsPage() {
     } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
+  async function decide(id: string, approve: boolean): Promise<void> {
+    try {
+      await api(`/announcements/${id}/moderate`, { method: 'POST', body: { approve } });
+      setNotice(approve ? 'Approved — everybody can see it now.' : 'Not approved — the member sees that it was declined.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not record the decision'); }
+  }
+
   async function pickPhoto(file: File | undefined): Promise<void> {
     if (!file) return;
     try {
@@ -119,6 +130,26 @@ export default function AnnouncementsPage() {
       <h1>Announcements</h1>
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
       {error ? <div className="error">{error}</div> : null}
+      {pending.length > 0 ? (
+        <div className="card">
+          <h2>Waiting for a leader ({pending.length})</h2>
+          <p className="muted">Sent in by members from their companion app. Nothing here is visible to the congregation yet.</p>
+          {pending.map((a) => (
+            <div key={a.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+              <div className="spread" style={{ alignItems: 'flex-start' }}>
+                <div>
+                  <b>{a.title}</b>
+                  <div className="muted">{a.body}</div>
+                </div>
+                <span className="row">
+                  <button className="small" onClick={() => void decide(a.id, true)}>Approve</button>
+                  <button className="small danger" onClick={() => void decide(a.id, false)}>Decline</button>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="card">
         <h2>New announcement</h2>
         <form className="stack" onSubmit={post}>
