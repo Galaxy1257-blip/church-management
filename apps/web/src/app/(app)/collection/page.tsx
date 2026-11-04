@@ -1,6 +1,6 @@
 'use client';
-// What the door team may do with money: say how much was counted. The treasurer
-// approves it on the finance page; nothing here shows the finance sheet.
+// What an usher may do with money: say how much the offering came to. The
+// treasurer approves it on the finance page; nothing here shows the sheet.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { toPesewas } from '../../../lib/format';
@@ -50,7 +50,7 @@ export default function CollectionPage() {
   return (
     <div>
       <h1>Collection count</h1>
-      <p className="muted">Enter the money you counted at the door. It goes to the treasurer for approval — this does not open the finance sheet.</p>
+      <p className="muted">Enter the offering you counted after the service. It goes to the treasurer for approval — this does not open the finance sheet.</p>
       {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
       {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       <div className="card">
@@ -65,7 +65,7 @@ export default function CollectionPage() {
             </select>
           </label>
           <label>Amount counted (GHS)<input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="350" required /></label>
-          <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="two ushers counted together" /></label>
+          <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="two ushers counted together, after the service" /></label>
           <button disabled={busy || !serviceId}>Submit count</button>
         </form>
       </div>

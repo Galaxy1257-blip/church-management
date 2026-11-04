@@ -61,9 +61,9 @@ export class FinanceService {
   }
 
   /**
-   * What the door team may do: say how much money was counted. It finds (or
-   * opens) the counting batch for that service, adds the cash figure, and hands
-   * it to the treasurer for approval. Nothing about funds, reports or the
+   * What an usher may do with money: say how much the offering came to. It finds
+   * (or opens) the counting batch for that service, adds the cash figure, and
+   * hands it to the treasurer for approval. Nothing about funds, reports or the
    * finance sheet is returned.
    */
   recordCollection(user: AuthUser, input: { serviceId: string; amountMinor: number; note?: string }, ip?: string) {
@@ -81,7 +81,7 @@ export class FinanceService {
         orderBy: { name: 'asc' },
       }) ?? (await tx.fund.findFirst({ where: { churchId: user.churchId, isActive: true }, orderBy: { name: 'asc' } }));
       if (!fund) throw new BadRequestException('no offering fund is set up yet — ask the treasurer');
-      const label = `Door count — ${service.name}`;
+      const label = `Offering count — ${service.name}`;
       const batch = (await tx.givingBatch.findFirst({
         where: { churchId: user.churchId, serviceId: service.id, label, status: 'OPEN' },
       })) ?? (await tx.givingBatch.create({
