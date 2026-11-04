@@ -73,7 +73,7 @@ describe('the welfare list', () => {
     expect(out).not.toHaveProperty('churchId');
     // What a decision needs, and nothing else.
     expect(Object.keys(out).sort()).toEqual(
-      ['amountRequestedMinor', 'category', 'createdAt', 'description', 'id', 'member', 'memberId', 'status'],
+      ['amountRequestedMinor', 'assignedToMemberId', 'category', 'createdAt', 'description', 'id', 'member', 'memberId', 'status'],
     );
   });
 

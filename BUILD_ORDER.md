@@ -328,6 +328,14 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       default), enforced by the portal API together with the News section. 5 unit tests; proven live
       (202 PENDING → approve → public; switch off → 403).
 
+### Batch 8 — reminders + welfare routing ✅ (owner ask, 4 Nov)
+- [x] `/reminders` for leaders: broadcast now, or 1 week / 3 days / 1 day before a program; announcements
+      can carry the same schedule. Duplicate text is refused by the API with the date it first went out.
+- [x] Companion notification bell + pane (unread count, polled, marked read). In-app only; OS-level push
+      needs VAPID keys the owner has not provided.
+- [x] Welfare requests can be sent to the leaders (default) or one member, who sees it in the companion.
+- [x] 5 unit tests; live API + browser at 390px; migration `13_notifications` applied locally only.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

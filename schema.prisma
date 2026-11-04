@@ -719,10 +719,39 @@ model WelfareRequest {
   status               String   @default("SUBMITTED") // SUBMITTED|UNDER_REVIEW|APPROVED|DECLINED|DISBURSED
   reviewedBy           String?  @db.Uuid
   approvedBy           String?  @db.Uuid
+  /// When set, this request was sent to one member to handle (null = the leaders).
+  assignedToMemberId   String?  @db.Uuid
   disbursedExpenseId   String?  @db.Uuid
   createdAt            DateTime @default(now())
 
   @@index([churchId, status])
+}
+
+// In-app notifications: a leader's message or a program reminder, shown in the
+// companion's notification pane. `dedupeKey` is unique per church so two leaders
+// cannot broadcast the same reminder twice.
+model Notification {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  churchId     String    @db.Uuid
+  /// Staff account this notice is for, when not the whole church (legacy column).
+  userId       String?   @db.Uuid
+  /// null = the whole church.
+  memberId     String?   @db.Uuid
+  kind         String    @default("REMINDER") // REMINDER|ANNOUNCEMENT|PROGRAM
+  title        String
+  body         String
+  /// The announcement this reminds people about, when there is one.
+  sourceId     String?   @db.Uuid
+  /// Stable key: same text (or same program offset) cannot be sent twice.
+  dedupeKey    String
+  scheduledFor DateTime
+  sentAt       DateTime?
+  readAt       DateTime?
+  createdBy    String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  @@unique([churchId, dedupeKey])
+  @@index([churchId, scheduledFor])
 }
 
 // ------------------------------------ services, headcount, events
@@ -1249,19 +1278,6 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-}
-
-model Notification {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  churchId  String    @db.Uuid
-  userId    String?   @db.Uuid
-  kind      String
-  title     String
-  body      String
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([churchId, userId, readAt])
 }
 
 // One person's verse notes in the Bible panel. authorId is a staff User id or a

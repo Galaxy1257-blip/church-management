@@ -243,6 +243,7 @@ export const NAV_AREAS: NavArea[] = [
     items: [
       { href: '/sms', label: 'SMS', permissions: ['sms:read'], module: 'sms' },
       { href: '/announcements', label: 'News', permissions: ['campaigns:read'] },
+      { href: '/reminders', label: 'Reminders', permissions: ['campaigns:write'] },
     ],
   },
   {
@@ -300,6 +301,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/drip', permissions: ['visitors:read'], label: 'Follow-up' },
   { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },
   { prefix: '/announcements', permissions: ['campaigns:read'], label: 'News' },
+  { prefix: '/reminders', permissions: ['campaigns:write'], label: 'Reminders' },
   { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
   { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },

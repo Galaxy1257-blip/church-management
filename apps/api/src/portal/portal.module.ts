@@ -7,6 +7,7 @@ import { prisma, withTenant } from '@chms/db';
 import { normalizeGhPhone, resolveModules, uuidv7, localizedSmsBody } from '@chms/shared';
 import { Public } from '../common/decorators';
 import { normalizePhotoDataUrl } from '../common/photo';
+import { openNote } from '../ministry/crypto';
 import { BibleModule } from '../bible/bible.module';
 import { BibleNotesService } from '../bible/bible-notes';
 
@@ -339,6 +340,68 @@ export class PortalService {
     );
   }
 
+  /** What the leaders have broadcast or scheduled, once it is due. */
+  async notifications(token: string) {
+    const { member, churchId } = await this.portalUser(token);
+    return withTenant(churchId, null, async (tx) => {
+      const items = await tx.notification.findMany({
+        where: { churchId, scheduledFor: { lte: new Date() }, OR: [{ memberId: null }, { memberId: member.id }] },
+        orderBy: { scheduledFor: 'desc' },
+        take: 50,
+        select: { id: true, kind: true, title: true, body: true, scheduledFor: true, readAt: true },
+      });
+      return { items, unread: items.filter((i) => !i.readAt).length };
+    });
+  }
+
+  async readNotifications(token: string, ids?: string[]) {
+    const { member, churchId } = await this.portalUser(token);
+    return withTenant(churchId, null, async (tx) => {
+      const res = await tx.notification.updateMany({
+        where: {
+          churchId,
+          readAt: null,
+          OR: [{ memberId: null }, { memberId: member.id }],
+          ...(ids && ids.length ? { id: { in: ids } } : {}),
+        },
+        data: { readAt: new Date() },
+      });
+      return { read: res.count };
+    });
+  }
+
+  /** Welfare requests the leaders handed to this member to help with. */
+  async assignedWelfare(token: string) {
+    const { member, churchId } = await this.portalUser(token);
+    const rows = await withTenant(churchId, null, (tx) =>
+      tx.welfareRequest.findMany({
+        where: { churchId, assignedToMemberId: member.id, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    );
+    const asked = [...new Set(rows.map((r) => r.memberId))];
+    const people = asked.length
+      ? await withTenant(churchId, null, (tx) =>
+          tx.member.findMany({ where: { churchId, id: { in: asked } }, select: { id: true, firstName: true, lastName: true } }),
+        )
+      : [];
+    const byId = new Map(people.map((p) => [p.id, p]));
+    return withTenant(churchId, null, async (tx) =>
+      Promise.all(
+        rows.map(async (r) => ({
+          id: r.id,
+          category: r.category,
+          status: r.status,
+          amountRequestedMinor: r.amountRequestedMinor,
+          createdAt: r.createdAt,
+          description: await openNote(tx, churchId, { cipher: r.descriptionCipher, nonce: r.nonce, keyVersion: r.keyVersion }),
+          member: byId.get(r.memberId) ?? null,
+        })),
+      ),
+    );
+  }
+
   /** A member's own notices, with where each one stands. */
   async myPosts(token: string) {
     const { member, churchId } = await this.portalUser(token);
@@ -485,6 +548,25 @@ export class PortalController {
   @HttpCode(200)
   prayer(@Req() req: any, @Body() body: { body: string; anonymous?: boolean; photoDataUrl?: string }) {
     return this.svc.prayer(bearer(req), String(body?.body ?? ''), body?.anonymous === true, body?.photoDataUrl);
+  }
+
+  @Public()
+  @Get('notifications')
+  notifications(@Req() req: any) {
+    return this.svc.notifications(bearer(req));
+  }
+
+  @Public()
+  @Post('notifications/read')
+  @HttpCode(200)
+  readNotifications(@Req() req: any, @Body() body: { ids?: string[] }) {
+    return this.svc.readNotifications(bearer(req), Array.isArray(body?.ids) ? body.ids : undefined);
+  }
+
+  @Public()
+  @Get('welfare-assigned')
+  assignedWelfare(@Req() req: any) {
+    return this.svc.assignedWelfare(bearer(req));
   }
 
   @Public()

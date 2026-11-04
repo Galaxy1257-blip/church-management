@@ -7,6 +7,7 @@ import { ForModule, RequirePermissions } from '../common/decorators';
 import { normalizePhotoDataUrl } from '../common/photo';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
+import { reminderRows } from './reminders.module';
 
 class AnnouncementDto {
   @IsString() @MinLength(1) title!: string;
@@ -19,6 +20,10 @@ class AnnouncementDto {
   @IsOptional() @IsString() memberId?: string;
   /** Photo published with the notice, e.g. the deceased (data URL). */
   @IsOptional() @IsString() photoDataUrl?: string;
+  /** When the thing happens, so reminders can count back from it. */
+  @IsOptional() @IsString() programAt?: string;
+  /** Days before the program to remind people: 7, 3 and/or 1. */
+  @IsOptional() @IsArray() remindOffsets?: number[];
 }
 
 const MEMBER_SUMMARY = {
@@ -116,6 +121,22 @@ export class AnnouncementsService {
           createdBy: user.userId,
         },
       });
+      // A notice can carry the same 1-week / 3-day / 1-day reminders as a
+      // leader's own broadcast. Keyed by the notice itself, so two different
+      // notices with the same words do not block each other.
+      const rows = reminderRows({
+        title: a.title,
+        body: a.body,
+        programAt: input.programAt ? new Date(input.programAt) : null,
+        offsets: input.remindOffsets ?? [],
+        sourceId: a.id,
+        kind: 'ANNOUNCEMENT',
+      });
+      if (input.programAt && (input.remindOffsets ?? []).length) {
+        await tx.notification.createMany({
+          data: rows.map((r) => ({ ...r, dedupeKey: `${a.id}:${r.dedupeKey}`, churchId: user.churchId, createdBy: user.userId })),
+        });
+      }
       await appendAudit(tx, { churchId: user.churchId, actorId: user.userId, action: 'announcement.create', entity: 'Announcement', entityId: a.id, ip });
       return a;
     });

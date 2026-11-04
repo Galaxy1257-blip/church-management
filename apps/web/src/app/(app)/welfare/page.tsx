@@ -18,6 +18,8 @@ interface Welfare {
   createdAt: string;
   /** null when the stored note cannot be opened (written before the tag was kept). */
   description: string | null;
+  /** null = the leaders handle it. */
+  assignedToMemberId?: string | null;
   member?: { firstName: string; lastName: string } | null;
 }
 interface MemberOption {
@@ -50,7 +52,7 @@ export default function WelfarePage() {
   const [rows, setRows] = useState<Welfare[]>([]);
   const [people, setPeople] = useState<MemberOption[]>([]);
   const [perms, setPerms] = useState<string[]>([]);
-  const [form, setForm] = useState({ memberId: '', category: 'MEDICAL', description: '', amount: '' });
+  const [form, setForm] = useState({ memberId: '', category: 'MEDICAL', description: '', amount: '', assignedTo: '' });
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -95,9 +97,10 @@ export default function WelfarePage() {
           category: form.category,
           description: form.description,
           amountRequestedMinor: amountMinor ?? undefined,
+          assignedToMemberId: form.assignedTo || undefined,
         },
       });
-      setForm({ memberId: '', category: form.category, description: '', amount: '' });
+      setForm({ memberId: '', category: form.category, description: '', amount: '', assignedTo: '' });
       setNotice('Request recorded. The situation is stored encrypted.');
       await load();
     } catch (err) {
@@ -173,6 +176,20 @@ export default function WelfarePage() {
               Amount asked for (GHS)
               <input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" placeholder="400" />
             </label>
+            <label>
+              Who handles it
+              <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
+                <option value="">The leaders</option>
+                {people.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.firstName} {m.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+              The leaders always see every request. Pick a member and it also shows in their own app to follow up.
+            </p>
             <button disabled={busy || !form.memberId || !form.description}>Submit request</button>
           </form>
         </div>
@@ -217,6 +234,11 @@ export default function WelfarePage() {
                     <span className={`badge ${w.status === 'APPROVED' ? 'ok' : w.status === 'DECLINED' ? 'err' : 'warn'}`}>
                       {statusLabel(w.status)}
                     </span>
+                    <div className="muted" style={{ fontSize: '0.78rem' }}>
+                      {w.assignedToMemberId
+                        ? `With ${people.find((p) => p.id === w.assignedToMemberId)?.firstName ?? 'a member'}`
+                        : 'With the leaders'}
+                    </div>
                   </td>
                   {canDecide ? (
                     <td className="row">

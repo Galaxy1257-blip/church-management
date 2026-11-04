@@ -25,6 +25,8 @@ class WelfareDto {
   @IsString() category!: string;
   @IsString() @MinLength(3) description!: string;
   @IsOptional() @IsInt() @Min(1) amountRequestedMinor?: number;
+  /** One member to handle it instead of the leaders (optional). */
+  @IsOptional() @IsString() assignedToMemberId?: string;
 }
 
 @Injectable()
@@ -146,6 +148,7 @@ export class CareService {
           category: r.category,
           status: r.status,
           amountRequestedMinor: r.amountRequestedMinor,
+          assignedToMemberId: r.assignedToMemberId,
           createdAt: r.createdAt,
           description: await openNote(tx, user.churchId, {
             cipher: r.descriptionCipher,
@@ -171,6 +174,13 @@ export class CareService {
 
   async addWelfare(user: AuthUser, input: WelfareDto, ip?: string) {
     return this.tenant.run(user, async (tx) => {
+      if (input.assignedToMemberId) {
+        const person = await tx.member.findFirst({
+          where: { id: input.assignedToMemberId, churchId: user.churchId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!person) throw new BadRequestException('that member is not in this church');
+      }
       const enc = await encryptNote(tx, user.churchId, input.description);
       const w = await tx.welfareRequest.create({
         data: {
@@ -181,6 +191,7 @@ export class CareService {
           nonce: enc.nonce as any,
           keyVersion: enc.keyVersion,
           amountRequestedMinor: input.amountRequestedMinor ?? null,
+          assignedToMemberId: input.assignedToMemberId ?? null,
           status: 'SUBMITTED',
         },
       });

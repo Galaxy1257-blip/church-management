@@ -1268,3 +1268,40 @@ leader (1)** → Approve → *"Approved — everybody can see it now."* and it a
 **Counts.** api **133/133** (15 files) · shared 126/126 · typecheck clean in both apps · eslint clean ·
 `check:secrets` clean. Demo church has the switch **on** so the owner can try it; the scratch notices,
 prayer rows and seeded OTP challenges were deleted. Migration applied to the **local** Postgres only.
+
+## 2026-11-04 — Audit round 4, Batch 8: reminders, the notification pane, and welfare routing (`uncommitted`)
+
+**Owner ask (4 Nov):** choose who a welfare request goes to (leaders or one member); let announcements and
+reminders arrive on members' phones; give leaders a reminder section to broadcast one message; stop two
+leaders sending the same message twice; and schedule 1 week / 3 days / 1 day before a program, announcements
+included.
+
+**Reminders.** New `/reminders` under Reach (`campaigns:write`), with a *Send a reminder* shortcut on the
+Today card. One message goes to the whole church immediately, or a program date turns it into 7/3/1-day
+reminders. The text is normalised (case, spacing, punctuation) and hashed into a per-church unique key: a
+second leader gets **409** — *"This exact message was already sent (04/11/2026). Schedule it for another day
+or change the wording."* — proven by API and in the browser with `choir PRACTICE` vs `Choir practice`.
+Announcements can carry the same program date + offsets; those keys include the announcement id so two
+different notices with similar words do not block each other.
+
+**The pane.** `Notification` grew into a real model (the old, unused table had no scheduling columns — added
+additively, no rows lost). The companion header has a bell with an unread count and a pane listing due
+reminders, polled every 45 s and marked read when opened. Honest limit: this is the in-app pane; OS-level
+push still needs the VAPID keys the church has not set, so nothing here claims a phone notification when the
+app is closed.
+
+**Welfare routing.** `WelfareRequest.assignedToMemberId`; the /welfare form asks *Who handles it* — the
+leaders (default) or one member. The leaders always keep their list; the chosen member sees it in the
+companion under *Help you were asked to follow up* with the decrypted situation and amount. Proven live:
+assigned GHS 300.00 school-fees request appeared for Akua Danso with its text readable, and the staff list
+shows *"With Akua"*.
+
+**Proven.** Unit **5 new** (`reminders.spec.ts`): key ignores case/spacing/punctuation, 3-row schedule at
+program −7/−3/−1 days, single now-row without a program, duplicate refused. Live: 201 now-send · 409
+duplicate · 201 three scheduled rows · portal pane unread 1 → read → 0 · assigned welfare decrypted.
+Browser at 390px: send, duplicate refusal sentence, scheduled/sent list, bell `🔔 1` → pane → cleared, help
+card; 0 overflow.
+
+**Counts.** api **138/138** (16 files) · shared 126/126 · typecheck clean both apps · eslint clean ·
+`check:secrets` clean. Migration `13_notifications` applied to the **local** Postgres only. Care was switched
+on for the welfare test and restored off; test notifications, the test request and seeded OTP rows deleted.

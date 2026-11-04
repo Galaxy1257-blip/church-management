@@ -250,6 +250,7 @@ export default function DashboardPage() {
               {has('finance:read') && mod('money') ? <Link href="/finance">Record offering</Link> : null}
               {has('visitors:write') && mod('people') ? <Link href="/visitors">Register a visitor</Link> : null}
               {has('members:write') && mod('people') ? <Link href="/members">Add a member</Link> : null}
+              {has('campaigns:write') && mod('reach') ? <Link href="/reminders">Send a reminder</Link> : null}
             </div>
           </div>
         );

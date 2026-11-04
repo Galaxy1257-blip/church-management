@@ -64,6 +64,8 @@ interface HomeData {
 }
 interface Shift { id: string; duty: string; status: string; service: { name: string; startsAt: string } | null }
 interface EventRow { id: string; title: string; startsAt: string; venue: string | null; capacity: number | null }
+interface Reminder { id: string; kind: string; title: string; body: string; scheduledFor: string; readAt: string | null }
+interface AssignedWelfare { id: string; category: string; status: string; amountRequestedMinor: number | null; createdAt: string; description: string | null; member: { firstName: string; lastName: string } | null }
 interface MyPost { id: string; title: string; body: string; moderation: string; publishAt: string; photoDataUrl?: string | null }
 
 type Tab = 'home' | 'giving' | 'shifts' | 'events' | 'prayer' | 'notices';
@@ -86,6 +88,10 @@ export default function PortalPage() {
   const [prayerBody, setPrayerBody] = useState('');
   const [prayerPhoto, setPrayerPhoto] = useState<string | null>(null);
   const [posts, setPosts] = useState<MyPost[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [paneOpen, setPaneOpen] = useState(false);
+  const [assigned, setAssigned] = useState<AssignedWelfare[]>([]);
   const [postForm, setPostForm] = useState({ title: '', body: '' });
   const [postPhoto, setPostPhoto] = useState<string | null>(null);
   const [anonymous, setAnonymous] = useState(false);
@@ -106,7 +112,12 @@ export default function PortalPage() {
       fetch(`${API}/portal/events`, { headers }).then((r) => r.json()),
       fetch(`${API}/portal/posts`, { headers }).then((r) => (r.ok ? r.json() : [])),
     ]);
+    const [notes, help] = await Promise.all([
+      fetch(`${API}/portal/notifications`, { headers }).then((r) => (r.ok ? r.json() : { items: [], unread: 0 })),
+      fetch(`${API}/portal/welfare-assigned`, { headers }).then((r) => (r.ok ? r.json() : [])),
+    ]);
     setHome(h); setGiving(g); setShifts(sh); setEvents(ev); setPosts(myPosts);
+    setReminders(notes.items ?? []); setUnread(notes.unread ?? 0); setAssigned(help);
     if (h?.church?.branding?.primaryColor) document.documentElement.style.setProperty('--brand', h.church.branding.primaryColor);
     return true;
   }
@@ -262,6 +273,35 @@ export default function PortalPage() {
     }
   }
 
+  // The pane is the church's message board; a light poll keeps it current while
+  // the app is open. (OS-level push still needs VAPID keys the church has not set.)
+  useEffect(() => {
+    if (!token) return;
+    const id = setInterval(() => {
+      void fetch(`${API}/portal/notifications`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          setReminders(d.items ?? []);
+          setUnread(d.unread ?? 0);
+        })
+        .catch(() => undefined);
+    }, 45_000);
+    return () => clearInterval(id);
+  }, [token]);
+
+  async function openPane(): Promise<void> {
+    setPaneOpen((open) => !open);
+    if (paneOpen || unread === 0) return;
+    await fetch(`${API}/portal/notifications/read`, {
+      method: 'POST',
+      headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).catch(() => undefined);
+    setUnread(0);
+    setReminders((rows) => rows.map((r) => ({ ...r, readAt: r.readAt ?? new Date().toISOString() })));
+  }
+
   async function signOut(): Promise<void> {
     forgetToken();
     setToken('');
@@ -330,6 +370,9 @@ export default function PortalPage() {
               {home?.church?.name ?? 'Church'}
             </h1>
             <span className="row" style={{ alignItems: 'center', gap: 8 }}>
+              <button className="small secondary" onClick={() => void openPane()} aria-label="Notifications">
+                🔔{unread > 0 ? ` ${unread}` : ''}
+              </button>
               <span className="badge mute">{home?.member?.memberNo}</span>
               <button className="small secondary" onClick={() => void signOut()}>Sign out</button>
             </span>
@@ -349,6 +392,21 @@ export default function PortalPage() {
           ))}
         </nav>
       </div>
+      {paneOpen ? (
+        <div className="card">
+          <h2>Notifications</h2>
+          {reminders.length === 0 ? <p className="muted">Nothing from the church yet.</p> : null}
+          {reminders.map((r) => (
+            <div key={r.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+              <div className="spread">
+                <b>{r.title}</b>
+                <span className="muted" style={{ fontSize: '0.78rem' }}>{fmtDateTime(r.scheduledFor)}</span>
+              </div>
+              <div className="muted">{r.body}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {notice ? <div className="card" style={{ borderColor: 'var(--accent)' }}>{notice}</div> : null}
       {/* The signed-in view had no error banner at all, so a failed statement or
           prayer simply looked like nothing had happened. */}
@@ -370,6 +428,21 @@ export default function PortalPage() {
               <button className="small secondary" onClick={() => void exportMyData()}>Download my data</button>
             </div>
           </div>
+          {assigned.length > 0 ? (
+            <div className="card">
+              <h2>Help you were asked to follow up</h2>
+              {assigned.map((w) => (
+                <div key={w.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div className="spread">
+                    <b>{w.member ? `${w.member.firstName} ${w.member.lastName}` : 'A member'} — {w.category.toLowerCase()}</b>
+                    <span className="badge warn">{w.status === 'SUBMITTED' ? 'Waiting' : 'Being looked at'}</span>
+                  </div>
+                  <div className="muted">{w.description ?? 'The situation could not be read.'}</div>
+                  {w.amountRequestedMinor != null ? <div className="muted">{ghs(w.amountRequestedMinor)}</div> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="card">
             <h2>Announcements</h2>
             {home?.announcements.map((a) => (

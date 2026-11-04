@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session W). **Self-contained**: a fresh session can
+Last updated: 2026-11-04 (Session X). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -278,6 +278,10 @@ C:\Users\HP\Desktop\church\
   from the companion; a notice waits as PENDING for a leader on /announcements and only shows to everybody
   once approved. Gated by `Church.settings.memberPosts` (off by default; demo is on) **and** the News
   section, enforced in the API.
+  Batch 8 ✅ (owner ask, 4 Nov) — **Reminders** page under Reach (broadcast now, or 1 week/3 days/1 day
+  before a program; duplicate text refused with the date it first went out), a companion **notification
+  bell/pane** (in-app only — OS push still needs VAPID keys), and welfare requests that can be routed to one
+  member (`WelfareRequest.assignedToMemberId`, shown in the companion as *Help you were asked to follow up*).
   The two fake-success blockers (mock Paystack webhook, simulated SMS/gift success) were **not** approved
   and are untouched. See BUILD_ORDER §R9.
 
