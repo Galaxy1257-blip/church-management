@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-04 (Session AB). **Self-contained**: a fresh session can
+Last updated: 2026-11-05 (Session AC). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -231,15 +231,43 @@ C:\Users\HP\Desktop\church\
    demanded staff permissions although their only caller is the anonymous `/give/<slug>` page, so online
    giving had never worked for a giver — both are now public intake keyed by `churchSlug` (fund checked
    against that church, audit row with `actor_id: null` + ip, 30/min and 8/min per IP).
-   **Next units, in the owner's order:** (3) the read-only audit-log screen on `audit:read` — the table is
-   trigger-append-only and hash-chained, worth saying on the screen; (4) usher mode keyed on `checkin:write`
-   not `headcount:write` (`(app)/layout.tsx:54,108`); (5) `/collection` route rule missing `module:'money'`
-   (`lib/access.ts:315`, nav has it at `:295`); (6) `ELDER` + `FOLLOWUP_TEAM` hold `care:*` but
-   `CARE_ROLES` (`lib/access.ts:175`) hides Care from them; (7) my decision = add `demographics:write` and
-   `branches:write` granted to exactly the roles that already do those things, so the gate exists with no
-   behaviour change. The six dead grants from finding 3 shrink to five once `audit:read` has a screen.
+   **Next units, in the owner's order:** points 3 to 7 — carried in 0h below, 3 shipped in Batch 13.
+   `audit:read` was one of round-5 finding 3's six dead grants; it now gates three routes and one screen,
+   so five remain (`church:write`, `users:read`, `users:write`, `sms:purchase`, `members:import`).
    **Still not approved to touch:** `dev.controller.ts:41` mock-Paystack completion and simulated SMS/gift
    success. Migrations `12_member_posts` / `13_notifications` are local Postgres only.
+
+0h. **Session AC — Batch 13, the Activity log screen (point 3).** A read-only `/audit` over the
+   hash-chained `audit_event` table (`apps/api/src/audit/`, `apps/web/src/app/(app)/audit/page.tsx`):
+   When | Who | What | From, newest first, search + a "which part of the app" filter built from the codes
+   this church actually has, and a **"Check nothing was changed"** button that runs `auditVerify` over the
+   whole chain on demand. Three deliberate choices: the church filter is written into the SQL because
+   `extras.sql` only forces RLS on tables spelling `churchId` and this table spells it `church_id`; the
+   `before`/`after` payloads are never sent to the browser, so the screen says what happened to a record,
+   not what the record contains; and the section switch is **opt-in and default off** per the owner's rule,
+   with a hint that says switching it off only hides the page — the app keeps recording either way.
+   Gates: `@ForModule('audit')` + `@RequirePermissions('audit:read')` on all three routes; `audit:read`
+   already sat unused in `packages/shared/src/permissions.ts:40`, held by SUPER_ADMIN, PASTOR and
+   FINANCE_ADMIN — those are exactly the three who should read it, so no grant changed.
+   **Proven in the running app:** switch off → 403 with plain-English copy on `/audit/events`,
+   `/audit/summary` and `/audit/groups`, switch back on → 200; an Usher token → 403; at a true 390×844
+   viewport 78 lines render with 0 unlabelled actions, 0 clipped cells and no horizontal scroll; group
+   filter counts match the API exactly (check-in 7, online giving 1, offering counts 6, church settings 26,
+   every part 78); actor search "usher" → 14 rows in both; integrity check reports "78 lines / 3 of them
+   today / every line still matches the one before it"; minimum text contrast over **all 19 themes** is
+   4.52:1 (AA pass) after correcting a false positive of my own — my first sweep read an
+   `rgba(255,255,255,0.024)` zebra stripe as opaque and claimed night mode was 1.16:1.
+   **Not proven:** the "Show the ones before these" button — demo only has 78 lines and the page asks for
+   100, so the cursor path is covered by `audit.spec.ts` and by `?limit=2` at the API, not by a click.
+   `apps/web` has no test runner, so the 79-code label map cannot be unit-tested; drift shows
+   on screen as "No plain-English name for this one yet — shown as recorded" with a count.
+   **Next units, in the owner's order:** (4) usher mode keyed on `checkin:write` not `headcount:write`
+   (`(app)/layout.tsx:54,108`); (5) `/collection` route rule missing `module:'money'` (`lib/access.ts:315`,
+   nav has it at `:295`); (6) `ELDER` + `FOLLOWUP_TEAM` hold `care:*` but `CARE_ROLES`
+   (`lib/access.ts:175`) hides Care from them; (7) my decision = add `demographics:write` and
+   `branches:write` granted to exactly the roles that already do those things, so the gate exists with no
+   behaviour change. **Still not approved to touch:** `dev.controller.ts:41` mock-Paystack completion and
+   simulated SMS/gift success. Permission 403s still print "Forbidden resource" (Batch 3, #57).
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

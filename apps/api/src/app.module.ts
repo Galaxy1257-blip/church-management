@@ -40,6 +40,7 @@ import { ChildrenModule } from './ministry/children.module';
 import { WhatsAppModule } from './ministry/whatsapp.module';
 import { PortalModule } from './portal/portal.module';
 import { BibleModule } from './bible/bible.module';
+import { AuditModule } from './audit/audit.module';
 import { PublicModule } from './public/public.controller';
 import { DevModule } from './dev/dev.controller';
 import { QueuesModule } from './queues/queues.module';
@@ -80,6 +81,7 @@ import { QueuesModule } from './queues/queues.module';
     WhatsAppModule,
     PortalModule,
     BibleModule,
+    AuditModule,
     PublicModule,
     ...(process.env.NODE_ENV === 'production' ? [] : [DevModule]),
   ],

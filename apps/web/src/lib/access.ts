@@ -141,6 +141,7 @@ export const MODULE_KEYS = [
   'sms',
   'departments',
   'branches',
+  'audit',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 /** Always the full set, as resolved by the API for this church. */
@@ -169,6 +170,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
+  audit: {
+    label: 'Activity log',
+    hint: 'Who changed what, and when. Switching this off hides the page — the app keeps recording either way.',
+  },
 };
 
 /** Care is for the people who look after the congregation week to week. */
@@ -270,10 +275,13 @@ export const NAV_AREAS: NavArea[] = [
   {
     module: 'departments',
     label: 'Organisation',
-    hint: 'Departments, branches and money sent to HQ',
+    hint: 'Departments, branches and who changed what',
     items: [
       { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write'], module: 'departments' },
       { href: '/branches', label: 'Branches', permissions: ['church:write', 'settings:write', 'finance:read'], module: 'branches' },
+      // Nothing here edits a record: the log is append-only in the database, and this
+      // link only opens it. Its own switch, so hiding the page never stops the writing.
+      { href: '/audit', label: 'Activity log', permissions: ['audit:read'], module: 'audit' },
     ],
   },
 ];
@@ -330,6 +338,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/reminders', permissions: ['campaigns:write'], label: 'Reminders' },
   { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
+  { prefix: '/audit', permissions: ['audit:read'], label: 'Activity log' },
   { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },
   // Custom features the office delivered for this church (settings.customFeatures).
   { prefix: '/extras', permissions: ['church:read'], label: 'Extras' },

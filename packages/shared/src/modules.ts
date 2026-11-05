@@ -26,6 +26,7 @@ export const MODULE_KEYS = [
   'sms',
   'departments',
   'branches',
+  'audit',
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -60,6 +61,7 @@ export const MODULE_DEFAULTS: ModuleFlags = {
   sms: false,
   departments: false,
   branches: false,
+  audit: false,
 };
 
 /**
@@ -89,6 +91,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
+  audit: {
+    label: 'Activity log',
+    hint: 'Who changed what, and when. Switching this off hides the page — the app keeps recording either way.',
+  },
 };
 
 export function isModuleKey(value: unknown): value is ModuleKey {

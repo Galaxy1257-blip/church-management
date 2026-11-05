@@ -1091,7 +1091,7 @@ nodes. shared 123/123 · api 73/73 · worker 15/15 · typecheck 0 · eslint 0 ·
 really the Asante revision (its package is named *akaupem* and its in-app label says *ASANTE VERSION*); and
 the Ewe list above is a second-hand published table — worth a look against a printed Ewe Bible.
 
-## 2026-11-03 — Follow-up: which Twi is which (`uncommitted`)
+## 2026-11-03 — Follow-up: which Twi is which (`committed`)
 
 **Owner ask:** "there are 2 twi there, indicate which is Akuapem and which is Asante. Or are they the same?"
 
@@ -1116,7 +1116,7 @@ what we know.
 a visitor Add a member") and the last wrapped mid-thought on a phone — `.quick-links` now puts a muted dot
 after each item except the last, on both dashboard link rows (`57ad211`).
 
-## 2026-11-04 — Audit round 4, Batch 1: switches are boundaries, and the Sunday School desk works (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 1: switches are boundaries, and the Sunday School desk works (`committed`)
 
 **Owner ask:** after the four-phase audit, *"FIX ALL Feature reality, IMPLEMENT Minor and polish AND FIX
 Major — 10 findings"*. Three of the four report sections were approved. The two fake-success blockers
@@ -1176,7 +1176,7 @@ belongs with the shared notice banner in Batch 3. And the dashboard still offers
 **All services →** and the *Latest service* card while Services is off; the page answers honestly with
 *"Area switched off"*, so nothing is unsafe, but the card should follow the switch. Also Batch 3.
 
-## 2026-11-04 — Audit round 4, Batch 2: the money on screen told the truth (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 2: the money on screen told the truth (`committed`)
 
 **Owner ask:** the same approved line — *"FIX ALL Feature reality, IMPLEMENT Minor and polish AND FIX
 Major — 10 findings"* — with Batch 2 covering the four money findings: welfare showed ciphertext, a
@@ -1237,7 +1237,7 @@ portal (sign-in, reload, statement, PDF, sign out).
 demo church to test, then restored to off; the two scratch welfare requests and the seeded OTP challenges
 were deleted.
 
-## 2026-11-04 — Audit round 4, Batch 7: members send notices, leaders approve (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 7: members send notices, leaders approve (`committed`)
 
 **Owner ask (4 Nov):** *"allow member mode to put in announcements and prayer requests, with ability to
 attach pics"*, then *"the announcement put in must go to church leaders and if approved shows to
@@ -1269,7 +1269,7 @@ leader (1)** → Approve → *"Approved — everybody can see it now."* and it a
 `check:secrets` clean. Demo church has the switch **on** so the owner can try it; the scratch notices,
 prayer rows and seeded OTP challenges were deleted. Migration applied to the **local** Postgres only.
 
-## 2026-11-04 — Audit round 4, Batch 8: reminders, the notification pane, and welfare routing (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 8: reminders, the notification pane, and welfare routing (`committed`)
 
 **Owner ask (4 Nov):** choose who a welfare request goes to (leaders or one member); let announcements and
 reminders arrive on members' phones; give leaders a reminder section to broadcast one message; stop two
@@ -1306,7 +1306,7 @@ card; 0 overflow.
 `check:secrets` clean. Migration `13_notifications` applied to the **local** Postgres only. Care was switched
 on for the welfare test and restored off; test notifications, the test request and seeded OTP rows deleted.
 
-## 2026-11-04 — Audit round 4, Batch 9: code-gated self-join, and messages that clear themselves (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 9: code-gated self-join, and messages that clear themselves (`committed`)
 
 **Owner ask (4 Nov):** *"add the self add such that a single code is given to members … so outsiders do not add
 unnecessarily or do u think we should make it open?"* and *"'approved, everybody can see it now' toast does
@@ -1334,7 +1334,7 @@ Verified in the browser: a reminder's *"Sent — it is in everybody's notificati
 **Counts.** api **142/142** (17 files, +4 join-gate tests) · shared 126/126 · typecheck clean both apps ·
 eslint clean · `check:secrets` clean. Test notification and test member deleted; demo church has self-add on.
 
-## 2026-11-04 — Audit round 4, Batch 10: a door toolkit that fits an usher (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 10: a door toolkit that fits an usher (`committed`)
 
 **Owner ask (4 Nov):** *"the usher must be able to submit count of members who came, submit count of money
 collection, give members QR to add themselfs… allow usher mode to fit all the functions (although anyone can
@@ -1367,7 +1367,7 @@ New-here QR renders, collection shows *"Counted in. The treasurer will approve i
 `check:secrets` clean. Test money rows, attendance and seeded codes deleted; worship switched on for the test
 and restored off. Neon untouched.
 
-## 2026-11-04 — Collections at programs that are not services (`uncommitted`)
+## 2026-11-04 — Collections at programs that are not services (`committed`)
 
 **Owner:** money is collected at other programs too (harvest night, a funeral, a fund drive), so the count
 cannot be tied to a Sunday service. `GivingBatch.serviceId` is now nullable (migration
@@ -1379,7 +1379,7 @@ label `Offering count — Harvest night`; browser at 390px shows the service lis
 submits with the typed name. api 146/146 (18 files) · shared 126/126 · typecheck/eslint/secrets clean.
 Test rows deleted.
 
-## 2026-11-04 — Audit round 4, Batch 11: the door stays open, and a card belongs to one church (`uncommitted`)
+## 2026-11-04 — Audit round 4, Batch 11: the door stays open, and a card belongs to one church (`committed`)
 
 **Owner:** "the qr is not there, i want ushers to be able help members check in", then "make sure qr is
 specific to each church".
@@ -1532,3 +1532,75 @@ Anonymous quote + initialize were also proven earlier in this unit (200 with a m
 **Still honest about:** the give page was verified against the mock Paystack path only, so "money arrives in
 the fund" is the pre-existing live-keys gap — not a new one. Camera QR scanning, OS-level push (no VAPID
 keys), and the usher's manual headcount counter behind the Services switch are unchanged.
+
+---
+
+## 2026-11-05 — Batch 13: the Activity log, point 3 (`committed`)
+
+**Owner ask:** *"impement audit log"* — the third of the six points approved in round 5. The hash chain and
+`appendAudit` already existed (round 1 of the audit, `extras.sql` + `packages/db/src/audit.ts`); what did not
+exist was any way for a pastor or a treasurer to *read* it. `audit:read` had been in the permission list
+since the beginning and required by nothing — round-5 finding 3 counted it among six dead grants.
+
+**What is new.** `apps/api/src/audit/` (`AuditService` + `AuditModule`, three routes and no more) and
+`apps/web/src/app/(app)/audit/page.tsx` + `apps/web/src/lib/audit-labels.ts`. The page is a table of When |
+Who | What | From, newest first, with a search box, a "which part of the app" filter built from the prefixes
+this church actually has (`/audit/groups`, so a church never sees a section it has not used), a cursor
+button for older pages, and a **"Check nothing was changed"** button that runs `auditVerify` over the whole
+chain and answers either "every line still matches the one before it" or the `seq` that breaks. Copy on the
+page says plainly that nobody can edit or remove a line — "not the pastor and not us: the database turns
+that attempt away" — because the table really is trigger-append-only.
+
+**Three decisions worth keeping.**
+1. **The church filter is written into the SQL, not trusted to RLS.** `extras.sql` only forces row-level
+   security on tables that spell the column `churchId`; `audit_event` spells it `church_id`, so it has
+   none (verified live: `relrowsecurity=false` for `app_user`). Every query carries
+   `e.church_id = $n::uuid` itself, and a new caller cannot inherit the filter by accident.
+2. **`before`/`after` never leave the API, and the search never touches them.** The screen says what
+   happened to a record, not what the record contains; searching whole-record payloads would turn the page
+   into a way to fish a value out of the database one guess at a time.
+3. **Opt-in switch, default off, and the hint says what switching off actually does**: "Switching this off
+   hides the page — the app keeps recording either way." A church must not be able to stop the evidence by
+   hiding the window.
+
+**Proof.** 10 new tests (`apps/api/src/audit/audit.spec.ts`), including one that pins the controller surface
+to exactly `constructor, events, groups, summary` so a write route cannot be added without failing the suite,
+and one that fails if the church filter or the payload exclusion is dropped. **176/176 API tests over 20
+files, 132/132 shared over 16 files**; api + web typechecks clean; `eslint .` clean; `check:secrets` clean;
+`@chms/shared` rebuilt so the running API sees the `audit` key. Live, `demo` church, true 390×844 mobile
+viewport (chrome-devtools emulation — `resize_page` alone would not go under ~500px):
+78 lines render with **0 unlabelled actions, 0 clipped cells, 0 horizontal page scroll**; group filter
+counts match the API on every one of check-in 7 / online giving 1 / offering counts 6 / church settings 26 /
+every part 78; actor search "usher" → 14 rows on screen and 14 from the API; a no-match search shows "Nothing
+matches that. Try a different word, or clear the filter."; integrity button → "78 lines / 3 of them today /
+every line still matches the one before it"; Activity log in the ORGANISATION nav appears when the section is
+ticked and disappears when it is not. At the API: section off → **403 on all three routes** with
+"Activity log is switched off for this church. Turn it on in Settings → App sections.", section on → 200;
+an **Usher** token → 403 (no `audit:read`), and the holders are exactly SUPER_ADMIN (wildcard), PASTOR (all
+permissions) and FINANCE_ADMIN — the three who should read it, so no grant needed changing.
+
+**A measurement error of my own, corrected.** The first theme sweep reported night mode at **1.16:1** on the
+table cells. It was wrong: my background walk treated the zebra stripe `rgba(255,255,255,0.024)` as opaque.
+Re-run with proper alpha compositing, the sweep over **all 19 themes** gives a minimum of 4.52:1 (rosewood,
+the small-caps "When" header) — every theme passes WCAG AA for body text. Also corrected mid-unit: an
+in-browser `fetch('/api/v1/...')` hit the **Next origin on :3000** and returned a Next 404 page, which is
+not the API; the app itself proxies through `lib/api.ts` to :4000, so the switch-off proof is a curl to
+:4000 plus the nav/render behaviour on screen, both shown above.
+
+**Not proven, said plainly:** the "Show the ones before these" button. The demo log is 78 lines and the page
+asks for 100, so the button never appears there; the cursor itself is covered by `audit.spec.ts` and by
+`?limit=2` at the API (`olderThan: 77, more: true`), not by a click. And `apps/web` has no test runner, so
+the 79-code label map cannot be unit-tested — an unknown code is printed exactly as recorded with a
+"this screen has not been taught" count on the page, so drift is visible instead of silently wrong.
+
+**Also in this commit:** nine `(\`uncommitted\`)` headings in this file flipped to `(\`committed\`)` after
+checking each against `git log -S` for the commit that introduced it (`eb6bcca`, `1d87b10`, `349c2f2`,
+`0fd04bc`, `9c87a2e`, `8dcb007`×2, `5038fbb`, `ebf9a5a`). They were stale, not a warning about live work.
+
+**Next, in the owner's order:** 4 usher mode keyed on `checkin:write` not `headcount:write`
+(`(app)/layout.tsx:54,108`); 5 `/collection` honouring the Money switch in `ROUTE_ACCESS`
+(`lib/access.ts:315` — the nav item already has `module:'money'` at `:295`); 6 `ELDER` + `FOLLOWUP_TEAM` in
+`CARE_ROLES` (`lib/access.ts:175`); 7 my decision — `demographics:write` and `branches:write` granted to
+exactly the roles that already perform those acts, so the gate exists without changing behaviour. Still not
+approved to touch: the mock-Paystack completion at `dev.controller.ts:41` and the simulated SMS/gift
+success. Permission 403s still print Nest's generic "Forbidden resource" — Batch 3 (#57) owns that voice.

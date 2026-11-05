@@ -18,6 +18,7 @@ const defaults = {
   sms: false,
   departments: false,
   branches: false,
+  audit: false,
 };
 
 describe('resolveModules', () => {

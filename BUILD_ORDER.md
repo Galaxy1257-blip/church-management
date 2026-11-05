@@ -374,7 +374,7 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
 Owner reply: *"for the point one give a prompt when turning books off, app should act on user response,
 implement audit log and point 2. do 4 and 5 and 6. decide on 7"* — so items 1, 2, 3, 4, 5, 6 are approved
 and 7 is mine to decide. Point 3 (the audit log screen) needs `audit:read`, which nothing required before
-this round, so it is the next unit; 4–7 follow.
+this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
 
 ### Batch 12 — the giving door answers to the church, and the desk says who it is open to ✅ (4 Nov)
 - [x] **Switching Offerings off now asks what happens to online giving.** Settings → App sections shows
@@ -402,6 +402,34 @@ this round, so it is the next unit; 4–7 follow.
       3 give-door tests + 3 desk-metadata tests + 3 shared `givingStopsWithBooks` tests.
       **165/165 API (19 files), 132/132 shared (16 files)**, api + web typechecks, lint, `check:secrets` clean.
       Live at 390px: prompt rendered, "stop" → 403 + closed give page, "keep" → 200 quote, demo restored.
+
+### Batch 13 — the Activity log: point 3, the screen that shows who changed what ✅ (5 Nov)
+- [x] **`GET /audit/events`, `/audit/groups`, `/audit/summary`** (`apps/api/src/audit/`) read the
+      trigger-append-only, hash-chained `audit_event` table and nothing else — the module declares no route
+      that writes, and a test pins the controller surface to exactly `events`, `groups`, `summary`.
+- [x] **The church filter lives in the SQL, not in RLS.** `extras.sql` only forces row-level security on
+      tables that spell the column `churchId`; this one spells it `church_id`, so it has none (verified:
+      `relrowsecurity=false` for `app_user`). Every query carries `e.church_id = $n::uuid` itself.
+- [x] **The screen says what happened, not what the record holds.** `before`/`after` never leave the API,
+      and the search covers action, entity, entity id and the actor's name only — never the payloads, so the
+      page cannot be used to fish a value out of the database one guess at a time.
+- [x] **A "Check nothing was changed" button** runs `auditVerify` over the whole chain and answers either
+      "every line still matches the one before it" or the `seq` that breaks — on demand, because it reads
+      the entire log.
+- [x] **Opt-in section switch, default off** (`audit` in `MODULE_KEYS`), hint says plainly that switching it
+      off hides the page while the app keeps recording. `@ForModule('audit')` gates the API too, so a typed
+      URL cannot read a section the church turned off.
+- [x] **79 action codes have plain-English names** (`apps/web/src/lib/audit-labels.ts`), and an unknown code
+      is printed exactly as recorded with a count on screen — `apps/web` has no test runner, so drift is
+      visible rather than silently wrong.
+- [x] 10 audit tests. **176/176 API (20 files), 132/132 shared (16 files)**, api + web typechecks, lint,
+      `check:secrets` clean, `@chms/shared` rebuilt.
+      Live at a true 390×844 viewport: 78 lines, **0 unlabelled actions, 0 clipped cells, 0 horizontal
+      scroll**, group filter matches the API on all four counts (7 / 1 / 6 / 26), actor search 14 rows in
+      both, empty-state copy, integrity check "78 lines / 3 of them today", switch off → 403 on all three
+      routes then 200 after restoring, Usher token → 403, **19/19 themes ≥4.5:1** minimum contrast.
+      Not proven: the "Show the ones before these" button — demo has 78 lines and the page asks for 100, so
+      the cursor is covered by `audit.spec.ts` and `?limit=2` at the API, not by a click.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
