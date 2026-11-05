@@ -2,7 +2,7 @@
 // Organisation: branches, member transfers (2-step), households.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
-import { moduleEnabled, type ModuleFlags } from '../../../lib/access';
+import { hasPermission, moduleEnabled, type ModuleFlags } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import Notice from '../../../components/notice';
 
@@ -20,6 +20,10 @@ export default function OrgPage() {
   // Branches is its own App section, so this page must keep working — households —
   // when it is switched off. The API refuses /branches then, so do not ask.
   const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
+  // Opening a branch is the office's job (settings:write). The screen also answers
+  // to branches:write, which is the transfer request, so the add form is hidden for
+  // someone who can transfer but cannot create rather than left there to fail.
+  const [canAddBranch, setCanAddBranch] = useState(false);
 
   async function load(showBranches: boolean): Promise<void> {
     try {
@@ -34,8 +38,10 @@ export default function OrgPage() {
   }
   useEffect(() => {
     void (async () => {
-      const mods = await getSession().then((s) => s.modules).catch(() => undefined);
+      const session = await getSession().catch(() => null);
+      const mods = session?.modules;
       setModules(mods);
+      setCanAddBranch(hasPermission(session?.permissions ?? [], 'settings:write'));
       await load(moduleEnabled(mods, 'branches'));
     })();
   }, []);
@@ -67,11 +73,13 @@ export default function OrgPage() {
         {moduleEnabled(modules, 'branches') ? (
         <div className="card">
           <h2>Branches</h2>
-          <form className="row" onSubmit={addBranch}>
-            <input placeholder="Name" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} required style={{ flex: 1 }} />
-            <input placeholder="Code" value={branchForm.code} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} required style={{ width: 90 }} />
-            <button>Add</button>
-          </form>
+          {canAddBranch ? (
+            <form className="row" onSubmit={addBranch}>
+              <input placeholder="Name" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} required style={{ flex: 1 }} />
+              <input placeholder="Code" value={branchForm.code} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} required style={{ width: 90 }} />
+              <button>Add</button>
+            </form>
+          ) : null}
           <table><tbody>{branches.map((b) => <tr key={b.id}><td>{b.name}</td><td><span className="badge mute">{b.code}</span></td></tr>)}</tbody></table>
           <h2>Transfer member</h2>
           <form className="stack" onSubmit={requestTransfer}>

@@ -1,6 +1,8 @@
 'use client';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { hasPermission } from '../../../lib/access';
+import { peekSession } from '../../../lib/session';
 import { fmtDate } from '../../../lib/format';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
 import MemberDrawer from '../../../components/member-drawer';
@@ -54,6 +56,9 @@ export default function MembersPage() {
   const [counts, setCounts] = useState<{ ageBracketId: string | null; count: number }[]>([]);
   const [bracketFilter, setBracketFilter] = useState('');
   const [promoResult, setPromoResult] = useState<null | { promotions: { name: string; age: number; fromLabel: string; toLabel: string }[] }>(null);
+  // Moving every child up an age group is its own job (demographics:write), not
+  // ordinary member editing, so the button only appears for the roles that hold it.
+  const [canPromote, setCanPromote] = useState(false);
   // discipleship pathway + R4.11 per-member export.
   const [stageReport, setStageReport] = useState<{ byStage: { stage: string; count: number }[]; untracked: number } | null>(null);
 
@@ -104,6 +109,7 @@ export default function MembersPage() {
   }, [q, load]);
 
   useEffect(() => {
+    setCanPromote(hasPermission(peekSession()?.permissions ?? [], 'demographics:write'));
     void api<{ id: string; label: string; isActive?: boolean }[]>('/demographics/brackets').then((b) => setBrackets(b.filter((x) => x.isActive !== false))).catch(() => undefined);
     void api<{ ageBracketId: string | null; count: number }[]>('/demographics/counts').then(setCounts).catch(() => undefined);
     refreshStages();
@@ -205,7 +211,7 @@ export default function MembersPage() {
       <div className="page-head">
         <h1>Members ({total})</h1>
         <div className="head-actions">
-          <button className="secondary" onClick={() => void runPromotions()}>Update age groups</button>
+          {canPromote ? <button className="secondary" onClick={() => void runPromotions()}>Update age groups</button> : null}
           <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import list</button>
           <button onClick={() => setShowAdd((v) => !v)}>+ Add member</button>
         </div>

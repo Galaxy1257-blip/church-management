@@ -69,7 +69,7 @@ export class DemographicsController {
     return this.svc.counts(req.user!);
   }
 
-  @RequirePermissions('members:write')
+  @RequirePermissions('demographics:write')
   @Post('promotions/run')
   runPromotions(@Req() req: AuthedRequest, @Body() body: { apply?: boolean }) {
     return this.svc.runPromotions(req.user!, body?.apply !== false, req.ip);

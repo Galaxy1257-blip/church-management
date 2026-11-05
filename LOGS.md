@@ -1705,3 +1705,82 @@ the sweep and the browser, not by a web unit test.
 **Next, in the owner's order:** 7, my decision — `demographics:write` and `branches:write` split off
 `members:write`, granted to exactly the roles that already do those acts so nobody's behaviour changes and
 the gate exists for the church that wants to hand one of those jobs out on its own.
+
+## 2026-11-05 — Batch 16: two jobs stop borrowing the permission to edit a member (`committed`)
+
+**The owner's instruction, again:** "…decide on 7". Points 1–6 shipped in Batches 11–15, so this unit is the
+one I was given a decision on rather than an order. Round 5's finding was two lines long: *`POST
+/demographics/promotions/run` needs only `members:write` (`demographics.controller.ts:72`) and no switch;
+branch transfer approval is `members:write` (`branches.module.ts:197`) — a member-editing role approves a
+transfer between branches.*
+
+**What I decided, and why.** Both jobs were being paid for with the right to edit *one* person. The promotion
+run moves every child who has had a birthday across the whole church; a transfer moves a member from one
+congregation to another and waits on a second leader. Neither is a member edit, and a church that wanted to
+hand one of them to a worker without opening the directory could not. So I split rather than documented:
+`demographics:write` and `branches:write` in `packages/shared/src/permissions.ts`, granted to `LEADER` and
+`SECRETARY`, inherited by `PASTOR` from `[...PERMISSIONS]` and by this office from the wildcard. **The holder
+set is exactly the four roles that already held `members:write`** — the split creates no new access on day
+one; it makes the next grant possible. Nothing needed migrating because `apps/api/src/auth/auth.service.ts:96`
+derives a session's permissions from this table on every request rather than from the stored
+`Role.permissions` rows.
+
+**Point 6's lesson, applied before it could repeat.** The transfer form is not on `/branches`; it is on
+`/org` (`apps/web/src/app/(app)/org/page.tsx:51`), and `/org`'s rule admitted only `church:write` or
+`settings:write` — the office and the pastor. So a leader or secretary who *could* post a transfer had no
+screen to post it from, which is the granted-but-invisible defect from the last batch, one file away.
+`branches:write` is now in that rule and in its nav mirror (`apps/web/src/lib/access.ts:272` and `:349`).
+Admitting those two roles to a screen they had never seen meant checking what else that screen offers: the
+add-a-branch form posts `POST /branches`, which needs `settings:write`, so it is hidden unless the session
+holds it — a newly-admitted role is never handed a control that will fail on it. On the Members screen the
+*Update age groups* button was unconditional and 403'd for the treasurer, the usher and the elder; it is
+gated on `demographics:write` now.
+
+**Measured, not asserted.** Eight demo logins against the running API, three probes each = **24 outcomes**.
+The four holders get `promotions/run` → **201** (dry run: `apply:false` previews only, `demographics.service.ts:192`)
+and `branches/transfers` → **400** (past the gate, rejected on the deliberately bogus id, so the probe writes
+nothing); the other four get **403** on both. That is the same table as before the split, so the handover lost
+nothing. For the web I exported the pre-change table (`git show daabf40:apps/web/src/lib/access.ts`) and ran
+both against the same eight live sessions over seven paths plus the button: **64 checks, 5 changes, all of
+them intended** — `/org` closed→open for Secretary and Leader, the promotions button shown→hidden for
+Treasurer, Usher and Elder, and **0** changes on `/members`, `/branches`, `/care`, `/groups`, `/roster` or
+`/collection`, in nav or in route.
+
+**Live UI.** As Secretary: Organisation opens with headings Branches / Transfer member / Households, two
+forms, and no *Add* branch form. As Secretary on Members the button is still there. As Elder on Members the
+header is down to *Import list* and *+ Add member*. At **390×844** both `/org` and `/members` report a 390px
+document width — no horizontal overflow — with **0 clipped controls**.
+
+**Deliberately left where they were:** `POST /branches` stays on `settings:write`; remittances stay on
+`giving:write`/`finance:read`/`finance:approve`; and `POST /push/subscribe` stays on `members:read`, because
+it stores a device token for the person who is signed in — that is not editing a member record, and it was
+the third item in the same audit line. The new spec pins all of these so the next split does not sweep them up
+by habit. I also left `promotions/run` with **no section switch**: it still has none, and giving it one would
+take the job away from a church that runs it today. That is an owner decision, not mine.
+
+**A gate that is flaky before this batch.** The API suite now runs 21 files, and
+`apps/api/test/integration.spec.ts` blows its 5-second timeout for the two tests that create a church when the
+suite runs in parallel against the local Postgres. It reproduces **with my new file removed** (174/176 over 20
+files, 2 timeouts) and the file itself passes **11/11** when run alone, so the cause is contention, not this
+change. My 4 tests passed in every run. Reporting the full-suite counts as 179/180 and 177/180 rather than
+claiming a clean sweep I did not get.
+
+**Gates.** `134/134` shared over 16 files (the holder-set test is the +1), `180` API tests over 21 files with
+the caveat above, api and web typechecks clean, `eslint .` clean, `check:secrets` clean, `@chms/shared`
+rebuilt so the API and the sweep read the new table. The two scratch scripts (the API probe and the old-vs-new
+web sweep) were deleted, not committed, as was the exported copy of the old table.
+
+**Not proven, said plainly.** The transfer *approval* half (`POST /branches/transfers/:id/approve`) has no
+screen in the app and there is no GET that lists pending transfers for one to be built on, so nothing in the UI
+calls it: the new permission is proven live on the request half and pinned by decorator on the approve half.
+The demo church's "Pastor" login (`+233550449840`) is stored as `SUPER_ADMIN`, so the `PASTOR` role key was
+verified through the shared table and not through a sign-in. And `apps/web` still has no test runner — the
+`/org` rule change and the button gate rest on the sweep and the browser, not on a web unit test. The
+neighbouring *Import list* and *+ Add member* buttons on Members are still offered to roles that cannot use
+them (`members/page.tsx:209-210`, needing `members:import` and `members:write`); that is the same class of
+defect, one screen wide, and I did not fold it into this unit.
+
+**Next, in the owner's order:** round 5 is finished — points 1, 2, 3, 4, 5, 6 approved and shipped, 7 decided
+and shipped. Five commits sit unpushed (`54e3d1a`, `4f7ab0d`, `f2a6f46`, `daabf40`, this one) and pushing
+auto-deploys Render and Vercel, so that waits for a word. After that, the standing leftovers the audit found
+but did not own: Batches 3–6 (#57–#60).

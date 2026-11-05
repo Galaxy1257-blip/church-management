@@ -14,6 +14,13 @@ export const PERMISSIONS = [
   'members:read',
   'members:write',
   'members:import',
+  // Two jobs that used to ride on editing a member and change far more than the
+  // one person named in the form: the bulk age-group promotion run (moves every
+  // child who has had a birthday) and a transfer between branches (needs a second
+  // leader to approve it). Split out so a church can hand one of these to a worker
+  // without opening the member record itself.
+  'demographics:write',
+  'branches:write',
   'services:read',
   'services:write',
   'headcount:write',
@@ -122,6 +129,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'members:read',
     'members:write',
     'members:import',
+    'demographics:write',
+    'branches:write',
     'headcount:write',
     'checkin:write',
     // The door team enters the money they counted at the service — the amount
@@ -155,6 +164,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'members:read',
     'members:write',
     'members:import',
+    'demographics:write',
+    'branches:write',
     'services:write',
     'visitors:read',
     'campaigns:read',

@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-05 (Session AC). **Self-contained**: a fresh session can
+Last updated: 2026-11-05 (Session AC, §0k — Batch 16, audit round 5 point 7). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -323,6 +323,36 @@ C:\Users\HP\Desktop\church\
    demo church's Care section is back **off**, as this session found it. `176/176` API, `133/133` shared,
    api + web typechecks, lint and `check:secrets` clean.
    **Next:** point 7, my decision — separate `demographics:write` / `branches:write` from `members:write`.
+
+0k. **Session AC — Batch 16, point 7 (my decision): two jobs stop borrowing the member record.** The audit
+   found `POST /demographics/promotions/run` (`demographics.controller.ts:72`) and both transfer routes
+   (`branches.module.ts:191,197`) answering to `members:write` — the right to edit one person — while each of
+   them moves many people. I split them: `demographics:write` and `branches:write` added to the shared table
+   and granted to `LEADER` + `SECRETARY`, with `PASTOR` inheriting from `[...PERMISSIONS]` and this office from
+   the wildcard, so **the holder set is the same four roles that already held `members:write`** and no church
+   lost or gained a worker. No migration: `auth.service.ts:96` derives permissions from that table per request,
+   not from the stored `Role.permissions` rows.
+   **Point 6's lesson applied on the way in:** the transfer form sits on `/org`, whose rule
+   (`church:write`/`settings:write`) admitted only the office and the pastor — so the leader and secretary who
+   could post a transfer had no screen to post it from. `branches:write` is now in that rule and its nav
+   mirror, the add-a-branch form is hidden without `settings:write`, and *Update age groups* on Members is
+   offered only to `demographics:write` (it used to 403 on the elder, usher and treasurer screens).
+   **Numbers:** 8 live logins × 3 API probes = **24 outcomes**, all identical to before the split (holders 201
+   on the `apply:false` preview and 400 past the gate on a bogus id; the other four 403). **64 web-rule checks
+   over the same 8 sessions against the table at `daabf40`: 5 changes, all intended** — `/org` closed→open for
+   Secretary and Leader, the promotions button shown→hidden for Treasurer, Usher and Elder; `/members`,
+   `/branches`, `/care`, `/groups`, `/roster`, `/collection` unchanged. Live at desktop and **390×844**: 0
+   clipped controls, no horizontal overflow. New API spec
+   `apps/api/src/demographics/demographics.permissions.spec.ts` pins the three new decorators, the routes that
+   deliberately did *not* move (`settings:write`, `giving:write`, and `POST /push/subscribe` on `members:read`
+   because it saves a device token rather than editing a member), and the six member-editing routes.
+   **134/134 shared, 180 API tests over 21 files, api + web typechecks, lint, `check:secrets` clean** — with
+   one honest caveat: `test/integration.spec.ts` blows its 5s timeout for the two church-creating tests when
+   the suite runs in parallel, and it does so **with my new file removed too** (174/176 over 20 files), passing
+   11/11 alone. Pre-existing contention against the local Postgres, not this batch.
+   **Not proven:** the transfer *approval* half has no screen and no GET behind one, so nothing in the UI calls
+   it. **Next:** round 5 is finished (points 1–7). Five commits sit unpushed and I will ask before pushing,
+   because it auto-deploys Render and Vercel. The standing leftovers are Batches 3–6 (#57–#60).
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

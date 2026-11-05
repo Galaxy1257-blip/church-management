@@ -269,7 +269,10 @@ export const NAV_AREAS: NavArea[] = [
     label: 'Organisation',
     hint: 'Departments, branches and who changed what',
     items: [
-      { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write'], module: 'departments' },
+      // The transfer request form lives on this screen and the API opens it with
+      // branches:write, so the permission has to be listed here too — otherwise a
+      // leader granted the job has no page to spend it on.
+      { href: '/org', label: 'Departments', permissions: ['church:write', 'settings:write', 'branches:write'], module: 'departments' },
       { href: '/branches', label: 'Branches', permissions: ['church:write', 'settings:write', 'finance:read'], module: 'branches' },
       // Nothing here edits a record: the log is append-only in the database, and this
       // link only opens it. Its own switch, so hiding the page never stops the writing.
@@ -346,7 +349,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },
   { prefix: '/announcements', permissions: ['campaigns:read'], label: 'News' },
   { prefix: '/reminders', permissions: ['campaigns:write'], label: 'Reminders' },
-  { prefix: '/org', permissions: ['church:write', 'settings:write'], label: 'Departments' },
+  { prefix: '/org', permissions: ['church:write', 'settings:write', 'branches:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
   { prefix: '/audit', permissions: ['audit:read'], label: 'Activity log' },
   { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },

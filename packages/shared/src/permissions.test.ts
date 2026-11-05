@@ -98,6 +98,25 @@ describe('permissions', () => {
     }
   });
 
+  it('the promotion run and a branch transfer have four holders each', () => {
+    // These two jobs used to be paid for with members:write (audit round 5,
+    // point 7). Splitting them off only fixes the permission model if the people
+    // who already ran them keep running them — so the holder set is the old
+    // members:write set, one for one.
+    const holdersOf = (permission: Permission) =>
+      ROLE_KEYS.filter((role) => hasPermission(permissionsForRoles([role]), permission)).sort();
+    const office = ['LEADER', 'PASTOR', 'SECRETARY', 'SUPER_ADMIN'];
+    expect(holdersOf('members:write')).toEqual(office);
+    expect(holdersOf('demographics:write')).toEqual(office);
+    expect(holdersOf('branches:write')).toEqual(office);
+    // The door team, elders, follow-up, the treasurer, teachers and members still
+    // cannot move a whole age group or transfer a member between branches.
+    for (const role of ['USHER', 'ELDER', 'FOLLOWUP_TEAM', 'FINANCE_ADMIN', 'SUNDAY_SCHOOL', 'MEMBER'] as const) {
+      expect(hasPermission(permissionsForRoles([role]), 'demographics:write')).toBe(false);
+      expect(hasPermission(permissionsForRoles([role]), 'branches:write')).toBe(false);
+    }
+  });
+
   it('lower leaders only get their own modules', () => {
     const usher = permissionsForRoles(['USHER']);
     expect(hasPermission(usher, 'headcount:write')).toBe(true);

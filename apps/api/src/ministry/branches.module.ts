@@ -188,13 +188,13 @@ export class BranchesController {
     return this.svc.create(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('members:write')
+  @RequirePermissions('branches:write')
   @Post('transfers')
   requestTransfer(@Req() req: AuthedRequest, @Body() dto: { memberId: string; toBranchId: string }) {
     return this.svc.requestTransfer(req.user!, dto, req.ip);
   }
 
-  @RequirePermissions('members:write')
+  @RequirePermissions('branches:write')
   @Post('transfers/:id/approve')
   approve(@Req() req: AuthedRequest, @Param('id') id: string, @Body('approve') approve: boolean) {
     return this.svc.approveTransfer(req.user!, id, approve !== false, req.ip);

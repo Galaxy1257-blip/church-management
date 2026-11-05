@@ -486,6 +486,50 @@ this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
       `FOLLOWUP_TEAM` rows outside the demo church. The Elder account is back to `["ELDER"]` and the demo
       church's Care section is back to off.
 
+### Batch 16 — Two jobs get their own permission instead of borrowing the member record: point 7 ✅ (5 Nov)
+- [x] **Point 7 was mine to decide, and I decided to split it, not to widen it.** The birthday promotion run
+      (`apps/api/src/demographics/demographics.controller.ts:72`) and both halves of a branch transfer
+      (`apps/api/src/ministry/branches.module.ts:191,197`) answered to `members:write` — the permission to
+      edit one person. Each of those jobs moves many people or moves a person between congregations, so a
+      church that wants to hand one of them out on its own could not.
+- [x] `demographics:write` and `branches:write` added to `packages/shared/src/permissions.ts` and granted to
+      `LEADER` and `SECRETARY`; `PASTOR` picks them up from `[...PERMISSIONS]` and this office from the
+      wildcard, so the holder set is **exactly the four roles that held `members:write`**. Nothing had to be
+      migrated: `apps/api/src/auth/auth.service.ts:96` derives permissions from this table on every request,
+      not from the stored `Role.permissions` rows.
+- [x] **The grant has a screen, which is the lesson from point 6.** The transfer form lives on `/org`, and the
+      old rule (`church:write`, `settings:write`) admitted only the office and the pastor — so a leader or
+      secretary who could post a transfer had no page to post it from. `branches:write` is now in that rule
+      and in its nav mirror (`apps/web/src/lib/access.ts:272,349`), and the add-a-branch form on the same
+      card is hidden unless the session holds `settings:write`, so nobody is offered a control that will fail.
+      `apps/web/src/app/(app)/members/page.tsx:208` offers *Update age groups* only to `demographics:write` —
+      it used to be unconditional and 403 on the elder, usher and treasurer screens.
+- [x] Deliberately **not** moved: `POST /branches` (opening a branch) stays on `settings:write`, remittances
+      stay on `giving:write`/`finance:read`/`finance:approve`, and `POST /push/subscribe` stays on
+      `members:read` — it saves a device token for the signed-in person, which is not editing a member
+      record. Pinning these in the new spec so the next split does not sweep them up by habit.
+- [x] Measured, not asserted: **8 live demo logins × 3 API probes = 24 outcomes** — the four holders get
+      `promotions/run` 201 (dry run, `apply:false` previews only per `demographics.service.ts:192`) and
+      `branches/transfers` 400 (past the gate, rejected on the bogus id) exactly as before the split; the
+      other four get 403 on both, as before. **64 web-rule checks over the same 8 sessions, comparing the
+      table at `daabf40` with the new one: 5 changes, all intended** — `/org` closed→open for Secretary and
+      Leader, the promotions button shown→hidden for Treasurer, Usher and Elder, and nothing at all changing
+      on `/members`, `/branches`, `/care`, `/groups`, `/roster` or `/collection`.
+- [x] Live UI: Secretary opens Organisation (heads Branches / Transfer member / Households, 2 forms, no *Add*
+      branch form), Secretary still sees *Update age groups* on Members, and Elder's Members header is down
+      to *Import list* + *+ Add member*. At 390×844: `/org` and `/members` both 390px document width, no
+      horizontal overflow, **0 clipped controls**. Gates: **180 API tests over 21 files (my 4 new ones pass
+      every run)**, **134/134 shared (16 files)**, api + web typechecks, lint, `check:secrets` clean.
+- [x] **A gate that is flaky before my change, said plainly:** `apps/api/test/integration.spec.ts` times out
+      its 5s budget for the two DB-creating tests when the whole suite runs in parallel. It reproduces with
+      my new spec file removed (**174/176, 2 timeouts over 20 files**) and the file passes **11/11** run
+      alone, so the flake is contention against the local Postgres, not this batch. Full-suite counts in this
+      batch's runs were therefore 179/180 and 177/180.
+- [x] **Not proven, said plainly:** the transfer *approval* step (`POST /branches/transfers/:id/approve`) has
+      no screen in the app and no GET to list pending transfers behind one, so nothing in the UI calls it; the
+      new permission is proven on the request half and on the decorator for the approve half. `apps/web` still
+      has no test runner, so the web half of this batch rests on the live sessions and the table diff.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.
