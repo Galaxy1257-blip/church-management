@@ -304,6 +304,24 @@ export const USHER_NAV: NavItem[] = [
   { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
 ];
 
+/**
+ * Who may put the app into usher mode. The rail is the door worker's shell and it
+ * is built around Check-in, so `checkin:write` decides — the same permission the
+ * `/checkin` link and `POST /checkin` both require. It used to be
+ * `headcount:write`, which no nav item or route rule names, so eligibility and
+ * the screens behind it could drift apart. `services:read` is not asked for
+ * either: the desk reads its own service list, so the mode still works with the
+ * Services section switched off.
+ */
+export function canEnterUsherMode(granted: readonly string[]): boolean {
+  return hasPermission(granted, 'checkin:write');
+}
+
+/** True for someone whose only job is the door: the mode opens by itself. */
+export function isDoorOnly(granted: readonly string[]): boolean {
+  return canEnterUsherMode(granted) && !hasPermission(granted, 'members:write');
+}
+
 export interface AccessRule {
   prefix: string;
   permissions: Permission[];
@@ -320,6 +338,8 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/members', permissions: ['members:read'], label: 'Members' },
   { prefix: '/visitors', permissions: ['visitors:read'], label: 'Visitors' },
   { prefix: '/join-card', permissions: ['members:read'], label: 'Join code' },
+  // The door worker's own money screen. Its section switch is the `module:'money'`
+  // on the rail item above, which `itemForPath()` now resolves for this path too.
   { prefix: '/collection', permissions: ['collection:write'], label: 'Collection' },
   { prefix: '/children', permissions: [], test: canRunChildrenDesk, label: 'Children' },
   { prefix: '/care', permissions: ['care:read'], roles: CARE_ROLES, label: 'Care' },
@@ -386,28 +406,39 @@ export function moduleForItem(href: string): ModuleKey | undefined {
   return undefined;
 }
 
-/** The nav item a pathname belongs to (longest matching item wins). */
-function itemForPath(pathname: string): { item: NavItem; area: NavArea } | null {
-  let match: { item: NavItem; area: NavArea } | null = null;
+/**
+ * The nav item a pathname belongs to (longest matching item wins).
+ *
+ * The usher rail is searched as well as the areas, because a door-only screen like
+ * /collection appears in no area — and while the switch lookup missed it, the two
+ * disagreed: the rail hid the link with Offerings off while a typed URL still
+ * opened the page. Only the item's own `module` counts here; the rail's
+ * `?? 'worship'` area default belongs to the rail, and inheriting it would have
+ * put the shared Today screen behind the Services switch.
+ */
+function itemForPath(pathname: string): { item: NavItem; areaModule?: ModuleKey } | null {
+  let match: { item: NavItem; areaModule?: ModuleKey } | null = null;
+  const consider = (item: NavItem, areaModule?: ModuleKey): void => {
+    const hit = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (hit && (!match || item.href.length > match.item.href.length)) match = { item, areaModule };
+  };
   for (const area of NAV_AREAS) {
-    for (const item of area.items) {
-      const hit = pathname === item.href || pathname.startsWith(`${item.href}/`);
-      if (hit && (!match || item.href.length > match.item.href.length)) match = { item, area };
-    }
+    for (const item of area.items) consider(item, area.module);
   }
+  for (const item of USHER_NAV) consider(item, undefined);
   return match;
 }
 
 /** The module switch for the current pathname (longest matching item wins). */
 export function moduleForPath(pathname: string): ModuleKey | undefined {
   const match = itemForPath(pathname);
-  return match ? match.item.module ?? match.area.module : undefined;
+  return match ? match.item.module ?? match.areaModule : undefined;
 }
 
 /** Every switch this pathname needs switched on to be usable at all. */
 export function switchesForPath(pathname: string): ModuleKey[] {
   const match = itemForPath(pathname);
-  return match ? itemSwitches(match.item, match.area.module) : [];
+  return match ? itemSwitches(match.item, match.areaModule) : [];
 }
 
 /** The area the current pathname lives in, with its full item list. */

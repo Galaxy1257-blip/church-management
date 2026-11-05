@@ -261,13 +261,42 @@ C:\Users\HP\Desktop\church\
    100, so the cursor path is covered by `audit.spec.ts` and by `?limit=2` at the API, not by a click.
    `apps/web` has no test runner, so the 79-code label map cannot be unit-tested; drift shows
    on screen as "No plain-English name for this one yet — shown as recorded" with a count.
-   **Next units, in the owner's order:** (4) usher mode keyed on `checkin:write` not `headcount:write`
-   (`(app)/layout.tsx:54,108`); (5) `/collection` route rule missing `module:'money'` (`lib/access.ts:315`,
-   nav has it at `:295`); (6) `ELDER` + `FOLLOWUP_TEAM` hold `care:*` but `CARE_ROLES`
-   (`lib/access.ts:175`) hides Care from them; (7) my decision = add `demographics:write` and
-   `branches:write` granted to exactly the roles that already do those things, so the gate exists with no
-   behaviour change. **Still not approved to touch:** `dev.controller.ts:41` mock-Paystack completion and
+   **Next units:** points 4 and 5 shipped as 0i; 6 and my decision on 7 remain.
+   **Still not approved to touch:** `dev.controller.ts:41` mock-Paystack completion and
    simulated SMS/gift success. Permission 403s still print "Forbidden resource" (Batch 3, #57).
+
+0i. **Session AC — Batch 14, points 4 and 5: the door shell and the door money screen.** Both were the same
+   class of bug — a rule stated in one place and read in another.
+   **4 · Usher mode is keyed on the door now.** `(app)/layout.tsx` decided eligibility from
+   `headcount:write` (+ `services:read`), which no nav item or route rule names, so eligibility and the rail
+   could drift apart. New helpers in `lib/access.ts` sit next to `USHER_NAV`: `canEnterUsherMode()` =
+   `checkin:write` — the same permission the `/checkin` link and `POST /checkin` both require — and
+   `isDoorOnly()` for auto-opening the mode. `services:read` is no longer asked for, because the desk reads
+   its own service list and the mode has to survive a church that switched Services off. USHER and LEADER are
+   the only holders and both keep `checkin:write`, so no role gains or loses anything today; the fix is for
+   the next assignment.
+   **5 · `/collection` honours the Offerings switch.** The shared rule was not "add `module:'money'` to that
+   one route line": `AccessRule` has no module field — a path's switch comes from `itemForPath()`, which only
+   scanned `NAV_AREAS`. Door-only screens live in `USHER_NAV`, so they resolved to **no** switch while their
+   own rail item hid the link: typed the URL, landed on a page whose API 403s. `itemForPath()` now searches
+   both lists using each item's own `module`, never the rail's `?? 'worship'` area default. **One** path
+   changes behaviour: `/collection`. `/dashboard` is newly resolved by the shared rule as well but comes out
+   switch-free — and that is where **my own regression, caught in the running app**, was: my first version
+   inherited that rail default, which put the shared Today screen behind the Services switch and denied it to
+   an usher. Fixed, then re-proven open with Services off.
+   **Proven live as the Usher at a true 390px:** sign in → usher mode opens by itself (toggle reads "Full app",
+   `chms.usherMode=1`); Offerings off + typed `/collection` → "Area switched off — Offerings is switched off
+   for Demo Church…"; `/dashboard` and `/checkin` both still open with Services off; toggle off → office nav,
+   on → rail; Offerings back on → `/collection` opens with its 6 programs. At the API
+   `/finance/collection-service` → 200 with Money on and **403** with the section wording with Money off —
+   which is what made a service picker look empty mid-check, not my resolver. `/children/services` answers
+   200 either way, so the door picker stays independent of Money as Batch 11 intended. Resolver coverage:
+   21 area paths + 6 rail paths — the 4 rail links that also live in the areas resolve unchanged, and of the
+   2 rail-only paths 1 changes behaviour (`/collection`) and 1 stays open (`/dashboard`).
+   176/176 API, 132/132 shared, api + web typechecks, lint, `check:secrets` clean.
+   **Not proven:** `apps/web` has no test runner, so `canEnterUsherMode` / `isDoorOnly` / `itemForPath` carry
+   no unit test — the proof above is the running app. **Next:** point 6 (`CARE_ROLES` at `lib/access.ts`) and
+   my decision on point 7.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

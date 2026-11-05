@@ -431,6 +431,31 @@ this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
       Not proven: the "Show the ones before these" button — demo has 78 lines and the page asks for 100, so
       the cursor is covered by `audit.spec.ts` and `?limit=2` at the API, not by a click.
 
+### Batch 14 — the door shell and the door money screen: points 4 and 5 ✅ (5 Nov)
+- [x] **Usher mode is opened by the door job, not the headcount tally.** `headcount:write` decided
+      eligibility at `(app)/layout.tsx:54` and `:108` while no nav item or route rule anywhere names it. Both
+      now call `canEnterUsherMode()` (= `checkin:write`, the permission the `/checkin` link and
+      `POST /checkin` require) and `isDoorOnly()` next to `USHER_NAV`, so eligibility and the rail are read
+      from one definition. `services:read` is gone from the rule: the desk reads its own service list, so the
+      shell has to work with the Services section switched off. USHER and LEADER both already hold
+      `checkin:write`, so nobody gains or loses a screen today.
+- [x] **`/collection` honours the Offerings switch — and the fix is the shared rule, not the one line.**
+      `AccessRule` carries no module at all; a path's switch comes from `itemForPath()`, which scanned only
+      `NAV_AREAS`. Door-only screens live in `USHER_NAV`, so they resolved to zero switches: the rail hid the
+      link with Offerings off while a typed URL still opened a page whose API 403s. `itemForPath()` searches
+      both lists now, taking each item's own `module` and never the rail's `?? 'worship'` area default.
+- [x] **A regression of my own, caught in the running app and undone:** the first version gave `/dashboard`
+      the rail's worship default, which denied the shared Today screen to an usher in a church with Services
+      off. Re-proven open afterwards.
+- [x] Live as the Usher at 390px: auto usher mode on sign-in, toggle both ways, `/collection` → "Area
+      switched off — Offerings is switched off for Demo Church…", `/dashboard` + `/checkin` still open with
+      Services off, `/collection` back to 6 programs once Offerings is re-ticked. API: `/finance/
+      collection-service` 200 → **403** → 200 with the section wording; `/children/services` 200 either way.
+      Resolver sweep: 21 area paths + 6 rail paths — the 4 rail links that also live in the areas resolve
+      unchanged; of the 2 rail-only paths, 1 changes behaviour (`/collection`) and 1 stays open (`/dashboard`).
+      **176/176 API (20 files), 132/132 shared (16 files)**, api + web typechecks, lint, `check:secrets`
+      clean. `apps/web` has no test runner, so these three helpers carry no unit test — the proof is live.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

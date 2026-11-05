@@ -1604,3 +1604,51 @@ checking each against `git log -S` for the commit that introduced it (`eb6bcca`,
 exactly the roles that already perform those acts, so the gate exists without changing behaviour. Still not
 approved to touch: the mock-Paystack completion at `dev.controller.ts:41` and the simulated SMS/gift
 success. Permission 403s still print Nest's generic "Forbidden resource" — Batch 3 (#57) owns that voice.
+
+## 2026-11-05 — Batch 14: the door shell keys on check-in, and /collection answers to the Money switch (`committed`)
+
+Points 4 and 5 of the owner's approved list. Both turned out to be one problem seen from two sides: the door
+screens were governed by rules that did not name the job or the section that actually owns them.
+
+**What changed.** `headcount:write` decided who was offered usher mode (`(app)/layout.tsx:54` and `:108`)
+while no nav item or route rule anywhere in the app names that permission — a tallier with no door duties got
+the shell, and a door worker counted out of it. The two calls now use `canEnterUsherMode()` (= `checkin:write`,
+the same permission `/checkin` and `POST /checkin` require) and `isDoorOnly()` (`lib/access.ts:316-323`),
+placed next to `USHER_NAV` so the rail and the eligibility test read one definition. `services:read` is gone
+from the rule: the desk reads its own service list, so the shell must work with the Services section off.
+Neither USHER nor LEADER gained or lost a screen — both already hold `checkin:write`.
+
+For point 5 the fix was the shared rule, not the one line. `AccessRule` carries no module; a path's section
+switch comes from `itemForPath()` (`lib/access.ts:419`), which scanned `NAV_AREAS` only. Every door-only
+screen lives in `USHER_NAV`, so it resolved to zero switches: the rail hid the Collection link while a typed
+URL still opened a page whose API answers 403. `itemForPath()` searches both lists now and takes each item's
+own `module` — never the rail's `?? 'worship'` area default.
+
+**A regression of my own, caught in the running app.** The first version let that rail default leak into
+path resolution, so `/dashboard` became worship-gated and an usher in a Services-off church lost the Today
+screen — "Area switched off — Services is switched off for Demo Church" and two rail links instead of six.
+Fixed by passing `undefined` for rail items, with a comment saying why, and re-proven open.
+
+**Proof.** As the Usher at true 390×844: usher mode opens by itself on sign-in, the toggle works both ways,
+`/collection` → "Area switched off — Offerings is switched off for Demo Church. A church admin can turn it
+back on in Settings → App sections.", `/dashboard` and `/checkin` stay open with Services off, and the
+service picker lists the 6 programs again once Offerings is re-ticked. At the API: `/finance/collection-service`
+200 → **403** → 200 in the same sequence, `/children/services` 200 either way (it is a children screen, not a
+money one). Resolver sweep over **21 area paths + 6 rail paths**: four rail links (`/checkin`, `/services`,
+`/visitors`, `/care`) also live in `NAV_AREAS` and resolve exactly as before; of the two that live only in the
+rail, **exactly one changes behaviour — `/collection`, which now carries the Offerings switch when typed as a
+URL** — and `/dashboard` stays switch-free, which is the regression I had to undo. Gates:
+**176/176 API (20 files), 132/132 shared (16 files)**, api and web typechecks clean, `eslint .` clean,
+`check:secrets` clean. Demo's sections restored to their round-5 state (`people, money, reach, bible,
+children, groups, expenses, departments, branches, audit` on).
+
+**Not proven, said plainly:** `apps/web` has no test runner, so `canEnterUsherMode()`, `isDoorOnly()` and the
+rewritten `itemForPath()` carry no unit test — the evidence above is a live browser and a live API, not a
+suite. A second person flipping the switch on another browser would still see the old shell until the page
+reloads, because the section flags ride on the cached `/auth/me` (`lib/session.ts`); that is pre-existing and
+unchanged here.
+
+**Next, in the owner's order:** 6 — `ELDER` and `FOLLOWUP_TEAM` in `CARE_ROLES` (`lib/access.ts:~175`), the
+care nav and `/care` route rule and the dashboard card all read that one list. Then 7, my decision: grant
+`demographics:write` and `branches:write` to exactly the roles that already perform those acts, so the gate
+exists without changing anybody's behaviour.

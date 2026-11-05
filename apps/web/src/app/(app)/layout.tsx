@@ -10,8 +10,10 @@ import { clearSession, getSession } from '../../lib/session';
 import {
   areaForItem,
   canAccessPath,
+  canEnterUsherMode,
   hasPermission,
   hasStaffAccess,
+  isDoorOnly,
   MODULE_LABELS,
   moduleEnabled,
   moduleForPath,
@@ -50,10 +52,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
         setMe(m);
         if (m.church.branding?.primaryColor) document.documentElement.style.setProperty('--brand', m.church.branding.primaryColor);
-        // Usher mode is only offered to people who can actually run a service.
-        const isUsherOnly = m.permissions.includes('headcount:write') && !m.permissions.includes('members:write');
+        // Usher mode is only offered to people who can actually run the door.
         const stored = typeof window !== 'undefined' ? localStorage.getItem('chms.usherMode') : null;
-        setUsherMode(stored === '1' || (stored === null && isUsherOnly));
+        setUsherMode(stored === '1' || (stored === null && isDoorOnly(m.permissions)));
       })
       .catch(() => {
         clearTokens();
@@ -105,7 +106,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   }
   const usherNav = visibleUsherNav(perms, me.modules, me.roles);
-  const canUsherMode = hasPermission(perms, 'headcount:write') && hasPermission(perms, 'services:read');
+  const canUsherMode = canEnterUsherMode(perms);
   const showUsher = usherMode && canUsherMode;
   const rule = routeAccess(pathname);
   // Usher mode is a curated subset of screens (Today / Check-in / Attendance /
