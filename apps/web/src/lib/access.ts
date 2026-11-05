@@ -105,8 +105,6 @@ export interface NavItem {
    * The permission still applies — this only skips the section switch.
    */
   standalone?: boolean;
-  /** When set, only these role keys may see/open the page. */
-  roles?: readonly string[];
 }
 
 export interface NavGroup {
@@ -158,7 +156,7 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   },
   care: {
     label: 'Care',
-    hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',
+    hint: 'Prayer requests and people to look after. Elders, the follow-up team and ushers see the whole queue; a Sunday School teacher sees only their class.',
   },
   roster: { label: 'Serving team', hint: 'Who serves on the rota each service' },
   events: { label: 'Events', hint: 'Event pages and the people who say they are coming' },
@@ -175,9 +173,6 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
     hint: 'Who changed what, and when. Switching this off hides the page — the app keeps recording either way.',
   },
 };
-
-/** Care is for the people who look after the congregation week to week. */
-export const CARE_ROLES: readonly string[] = ['USHER', 'SUNDAY_SCHOOL'];
 
 /**
  * The roles that work the door. They stand there on Sunday whatever the office
@@ -199,10 +194,6 @@ export function isDoorRole(roles: readonly string[] | undefined): boolean {
  */
 export function canRunChildrenDesk(granted: readonly Permission[]): boolean {
   return hasPermission(granted, 'members:write') || hasPermission(granted, 'children:write');
-}
-
-export function isCareRole(roles: readonly string[] | undefined): boolean {
-  return !!roles && roles.some((role) => CARE_ROLES.includes(role));
 }
 
 export interface NavArea {
@@ -231,7 +222,7 @@ export const NAV_AREAS: NavArea[] = [
       // The door team (and the office) shows this as a QR so people can add
       // themselves to the church without anyone retyping their details.
       { href: '/join-card', label: 'Join code', permissions: ['members:read'], module: 'people' },
-      { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
+      { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care' },
       // Follow-up plans are for the visitor team, not a care-only teacher.
       { href: '/drip', label: 'Follow-up', permissions: ['visitors:read'], module: 'followup' },
     ],
@@ -258,7 +249,8 @@ export const NAV_AREAS: NavArea[] = [
       // Welfare is money, so it sits with the money pages — but its endpoints are
       // part of the Care section (apps/api/src/ministry/care.module.ts is
       // @ForModule('care')), so it opens and closes with that switch, not the
-      // Money one. Care itself stays a usher/teacher screen (see CARE_ROLES).
+      // Money one. Care and welfare both open on their permission alone, the way
+      // the API enforces them; neither page keeps a second list of who may see it.
       { href: '/welfare', label: 'Welfare', permissions: ['welfare:read'], module: 'care' },
     ],
   },
@@ -301,7 +293,7 @@ export const USHER_NAV: NavItem[] = [
   { href: '/visitors', label: 'Visitors', permissions: ['visitors:read'], module: 'people' },
   // The door worker enters the amount they counted — not the finance sheet.
   { href: '/collection', label: 'Collection', permissions: ['collection:write'], module: 'money' },
-  { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care', roles: CARE_ROLES },
+  { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care' },
 ];
 
 /**
@@ -328,8 +320,6 @@ export interface AccessRule {
   label: string;
   /** The same rule the nav item uses, so a link and its guard never disagree. */
   test?: (granted: readonly Permission[]) => boolean;
-  /** When set, only these role keys may open the route. */
-  roles?: readonly string[];
 }
 
 /** Route → permissions (any one opens it). Longest matching prefix wins. */
@@ -342,7 +332,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   // on the rail item above, which `itemForPath()` now resolves for this path too.
   { prefix: '/collection', permissions: ['collection:write'], label: 'Collection' },
   { prefix: '/children', permissions: [], test: canRunChildrenDesk, label: 'Children' },
-  { prefix: '/care', permissions: ['care:read'], roles: CARE_ROLES, label: 'Care' },
+  { prefix: '/care', permissions: ['care:read'], label: 'Care' },
   { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },
   { prefix: '/services', permissions: ['services:read'], label: 'Services' },
   { prefix: '/checkin', permissions: ['checkin:write'], label: 'Check-in' },
@@ -453,9 +443,16 @@ export function areaForPath(pathname: string): { area: NavArea; items: NavItem[]
   return null;
 }
 
-function mayOpen(granted: readonly string[], item: NavItem, roles?: readonly string[]): boolean {
+/**
+ * Whether the permission set may open a screen. Roles are not consulted: the
+ * permission table in `packages/shared/src/permissions.ts` is the one rule, and
+ * the API enforces the same one. A hand-copied list of who may see a page drifts
+ * the moment a role is granted that permission — which is how elders, the
+ * follow-up team, the pastor and this office all ended up holding `care:read`
+ * with no Care screen to spend it on.
+ */
+function mayOpen(granted: readonly string[], item: NavItem): boolean {
   if (item.test ? !item.test(granted) : !hasAnyPermission(granted, item.permissions)) return false;
-  if (item.roles && !item.roles.some((role) => roles?.includes(role))) return false;
   return true;
 }
 
@@ -463,44 +460,32 @@ function mayOpen(granted: readonly string[], item: NavItem, roles?: readonly str
  * True when the permission set may open this route. `modules` is the church's
  * switch set: a disabled section counts as unavailable, except /settings — that
  * is where the switches live, so it must stay reachable to switch them back on.
- * `roles` is the signed-in role-key list, used by the few pages that name roles.
  */
-export function canAccessPath(
-  granted: readonly string[],
-  pathname: string,
-  modules?: ModuleFlags,
-  roles?: readonly string[],
-): boolean {
+export function canAccessPath(granted: readonly string[], pathname: string, modules?: ModuleFlags): boolean {
   const rule = routeAccess(pathname);
   if (!rule) return true;
   if (rule.test ? !rule.test(granted) : !hasAnyPermission(granted, rule.permissions)) return false;
-  if (rule.roles && !rule.roles.some((role) => roles?.includes(role))) return false;
   if (rule.prefix === '/settings') return true;
   return switchesForPath(pathname).every((key) => moduleEnabled(modules, key));
 }
 
 /** Nav groups with inaccessible items and switched-off sections removed. */
-export function visibleNavGroups(
-  granted: readonly string[],
-  modules?: ModuleFlags,
-  roles?: readonly string[],
-): NavGroup[] {
+export function visibleNavGroups(granted: readonly string[], modules?: ModuleFlags): NavGroup[] {
   return NAV_AREAS.map((area) => ({
     label: area.label,
     hint: area.hint,
     items: area.items.filter(
       (item) =>
-        itemSwitches(item, area.module).every((key) => moduleEnabled(modules, key)) &&
-        mayOpen(granted, item, roles),
+        itemSwitches(item, area.module).every((key) => moduleEnabled(modules, key)) && mayOpen(granted, item),
     ),
   })).filter((group) => group.items.length > 0);
 }
 
 /** Usher-mode links this user may open, with the same section switches. */
-export function visibleUsherNav(granted: readonly string[], modules?: ModuleFlags, roles?: readonly string[]): NavItem[] {
+export function visibleUsherNav(granted: readonly string[], modules?: ModuleFlags): NavItem[] {
   return USHER_NAV.filter(
     (item) =>
       itemSwitches(item, item.module ?? 'worship').every((key) => moduleEnabled(modules, key)) &&
-      mayOpen(granted, item, roles),
+      mayOpen(granted, item),
   );
 }

@@ -297,6 +297,32 @@ C:\Users\HP\Desktop\church\
    **Not proven:** `apps/web` has no test runner, so `canEnterUsherMode` / `isDoorOnly` / `itemForPath` carry
    no unit test — the proof above is the running app. **Next:** point 6 (`CARE_ROLES` at `lib/access.ts`) and
    my decision on point 7.
+
+0j. **Session AC — Batch 15, point 6: Care is opened by the permission, not by a copied role list.** The
+   ask was "add ELDER and FOLLOWUP_TEAM to `CARE_ROLES`". Before editing it I swept all **10 roles** against
+   all **four** surfaces that gate Care (route rule, office nav, door rail, dashboard card) and got **8
+   mismatches**: `SUPER_ADMIN` and `PASTOR` hold `care:read` and were locked out exactly the way the elders
+   were. Widening the list would have fixed the instance and left the rule intact, so the list went away:
+   `CARE_ROLES`, `isCareRole()`, `NavItem.roles`, `AccessRule.roles` and the `roles` arguments through
+   `mayOpen()` / `canAccessPath()` / `visibleNavGroups()` / `visibleUsherNav()` are deleted — Care was their
+   only user — and `care:read` is now the single rule, which is what
+   `apps/api/src/ministry/care.module.ts:344-413` has always enforced. The Sunday School teacher stays inside
+   their own class because that scope lives in `apps/api/src/common/class-scope.ts:19`, not in the nav.
+   Re-sweep: **40/40 checks agree with `care:read`, 0 mismatches**; the four care roles open it, the four
+   others (leader, secretary, treasurer, member) still do not.
+   **Proven live:** the Elder and the platform admin both open `/care` (chips "Elder · Whole church"; the
+   visit list renders real rows), the teacher still reads "Sunday school · My class", and a typed `/care` as
+   the Secretary says "Not available for your role — Care needs a permission your role does not have." At
+   **390×844** as the Elder: 0 clipped elements, no horizontal scroll. The shared hint and its hand-mirror in
+   `apps/web/src/lib/access.ts` were both repainted to name elders and the follow-up team. New test in
+   `packages/shared/src/permissions.test.ts` pins the six `care:read` holders.
+   **A mistake I made, and repaired:** to verify the follow-up team I granted that demo account the role with
+   a join on `Role.key` — and `Role` is per church, so the insert wrote **451 rows over 451 churches**. I
+   deleted the 450 foreign rows, kept the one demo row for the check, revoked it afterwards, and counted the
+   table: **0** stray `FOLLOWUP_TEAM` rows outside `demo`. The Elder account is back to `["ELDER"]` and the
+   demo church's Care section is back **off**, as this session found it. `176/176` API, `133/133` shared,
+   api + web typechecks, lint and `check:secrets` clean.
+   **Next:** point 7, my decision — separate `demographics:write` / `branches:write` from `members:write`.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

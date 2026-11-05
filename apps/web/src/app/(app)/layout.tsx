@@ -95,7 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Everything the shell shows is derived from the permission set the API
   // returned for this session — never from a hardcoded role name.
   const perms = me.permissions;
-  const groups = visibleNavGroups(perms, me.modules, me.roles);
+  const groups = visibleNavGroups(perms, me.modules);
   // Office-delivered extras (per-church features) get one quiet entry, and only
   // when the office actually switched something on for this church.
   if ((me.extras?.length ?? 0) > 0 && hasPermission(perms, 'church:read')) {
@@ -105,7 +105,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       items: [{ href: '/extras', label: 'Extras', permissions: ['church:read'] }],
     });
   }
-  const usherNav = visibleUsherNav(perms, me.modules, me.roles);
+  const usherNav = visibleUsherNav(perms, me.modules);
   const canUsherMode = canEnterUsherMode(perms);
   const showUsher = usherMode && canUsherMode;
   const rule = routeAccess(pathname);
@@ -116,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const usherAllowed =
     showUsher &&
     usherNav.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
-  const denied = !usherAllowed && !canAccessPath(perms, pathname, me.modules, me.roles);
+  const denied = !usherAllowed && !canAccessPath(perms, pathname, me.modules);
   // Which of the two possible reasons applies: a switched-off section or a
   // missing permission/role. The copy below has to say the right one, or the
   // operator will go hunting for a role that was never the problem.

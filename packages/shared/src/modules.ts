@@ -79,7 +79,7 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   },
   care: {
     label: 'Care',
-    hint: 'Prayer requests and people to look after. Ushers see the whole queue; a Sunday School teacher sees only their class.',
+    hint: 'Prayer requests and people to look after. Elders, the follow-up team and ushers see the whole queue; a Sunday School teacher sees only their class.',
   },
   roster: { label: 'Serving team', hint: 'Who serves on the rota each service' },
   events: { label: 'Events', hint: 'Event pages and the people who say they are coming' },

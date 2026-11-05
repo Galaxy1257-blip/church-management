@@ -456,6 +456,36 @@ this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
       **176/176 API (20 files), 132/132 shared (16 files)**, api + web typechecks, lint, `check:secrets`
       clean. `apps/web` has no test runner, so these three helpers carry no unit test — the proof is live.
 
+### Batch 15 — Care is opened by the permission, not by a copied list of roles: point 6 ✅ (5 Nov)
+- [x] **Point 6 said two roles were locked out; it was four.** Sweeping all 10 roles against all four Care
+      surfaces (route, office nav, door rail, dashboard card) showed `SUPER_ADMIN` and `PASTOR` holding
+      `care:read` with no Care screen either — the same defect, one row higher in the table. Fixing the list
+      would have fixed the instance; the list itself was the bug.
+- [x] **The role gate is deleted, not widened.** `CARE_ROLES` and `isCareRole()` are gone from
+      `apps/web/src/lib/access.ts`, along with the `roles` field on `NavItem`/`AccessRule` and the `roles`
+      parameters threaded through `mayOpen()`, `canAccessPath()`, `visibleNavGroups()` and
+      `visibleUsherNav()` — Care was their only user. `care:read` is now the single rule, which is exactly
+      what `apps/api/src/ministry/care.module.ts` already enforces. Sunday School stays limited to its own
+      class because that scope lives in `apps/api/src/common/class-scope.ts:19`, not in the nav.
+- [x] **Copy follows the rule:** the Care section hint in `packages/shared/src/modules.ts` and its hand
+      mirror in `apps/web/src/lib/access.ts` now name elders, the follow-up team and ushers for the whole
+      queue; both strings verified identical.
+- [x] `packages/shared/src/permissions.test.ts` pins the six roles that hold `care:read` (usher, teacher,
+      elder, follow-up, pastor, this office) and asserts leader/secretary/treasurer/member do not, so a new
+      grant is a decision rather than an accident.
+- [x] Live: elder and the platform admin open `/care` (chips "Elder · Whole church", page renders the visit
+      list), the teacher still gets "Sunday school · My class", and a typed `/care` as Secretary says "Not
+      available for your role — Care needs a permission your role does not have." At 390×844: 0 clipped
+      elements, no horizontal scroll. **40/40 role-surface checks agree with `care:read`; 0 mismatches**
+      (was 8). **176/176 API (20 files), 133/133 shared (16 files)**, api + web typechecks, lint,
+      `check:secrets` clean.
+- [x] **A mistake I made and repaired, recorded here:** granting the demo Elder a `FOLLOWUP_TEAM` row for the
+      live check used a join on `Role.key` without the church, and `Role` is per-church — the insert wrote
+      451 rows across 451 churches. All 450 foreign rows were deleted in the same session, the one demo row
+      was kept for the test and then revoked, and a count over the whole table confirms **0** stray
+      `FOLLOWUP_TEAM` rows outside the demo church. The Elder account is back to `["ELDER"]` and the demo
+      church's Care section is back to off.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

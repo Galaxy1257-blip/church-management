@@ -82,6 +82,22 @@ describe('permissions', () => {
     }
   });
 
+  it('Care is opened by care:read, and these six roles hold it', () => {
+    // The app used to keep its own list of who may see Care
+    // (apps/web/src/lib/access.ts#CARE_ROLES, audit round 5 point 6). It drifted:
+    // elders and the follow-up team held the permission and no screen, and so did
+    // the pastor and this office. The permission is now the only rule, here.
+    const holders = ROLE_KEYS.filter((role) =>
+      hasPermission(permissionsForRoles([role]), 'care:read'),
+    ).sort();
+    expect(holders).toEqual(['ELDER', 'FOLLOWUP_TEAM', 'PASTOR', 'SUNDAY_SCHOOL', 'SUPER_ADMIN', 'USHER']);
+    // Nobody else reaches the care queue: a leader, secretary, treasurer or member
+    // has no care:read, so the nav hides it and the API 403s.
+    for (const role of ['LEADER', 'SECRETARY', 'FINANCE_ADMIN', 'MEMBER'] as const) {
+      expect(hasPermission(permissionsForRoles([role]), 'care:read')).toBe(false);
+    }
+  });
+
   it('lower leaders only get their own modules', () => {
     const usher = permissionsForRoles(['USHER']);
     expect(hasPermission(usher, 'headcount:write')).toBe(true);

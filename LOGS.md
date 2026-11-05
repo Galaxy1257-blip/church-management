@@ -1652,3 +1652,56 @@ unchanged here.
 care nav and `/care` route rule and the dashboard card all read that one list. Then 7, my decision: grant
 `demographics:write` and `branches:write` to exactly the roles that already perform those acts, so the gate
 exists without changing anybody's behaviour.
+
+## 2026-11-05 — Batch 15: Care is opened by the permission, not by a copied list of roles (`committed`)
+
+Point 6 of the owner's approved list: "ELDER and FOLLOWUP_TEAM hold `care:read/write/moderate` and see no
+Care anywhere." The literal request was to add those two role keys to `CARE_ROLES`. I swept first, and the
+sweep changed what the fix was.
+
+**The measurement.** Ten roles × four surfaces that decide whether Care reaches a person — the `/care` route
+rule, the office nav item, the door rail item and the dashboard card — driven through the real
+`apps/web/src/lib/access.ts` (Node strips the types; `apps/web` has no runner) against
+`permissionsForRoles()` from the built `@chms/shared`. Before: **8 of 40 checks disagreed with `care:read`** —
+ELDER and FOLLOWUP_TEAM, as the audit said, **and also PASTOR and SUPER_ADMIN**, which round 5 had not
+noticed. Four roles held a permission that opened no screen.
+
+**So the list went away rather than growing.** `CARE_ROLES`, `isCareRole()`, the `roles` field on `NavItem`
+and `AccessRule`, and the `roles` arguments threaded through `mayOpen()`, `canAccessPath()`,
+`visibleNavGroups()` and `visibleUsherNav()` are deleted — Care was the gate's only user anywhere in the app.
+`care:read` is now the rule on both sides, which is what `apps/api/src/ministry/care.module.ts:344-413` has
+always enforced. The Sunday School teacher is still confined to their own class, because that scope lives in
+`apps/api/src/common/class-scope.ts:19` (anyone with `members:read` sees the whole queue) and never came from
+the nav. After: **40/40 agree with `care:read`, 0 mismatches**; usher, teacher, elder, follow-up, pastor and
+this office open Care, and leader, secretary, treasurer and member do not.
+
+**Proven in the running app.** As the Elder: Care in the nav, `/care` opens, chip reads "Elder · Whole
+church", the visit list renders real rows. As the platform admin: `/care` was unreachable before and now
+renders "Pastoral care / Prayer wall / Visits & follow-ups". As the Sunday School teacher: unchanged, "Sunday
+school · My class". As the Secretary — who must not have it: no nav link, and a typed `/care` answers "Not
+available for your role — Care needs a permission your role does not have." At a true **390×844** as the
+Elder: **0 clipped elements, no horizontal scroll**. The Care section hint was repainted in
+`packages/shared/src/modules.ts` and its hand mirror in `apps/web/src/lib/access.ts`; both strings verified
+identical.
+
+**A mistake I made, and how I put it back.** FOLLOWUP_TEAM has no demo login, so to prove the fifth role live
+I inserted the role onto the Elder account with `join "Role" ro on ro.key='FOLLOWUP_TEAM'` — and `Role` rows
+are **per church**, so the select produced one row per church and the insert wrote **451 rows across 451
+churches** instead of one. Same session: 450 foreign rows deleted, the single `demo` row kept for the check
+(header read "Followup team · Elder · Whole church", `/care` opened, `GET /prayer` → 200), then that row
+revoked too. A count over the whole table now reads **0** `FOLLOWUP_TEAM` rows outside the demo church, the
+account is back to `["ELDER"]` and the demo church's Care section is back **off**, which is how this session
+found it. The scratch script was deleted, not committed. Lesson recorded here rather than in code: any
+`Role`/`MemberRole` join needs `churchId` in its `ON`, not just `key`.
+
+**Gates.** `176/176` API over 20 files, `133/133` shared over 16 files (the new `care:read` holder test is
+the +1), api and web typechecks clean, `eslint .` clean, `check:secrets` clean, `@chms/shared` rebuilt.
+
+**Not proven, said plainly:** the follow-up-team case was demonstrated on an account that held the role only
+temporarily; there is no permanent `FOLLOWUP_TEAM` login in the demo church, so a fresh install's follow-up
+user has not been signed in. And `apps/web` still has no test runner: the deletion of the gate is proven by
+the sweep and the browser, not by a web unit test.
+
+**Next, in the owner's order:** 7, my decision — `demographics:write` and `branches:write` split off
+`members:write`, granted to exactly the roles that already do those acts so nobody's behaviour changes and
+the gate exists for the church that wants to hand one of those jobs out on its own.
