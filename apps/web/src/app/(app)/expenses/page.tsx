@@ -227,7 +227,7 @@ export default function ExpensesPage() {
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label style={{ flex: 1 }}>Amount (GHS)<input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" required /></label>
+            <label style={{ flex: 1 }}>Amount (GH₵)<input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" required /></label>
           </div>
           <div className="row">
             <label style={{ flex: 1 }}>Payee<input value={form.payee} onChange={(e) => setForm({ ...form, payee: e.target.value })} required /></label>

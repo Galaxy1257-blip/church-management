@@ -69,16 +69,18 @@ describe('PermissionsGuard (default-deny)', () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('denies when a required permission is missing', () => {
+  it('denies when a required permission is missing, and names the job', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['finance:approve'] });
     attachUser(ctx, makeUser());
-    expect(guard.canActivate(ctx)).toBe(false);
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+    // The person reading this is a church officer, not a developer.
+    expect(() => guard.canActivate(ctx)).toThrow('approve the books');
   });
 
   it('requires ALL listed permissions', () => {
     const ctx = makeContext({ [PERMISSIONS_KEY]: ['finance:approve', 'finance:read'] });
     attachUser(ctx, makeUser({ name: 'partial', roles: ['FINANCE_ADMIN'], permissions: ['finance:read'] })); // missing approve
-    expect(guard.canActivate(ctx)).toBe(false);
+    expect(() => guard.canActivate(ctx)).toThrow('approve the books');
   });
 
   it('wildcard * grants everything', () => {
@@ -103,7 +105,7 @@ describe('PermissionsGuard (default-deny)', () => {
     const ctx = makeContext({ [AUTHENTICATED_KEY]: true, [PERMISSIONS_KEY]: ['finance:approve'] });
     attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
     // The permission list wins whenever it is present on the handler.
-    expect(guard.canActivate(ctx)).toBe(false);
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
   it('@AnyPermission lets through a role holding one of the listed permissions', () => {
@@ -112,10 +114,10 @@ describe('PermissionsGuard (default-deny)', () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('@AnyPermission refuses a session that holds none of them', () => {
+  it('@AnyPermission refuses a session that holds none of them, and lists the choices', () => {
     const ctx = makeContext({ [ANY_PERMISSIONS_KEY]: ['members:write', 'checkin:write', 'children:write'] });
     attachUser(ctx, makeUser({ roles: ['MEMBER'], permissions: [], scope: 'SELF' }));
-    expect(guard.canActivate(ctx)).toBe(false);
+    expect(() => guard.canActivate(ctx)).toThrow("change the member register, take the door register, run the children's desk");
   });
 
   it('@AnyPermission refuses an empty list (an empty choice is not a policy)', () => {

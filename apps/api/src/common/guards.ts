@@ -15,6 +15,7 @@ import {
   hasPermission,
   MODULE_LABELS,
   Permission,
+  permissionLabel,
   resolveDataScope,
   type DataScope,
   type ModuleKey,
@@ -146,14 +147,23 @@ export class PermissionsGuard implements CanActivate {
     if (!user) throw new UnauthorizedException('no user on request');
 
     // Explicit permissions always win over @Authenticated(), so accidentally
-    // stacking both decorators can never widen access.
+    // stacking both decorators can never widen access. Saying only "Forbidden
+    // resource" makes a person's own job look like a system fault, and it is the
+    // one refusal in the app that names no job and no way to fix it.
     if (hasRequired) {
       for (const perm of required as Permission[]) {
-        if (!hasPermission(user.permissions, perm)) return false;
+        if (!hasPermission(user.permissions, perm)) {
+          throw new ForbiddenException(`Your role is not allowed to ${permissionLabel(perm)}.`);
+        }
       }
     }
     if (hasAnyOf) {
-      if (!(anyOf as Permission[]).some((perm) => hasPermission(user.permissions, perm))) return false;
+      const allowed = anyOf as Permission[];
+      if (!allowed.some((perm) => hasPermission(user.permissions, perm))) {
+        throw new ForbiddenException(
+          `Your role is not allowed to do this. It needs one of: ${allowed.map((perm) => permissionLabel(perm)).join(', ')}.`,
+        );
+      }
     }
     if (hasRequired || hasAnyOf) return true;
 

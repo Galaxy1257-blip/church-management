@@ -292,7 +292,7 @@ function BillingCard({
         <form className="card stack" onSubmit={submit}>
           <h2 style={{ margin: 0 }}>Change billing</h2>
           <label>
-            Monthly fee (GHS)
+            Monthly fee (GH₵)
             <input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" required />
           </label>
           <div className="row">

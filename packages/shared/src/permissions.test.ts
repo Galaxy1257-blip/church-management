@@ -3,6 +3,7 @@ import {
   hasChurchWideAccess,
   hasPermission,
   hasStaffAccess,
+  permissionLabel,
   PERMISSIONS,
   permissionsForRoles,
   Permission,
@@ -136,6 +137,20 @@ describe('permissions', () => {
 
   it('declares a tier for every role key', () => {
     for (const role of ROLE_KEYS) expect(ROLE_TIERS[role]).toBeTruthy();
+  });
+
+  it('names every permission as a job a person can read', () => {
+    // A refusal that prints "members:import" is a developer message on a
+    // pastor's screen. This loop is what keeps the catalogue honest: a new
+    // permission with no phrase fails here, not in front of a church.
+    const untranslated = PERMISSIONS.filter((permission) => permissionLabel(permission) === permission);
+    expect(untranslated).toEqual([]);
+  });
+
+  it('reads like the office, not like the schema', () => {
+    expect(permissionLabel('expenses:approve')).toBe('approve expenses');
+    expect(permissionLabel('children:write')).toBe("run the children's desk");
+    expect(permissionLabel('welfare:read')).toBe('see welfare help');
   });
 });
 

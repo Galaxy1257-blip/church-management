@@ -122,7 +122,7 @@ export default function HomePage() {
                   </div>
                   <div className="pub-metric">
                     <span>Offering</span>
-                    <strong>GHS 3,480</strong>
+                    <strong>GH₵ 3,480</strong>
                     <small>Tithe + welfare</small>
                   </div>
                 </div>
@@ -183,7 +183,7 @@ export default function HomePage() {
           <div className="pub-price">
             <div className="pub-pricecard">
               <div className="pub-amount">
-                GHS 100 <small>/ month, per church</small>
+                GH₵ 100 <small>/ month, per church</small>
               </div>
               <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.9 }}>
                 Every module included. Start with 14 days free — no card needed.

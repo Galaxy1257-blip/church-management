@@ -714,7 +714,7 @@ export default function SettingsPage() {
 
       <form className="card stack" onSubmit={saveFees} hidden={tab !== 'giving'}>
         <h2>Online offering fees</h2>
-        <p className="muted">Paystack charges 1.95% + GHS 0.10 for local cards. Choose who pays that fee, and cap it if you like.</p>
+        <p className="muted">Paystack charges 1.95% + GH₵ 0.10 for local cards. Choose who pays that fee, and cap it if you like.</p>
         <div className="row">
           <label style={{ flex: 2 }}>
             Who pays the fee

@@ -605,11 +605,21 @@ the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
       pass and restored to `false` after it.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
-- [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
-      while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.
-- [ ] The dashboard keeps offering **Check someone in** and **All services →**, and the *Latest service*
+- [x] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
+      while a switch 403 names the section. **DONE Session AF (Batch 3):** both now throw a plain-English
+      `ForbiddenException` naming the job, with a whole-catalogue coverage test.
+- [x] The dashboard keeps offering **Check someone in** and **All services →**, and the *Latest service*
       card, while the Services section is switched off. The page itself answers with "Area switched off",
-      so nothing is unsafe — it is the card that should follow the switch. Batch 3.
+      so nothing is unsafe — it is the card that should follow the switch. **DONE Session AF (Batch 3):**
+      the Services links already gate on `mod('worship')`; the `/checkin` link stays on purpose (the door
+      keeps counting with Services off). (#78 verified against source.)
+
+### Session AF additions (Batch 3 + legal)
+- [x] One cedi format everywhere — `ghs()` (GH₵ 1,234.00), 65 call sites / 16 screens, PDF-safe.
+- [x] Terms of Use + Privacy Policy at `/terms` and `/privacy`, footer + sign-up links, `legal-meta.ts`.
+- [x] Self-service erasure `DELETE /auth/me` (anonymise, keep amounts, opt-out first, no audit before/after).
+      Buttons in the member portal and staff About page. Erasure is a right, not a switch.
+- [ ] #78 Dashboard cards fully follow every App-section switch (partially done — re-audit each card).
 
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed

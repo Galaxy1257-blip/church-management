@@ -176,7 +176,7 @@ export default function CampaignsPage() {
         })}
         <form className="row" onSubmit={createCampaign} style={{ marginTop: 8 }}>
           <input placeholder="Campaign name" value={campForm.name} onChange={(e) => setCampForm({ ...campForm, name: e.target.value })} required style={{ flex: 2 }} />
-          <input placeholder="Goal GHS" value={campForm.goal} onChange={(e) => setCampForm({ ...campForm, goal: e.target.value })} inputMode="decimal" style={{ flex: 1 }} />
+          <input placeholder="Goal GH₵" value={campForm.goal} onChange={(e) => setCampForm({ ...campForm, goal: e.target.value })} inputMode="decimal" style={{ flex: 1 }} />
           <select value={campForm.fundId} onChange={(e) => setCampForm({ ...campForm, fundId: e.target.value })}>
             {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
@@ -198,7 +198,7 @@ export default function CampaignsPage() {
           <select value={pledgeForm.fundId} onChange={(e) => setPledgeForm({ ...pledgeForm, fundId: e.target.value })}>
             {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
-          <input placeholder="Amount GHS" value={pledgeForm.amount} onChange={(e) => setPledgeForm({ ...pledgeForm, amount: e.target.value })} inputMode="decimal" style={{ flex: 1 }} />
+          <input placeholder="Amount GH₵" value={pledgeForm.amount} onChange={(e) => setPledgeForm({ ...pledgeForm, amount: e.target.value })} inputMode="decimal" style={{ flex: 1 }} />
           <button>Add pledge</button>
         </form>
         <table><thead><tr><th>Member</th><th>Fund</th><th>Amount</th><th>Frequency</th></tr></thead><tbody>

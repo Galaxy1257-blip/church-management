@@ -125,7 +125,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
             </select>
           </label>
           <label>
-            Amount (GHS)
+            Amount (GH₵)
             <input
               value={amount}
               onChange={(e) => {

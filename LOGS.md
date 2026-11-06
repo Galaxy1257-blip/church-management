@@ -1892,3 +1892,27 @@ were deleted and never staged.
 
 **Next:** push this batch (auto-deploys Render and Vercel), apply migrations 12/13 to Neon, then the standing
 leftovers — Batches 3–6 (#57–#60) and the feature backlog.
+
+---
+
+## 2026-11-06 — Session AF (Batch 3 + Terms/Privacy + erasure)
+
+**Done:**
+- **Batch 3** — one `ghs()` cedi format with thousands separators across 65 call sites / 16 screens; repaired 13
+  double-encoded `â‚µ` byte sequences in 11 files; PDF-safe `GH₵ → GHS` transliteration. Plain-English permission
+  403s via `permissionLabel()` (whole-catalogue coverage test). Legible `--accent-ink` token (eyebrow measured
+  2.65:1 → 6.23:1 live).
+- **Terms of Use + Privacy Policy** — public `/terms` + `/privacy`, shared `legal-meta.ts`, footer + sign-up links,
+  grounded in the real schema (Neon/Render/Vercel/Paystack/SMS processors, encryption of counselling notes, 6-year
+  financial retention, children handled only via parent/guardian).
+- **Self-service erasure** — `DELETE /auth/me` anonymises (names/contacts/photo/DOB/QR), deletes care notes + prayer
+  requests, opts the number out first, keeps amounts without the name, revokes sessions, deactivates the login,
+  audit entry with no before/after payload. Buttons in the member portal and staff About page. `auth.erase.spec.ts`.
+
+**Gates:** shared 136/136 · API 208/208 (28 files) · web 3/3 · both typechecks · eslint clean · `check:secrets` clean.
+
+**Maintenance rule** added to repo `AGENTS.md`, the global skill `app-legal-docs`, and project memory — any
+data-handling change updates the two pages and bumps `LEGAL_UPDATED` in the same commit. Erasure is a right, not
+an App-section switch.
+
+**Next:** commit + push (auto-deploys Render + Vercel), then Batches 4/5/6 (#58/#60/#59) and the feature backlog.

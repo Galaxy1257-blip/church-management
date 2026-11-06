@@ -6,11 +6,11 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { createHash, randomInt } from 'node:crypto';
 // Cross-tenant lookups by phone (login, OTP, session load) run BEFORE any
-// church context exists â€” under the app_user client FORCE RLS hides every row
+// church context exists — under the app_user client FORCE RLS hides every row
 // (login always failed with "invalid credentials"). Auth is a platform-scope
 // concern, like webhooks: use platformPrisma (BYPASSRLS); tenant writes stay
 // in withTenant.
-import { platformPrisma as prisma, withPlatform, withTenant } from '@chms/db';
+import { platformPrisma as prisma, withPlatform, withTenant, appendAudit } from '@chms/db';
 import {
   normalizeGhPhone,
   permissionsForRoles,
@@ -191,7 +191,7 @@ export class AuthService {
     const existing = await prisma.user.findUnique({
       where: { churchId_phoneE164: { churchId: church.id, phoneE164: phone } },
     });
-    if (existing) throw new ConflictException('an account already exists for this phone â€” sign in instead');
+    if (existing) throw new ConflictException('an account already exists for this phone — sign in instead');
 
     const passwordHash = await bcrypt.hash(input.password, 10);
     const user = await withPlatform(async (tx) => {
@@ -544,6 +544,82 @@ export class AuthService {
         amountMinor: church.monthlyFeeMinor,
       },
     };
+  }
+
+  /**
+   * Self-service erasure (the "delete my account and data" right). Anonymises the
+   * person rather than deleting rows the church's books depend on: amounts stay,
+   * names and contacts go. The audit entry carries no before/after payload, or
+   * the erased personal data would simply be re-stored in the audit log.
+   */
+  async eraseMe(userId: string, churchId: string, ip?: string): Promise<{ deleted: true }> {
+    return withTenant(churchId, userId, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, churchId } });
+      if (!user) throw new UnauthorizedException('no such account');
+      const memberId = user.memberId;
+
+      if (memberId) {
+        const member = await tx.member.findFirst({ where: { id: memberId, churchId } });
+        if (member?.phoneE164) {
+          // Opt the number out before it is cleared, so a later import cannot
+          // silently re-subscribe the person who asked to be deleted.
+          await tx.smsOptOut.upsert({
+            where: { churchId_phoneE164: { churchId, phoneE164: member.phoneE164 } },
+            create: { churchId, phoneE164: member.phoneE164 },
+            update: {},
+          });
+        }
+        await tx.transaction.updateMany({
+          where: { churchId, memberId },
+          data: { giverName: null, giverPhoneE164: null },
+        });
+        await tx.counselingNote.deleteMany({ where: { churchId, subjectId: memberId } });
+        await tx.prayerRequest.deleteMany({ where: { churchId, memberId } });
+        await tx.member.update({
+          where: { id: memberId },
+          data: {
+            firstName: 'Deleted',
+            lastName: 'Member',
+            phoneE164: null,
+            email: null,
+            address: null,
+            dob: null,
+            gender: null,
+            photoKey: null,
+            photoDataUrl: null,
+            qrToken: null,
+            qrIssuedAt: null,
+            smsConsent: false,
+            status: 'INACTIVE',
+            deletedAt: new Date(),
+          },
+        });
+      }
+
+      await tx.bibleNote.deleteMany({ where: { churchId, authorId: userId } });
+      if (memberId) await tx.bibleNote.deleteMany({ where: { churchId, authorId: memberId } });
+      await tx.pushSubscription.deleteMany({ where: { churchId, userId } });
+      await tx.refreshToken.updateMany({ where: { churchId, userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.otpChallenge.deleteMany({ where: { churchId, phoneE164: user.phoneE164 } });
+      await tx.userRole.deleteMany({ where: { userId } });
+      await tx.userBranch.deleteMany({ where: { userId } });
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: 'Deleted account',
+          // Not a dialable number, so the dead account can never match a login
+          // or an OTP request; uniqueness per church is preserved.
+          phoneE164: `deleted:${userId}`,
+          email: null,
+          passwordHash: null,
+          totpSecret: null,
+          memberId: null,
+          isActive: false,
+        },
+      });
+      await appendAudit(tx, { churchId, actorId: userId, action: 'account.erase', entity: 'User', entityId: userId, ip });
+      return { deleted: true as const };
+    });
   }
 }
 

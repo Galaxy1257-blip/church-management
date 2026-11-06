@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { Authenticated, BillingExempt, Public } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
@@ -177,5 +177,17 @@ export class AuthController {
   @Get('me')
   me(@Req() req: AuthedRequest) {
     return this.auth.me(req.user!.userId, req.user!.churchId);
+  }
+
+  /**
+   * The person's own erasure right. @Authenticated, not a staff permission: a
+   * MEMBER with zero permissions must be able to delete themselves, and a locked
+   * church must not block it (the controller is BillingExempt).
+   */
+  @Authenticated()
+  @Delete('me')
+  @HttpCode(200)
+  eraseMe(@Req() req: AuthedRequest) {
+    return this.auth.eraseMe(req.user!.userId, req.user!.churchId, req.ip);
   }
 }

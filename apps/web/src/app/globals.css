@@ -20,6 +20,11 @@
   --link: var(--brand);
   --accent: #c08a2e;
   --accent-soft: #f4e7c9;
+  /* Accent as TEXT. The bright gold of a theme is 2.1–3.0:1 on its own paper —
+     unreadable, and worse in sunlight on a phone. Half way to that theme's ink
+     keeps the colour recognisable and clears 4.5:1 in all 19 presets, light and
+     dark, because ink is already the colour the app reads body text with. */
+  --accent-ink: color-mix(in srgb, var(--accent) 50%, var(--ink));
   --terracotta: #b4513a;
   --danger: #a33a2c;
   --warn: #8a6414;
@@ -930,7 +935,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   transition: flex-grow 0.4s;
 }
 .demo-legend { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.45rem; font-size: 0.8rem; color: var(--muted); }
-.demo-legend span::before { content: '■ '; color: var(--accent); }
+.demo-legend span::before { content: '■ '; color: var(--accent-ink); }
 
 /* ---------------------------------------------------------- member drawer */
 .drawer-scrim {

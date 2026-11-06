@@ -85,6 +85,9 @@ const WINANSI: Record<string, number> = {
 const TRANSLITERATE: Array<[RegExp, string]> = [
   [/[ŋŊ]/g, 'ng'],
   [/[ɛɔƐƆ]/g, 'e'],
+  // The screen writes GH₵; the standard PDF fonts have no cedi sign, and a bare
+  // ₵ rule would turn that into "GHGHS", so the whole label collapses first.
+  [/GH₵/g, 'GHS'],
   [/[₵¢]/g, 'GHS'],
   [/[–—]/g, '-'],
   [/[‘’]/g, "'"],

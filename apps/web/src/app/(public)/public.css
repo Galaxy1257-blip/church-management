@@ -98,7 +98,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .pub-hero h1 {
   font-size: clamp(2rem, 5.2vw, 3.1rem);
@@ -261,3 +261,15 @@
 .auth-step.done { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
 .auth-id { font-size: 0.84rem; }
 .auth-id code { font-size: 0.82rem; background: var(--bg-soft); padding: 0.05rem 0.35rem; border-radius: 6px; }
+
+/* Legal pages: long-form reading, so a narrow measure and generous line height. */
+.legal { max-width: 760px; }
+.legal h1 { font-size: 1.9rem; margin: 0.3rem 0 0.2rem; }
+.legal h2 { font-size: 1.12rem; margin: 1.6rem 0 0.4rem; }
+.legal p, .legal li { font-size: 0.94rem; line-height: 1.65; color: var(--ink); }
+.legal ul { padding-left: 1.2rem; display: grid; gap: 0.4rem; }
+.legal a { color: var(--brand); font-weight: 600; }
+.legal-updated { color: var(--muted); font-size: 0.84rem; margin: 0 0 1.1rem; }
+.legal-links { margin-top: 1.8rem; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.pub-foot-legal { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.84rem; }
+.pub-foot-legal a { color: var(--muted); text-decoration: underline; }

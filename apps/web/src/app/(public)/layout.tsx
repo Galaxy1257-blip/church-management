@@ -33,6 +33,10 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <br />
             <a href="mailto:app.omnilabs.dev@gmail.com">app.omnilabs.dev@gmail.com</a> · a real person answers
           </div>
+          <div className="pub-foot-legal">
+            <Link href="/terms">Terms of Use</Link>
+            <Link href="/privacy">Privacy Policy</Link>
+          </div>
         </div>
       </footer>
     </div>

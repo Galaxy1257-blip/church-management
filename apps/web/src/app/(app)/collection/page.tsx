@@ -80,7 +80,7 @@ export default function CollectionPage() {
               <input value={program} onChange={(e) => setProgram(e.target.value)} placeholder="Harvest night, funeral, building fund drive" required />
             </label>
           ) : null}
-          <label>Amount counted (GHS)<input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="350" required /></label>
+          <label>Amount counted (GH₵)<input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="350" required /></label>
           <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="two ushers counted together, after the service" /></label>
           <button disabled={busy || (target === 'other' ? program.trim().length < 3 : !target)}>Submit count</button>
         </form>

@@ -4,7 +4,7 @@
 // lets you add people or change the leader without leaving the page.
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
-import { fmtDate } from '../../../lib/format';
+import { fmtDate, ghs } from '../../../lib/format';
 import MemberDrawer from '../../../components/member-drawer';
 import Notice from '../../../components/notice';
 
@@ -333,7 +333,7 @@ export default function GroupsPage() {
           <h3 style={{ marginTop: '1.2rem' }}>Meetings &amp; events</h3>
           <form className="row" onSubmit={recordMeeting}>
             <input style={{ flex: 2 }} placeholder="What was the meeting about?" value={meeting.topic} onChange={(e) => setMeeting({ ...meeting, topic: e.target.value })} />
-            <input style={{ width: 130 }} placeholder="Offering GHS" inputMode="decimal" value={meeting.offering} onChange={(e) => setMeeting({ ...meeting, offering: e.target.value })} />
+            <input style={{ width: 130 }} placeholder="Offering GH₵" inputMode="decimal" value={meeting.offering} onChange={(e) => setMeeting({ ...meeting, offering: e.target.value })} />
             <button className="small">Record meeting</button>
           </form>
           <table style={{ marginTop: '0.5rem' }}>
@@ -343,7 +343,7 @@ export default function GroupsPage() {
                 <tr key={m.id}>
                   <td>{fmtDate(m.heldAt)}</td>
                   <td>{m.topic ?? <span className="muted">—</span>}</td>
-                  <td>{m.offeringMinor != null ? `GHS ${(m.offeringMinor / 100).toFixed(2)}` : '—'}</td>
+                  <td>{m.offeringMinor != null ? ghs(m.offeringMinor) : '—'}</td>
                   <td>{m.presentCount ?? m.attendance.length}</td>
                 </tr>
               ))}

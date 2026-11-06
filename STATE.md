@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-06 (Session AE, §0m — Batch 18, every shareable as a branded PDF, with the people named in them). **Self-contained**: a fresh session can
+Last updated: 2026-11-06 (Session AF — Batch 3 done: one GH₵ format everywhere, plain-English 403s, legible accent; plus Terms/Privacy pages and a self-service erasure right). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -429,6 +429,29 @@ C:\Users\HP\Desktop\church\
    **Demo church left as found** — `worship`, `roster` and `special_offerings` were switched on for the pass and
    restored to `false` afterwards, byte-identical to the flags read before the batch. **Next:** commit + push
    (auto-deploys Render and Vercel), then migrations 12/13 on Neon, then Batches 3–6 (#57–#60).
+0n. **Session AF — Batch 3 done, plus the Terms/Privacy pages and a self-service erasure right.**
+   1. **One cedi format everywhere** — `format.ts` gains `ghs()` (`GH₵ 1,234.00`, thousands separators, negative
+      aware); 65 call sites / 16 screens now use it, and `format.test.ts` pins it. A sweep of the old `GHS`/₵
+      labels left 13 double-encoded `â‚µ` byte sequences (11 files) — repaired at the byte level. `pdf.ts`
+      transliterates `GH₵ → GHS` so the WinAnsi PDF stays valid.
+   2. **Permission 403s speak plain English** — `permissions.ts` adds `permissionLabel()` (a whole-catalogue
+      job-name map); `guards.ts` throws `ForbiddenException` naming the job for both the all-required and
+      any-of cases. Coverage test asserts **no** permission renders as its own key. Proven live: Elder gets
+      `"Your role is not allowed to update age groups."` and `"…move a member between branches."`.
+   3. **Legible accent** — `--accent-ink: color-mix(in srgb, var(--accent) 50%, var(--ink))` (one declaration,
+      resolves per theme). Measured live on the public home eyebrow: **2.65:1 → 6.23:1** (warm theme), and the
+      gold legend bullet uses it.
+   4. **Terms of Use + Privacy Policy** — public `/terms` and `/privacy` (server components), shared
+      `legal-meta.ts` (operator/contact/date), footer links + sign-up consent. Grounded in the real schema.
+   5. **Self-service erasure** — `DELETE /auth/me` → `auth.service.eraseMe()` anonymises the person (names,
+      contacts, photo, DOB, QR), deletes care notes + prayer requests, opts the old number out first, keeps
+      financial **amounts** with the giver name cleared, revokes sessions, deactivates the login, and writes an
+      audit entry with **no** before/after payload. Buttons in the member portal and the staff About page.
+      `auth.erase.spec.ts` (5 tests) pins all of it. Erasure is a right, not a switch.
+   **Gates:** shared 136/136, API 208/208 (28 files, incl. the new erase spec), web 3/3, both typechecks, eslint
+   clean, `check:secrets` clean. **Maintenance rule** is now in repo `AGENTS.md`, the global skill
+   `app-legal-docs`, and project memory — any data-handling change updates the two pages and bumps
+   `LEGAL_UPDATED` in the same commit.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

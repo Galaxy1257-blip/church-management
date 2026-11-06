@@ -76,11 +76,11 @@ if (!process.env.DATABASE_URL) {
     // --- expenses ---
     if (await cnt('Expense') === 0) {
       const ex = [
-        ['Utilities', 'ECG Prepaid Meter â€” Church', 45000, -34], ['Utilities', 'GOIL Station 37 â€” Generator fuel', 30000, -27],
-        ['Media', 'Stage Sound Accra â€” Monitor repair', 65000, -21], ['Events', 'Aburi Gardens â€” Youth picnic deposit', 150000, -12],
-        ['Welfare', 'Hospital support â€” Bro Kwame surgery', 40000, -9], ['Missions', 'Tract Press Ltd â€” Easter tracts', 35000, -30],
-        ['Other', 'Melcom â€” Office supplies', 28000, -16], ['Utilities', 'Glo Fibre â€” Office internet', 39900, -5],
-        ['Media', 'Fredrick Electronics â€” Projector lamp', 48000, -3], ['Events', 'Adom Drinks â€” Bible study refreshments', 26000, -2],
+        ['Utilities', 'ECG Prepaid Meter — Church', 45000, -34], ['Utilities', 'GOIL Station 37 — Generator fuel', 30000, -27],
+        ['Media', 'Stage Sound Accra — Monitor repair', 65000, -21], ['Events', 'Aburi Gardens — Youth picnic deposit', 150000, -12],
+        ['Welfare', 'Hospital support — Bro Kwame surgery', 40000, -9], ['Missions', 'Tract Press Ltd — Easter tracts', 35000, -30],
+        ['Other', 'Melcom — Office supplies', 28000, -16], ['Utilities', 'Glo Fibre — Office internet', 39900, -5],
+        ['Media', 'Fredrick Electronics — Projector lamp', 48000, -3], ['Events', 'Adom Drinks — Bible study refreshments', 26000, -2],
       ];
       for (const [cat, payee, amt, off] of ex) {
         await c.query(`INSERT INTO "Expense" (id,"churchId","categoryId","amountMinor","spentOn","payee","note","status","submittedBy","approvedBy") VALUES ($1,$2,$3,$4,$5,$6,$7,'APPROVED',$8,$9)`,
@@ -94,14 +94,14 @@ if (!process.env.DATABASE_URL) {
       const ev = [
         ['All-Night Prayer & Thanksgiving', at(-6 * 864e5 + 22 * 36e5), 'Demo Church Auditorium', 150],
         ['Baptism Service', at((7 - new Date().getUTCDay()) * 864e5 + 14 * 36e5), 'Church Premises, Accra', 100],
-        ['Church Picnic â€” Aburi Gardens', at(12 * 864e5 + 9 * 36e5), 'Aburi Botanical Gardens', 80],
-        ["Men's Retreat â€” Kumasi", at(35 * 864e5 + 8 * 36e5), 'Kumasi Retreat Centre', 40],
+        ['Church Picnic — Aburi Gardens', at(12 * 864e5 + 9 * 36e5), 'Aburi Botanical Gardens', 80],
+        ["Men's Retreat — Kumasi", at(35 * 864e5 + 8 * 36e5), 'Kumasi Retreat Centre', 40],
       ];
       const eventIds = [];
       for (const [title, starts, venue, cap] of ev) {
         const id = randomUUID(); eventIds.push(id);
         await c.query(`INSERT INTO "Event" (id,"churchId","title","description","startsAt","endsAt","venue","capacity","isPublic","status") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,'PUBLISHED')`,
-          [id, churchId, title, 'All are welcome â€” invite a friend.', starts, new Date(new Date(starts).getTime() + 3 * 36e5).toISOString(), venue, cap]);
+          [id, churchId, title, 'All are welcome — invite a friend.', starts, new Date(new Date(starts).getTime() + 3 * 36e5).toISOString(), venue, cap]);
       }
       let r = 0;
       for (const ei of [eventIds[2], eventIds[3]]) {
@@ -121,9 +121,9 @@ if (!process.env.DATABASE_URL) {
     if (await cnt('Announcement') === 0) {
       const ann = [
         ['Welcome & Notices', 'Welcome to service! Bible study resumes Wednesday 7pm. Connect at the info desk.', 'GENERAL'],
-        ['One-week observation â€” Mama Adjoa Mensah', 'The one-week observation for Mama Adjoa Mensah is on Saturday at the family house, Nima. Welfare team, please coordinate transport.', 'FUNERAL'],
-        ['Outdooring â€” Baby Mensah', 'Thanksgiving & outdooring for Baby Mensah this Sunday at 12:30pm. Cards available at the office.', 'OUTDOORING'],
-        ['Church Picnic â€” Aburi Gardens', 'Bus departs the church premises at 6:30am sharp. Register with the usher desk.', 'EVENT'],
+        ['One-week observation — Mama Adjoa Mensah', 'The one-week observation for Mama Adjoa Mensah is on Saturday at the family house, Nima. Welfare team, please coordinate transport.', 'FUNERAL'],
+        ['Outdooring — Baby Mensah', 'Thanksgiving & outdooring for Baby Mensah this Sunday at 12:30pm. Cards available at the office.', 'OUTDOORING'],
+        ['Church Picnic — Aburi Gardens', 'Bus departs the church premises at 6:30am sharp. Register with the usher desk.', 'EVENT'],
       ];
       for (const [title, body, cat] of ann) {
         await c.query(`INSERT INTO "Announcement" (id,"churchId","title","body","category","audience","channels","publishAt","createdBy") VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8,$9)`,
@@ -161,12 +161,12 @@ if (!process.env.DATABASE_URL) {
     // --- care tasks (incl. missing-member material) ---
     if (await cnt('CareTask') === 0) {
       const care = [
-        ['VISIT_HOSPITAL', memberIds[5], users.elder, 'OPEN', 1, 'Surgery at Ridge Hospital â€” visit with communion and welfare package.'],
-        ['VISIT_BEREAVEMENT', memberIds[12], users.pastor, 'OPEN', 2, 'Mama Adjoa one-week observation â€” coordinate welfare support & transport.'],
-        ['VISIT_HOME', memberIds[20], users.elder, 'IN_PROGRESS', -1, 'New convert home follow-up â€” tea & discipleship class invite.'],
-        ['MISSING_MEMBER', memberIds[1], users.pastor, 'OPEN', 1, 'Missed 3 Sundays â€” elder to call and check on the family.'],
-        ['MISSING_MEMBER', memberIds[7], users.elder, 'OPEN', 2, 'Missed 3 Sundays â€” WhatsApp check-in and schedule a visit.'],
-        ['CALL_REQUESTED', memberIds[30], users.secretary, 'OPEN', 3, 'Prayer request â€” Friday job interview; call to agree prayer times.'],
+        ['VISIT_HOSPITAL', memberIds[5], users.elder, 'OPEN', 1, 'Surgery at Ridge Hospital — visit with communion and welfare package.'],
+        ['VISIT_BEREAVEMENT', memberIds[12], users.pastor, 'OPEN', 2, 'Mama Adjoa one-week observation — coordinate welfare support & transport.'],
+        ['VISIT_HOME', memberIds[20], users.elder, 'IN_PROGRESS', -1, 'New convert home follow-up — tea & discipleship class invite.'],
+        ['MISSING_MEMBER', memberIds[1], users.pastor, 'OPEN', 1, 'Missed 3 Sundays — elder to call and check on the family.'],
+        ['MISSING_MEMBER', memberIds[7], users.elder, 'OPEN', 2, 'Missed 3 Sundays — WhatsApp check-in and schedule a visit.'],
+        ['CALL_REQUESTED', memberIds[30], users.secretary, 'OPEN', 3, 'Prayer request — Friday job interview; call to agree prayer times.'],
       ];
       for (const [type, mid, who, status, off, note] of care) {
         await c.query(`INSERT INTO "CareTask" (id,"churchId","memberId","type","assignedTo","status","dueAt","note") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -181,9 +181,9 @@ if (!process.env.DATABASE_URL) {
         `INSERT INTO "PastoralAction" (id,"churchId","memberId","type","actionDate","note","performedBy") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [randomUUID(), churchId, mid, type, String(date).slice(0, 10), note, users.pastor]);
       let pa = 0;
-      for (const m of (await c.query(`SELECT id,"baptismDate"::text AS "baptismDate" FROM "Member" WHERE "churchId"=$1 AND "baptismDate" IS NOT NULL LIMIT 3`, [churchId])).rows) { await ins(m.id, 'BAPTISM', m.baptismDate, 'Water baptism â€” River Pool, Madina'); pa++; }
-      for (const m of (await c.query(`SELECT id,"salvationDate"::text AS "salvationDate" FROM "Member" WHERE "churchId"=$1 AND "salvationDate" IS NOT NULL LIMIT 2`, [churchId])).rows) { await ins(m.id, 'SALVATION', m.salvationDate, 'Altar call â€” Wednesday service'); pa++; }
-      for (const m of (await c.query(`SELECT id,"marriageDate"::text AS "marriageDate" FROM "Member" WHERE "churchId"=$1 AND "marriageDate" IS NOT NULL LIMIT 1`, [churchId])).rows) { await ins(m.id, 'WEDDING', m.marriageDate, 'Holy matrimony â€” church auditorium'); pa++; }
+      for (const m of (await c.query(`SELECT id,"baptismDate"::text AS "baptismDate" FROM "Member" WHERE "churchId"=$1 AND "baptismDate" IS NOT NULL LIMIT 3`, [churchId])).rows) { await ins(m.id, 'BAPTISM', m.baptismDate, 'Water baptism — River Pool, Madina'); pa++; }
+      for (const m of (await c.query(`SELECT id,"salvationDate"::text AS "salvationDate" FROM "Member" WHERE "churchId"=$1 AND "salvationDate" IS NOT NULL LIMIT 2`, [churchId])).rows) { await ins(m.id, 'SALVATION', m.salvationDate, 'Altar call — Wednesday service'); pa++; }
+      for (const m of (await c.query(`SELECT id,"marriageDate"::text AS "marriageDate" FROM "Member" WHERE "churchId"=$1 AND "marriageDate" IS NOT NULL LIMIT 1`, [churchId])).rows) { await ins(m.id, 'WEDDING', m.marriageDate, 'Holy matrimony — church auditorium'); pa++; }
       for (const m of (await c.query(`SELECT id,"ordinationDate"::text AS "ordinationDate" FROM "Member" WHERE "churchId"=$1 AND "ordinationDate" IS NOT NULL LIMIT 1`, [churchId])).rows) { await ins(m.id, 'ORDINATION', m.ordinationDate, 'Lay leader ordination'); pa++; }
       console.log('pastoral actions:', pa);
     }
@@ -191,6 +191,6 @@ if (!process.env.DATABASE_URL) {
     const summary = {};
     for (const t of ['Member', 'Service', 'Attendance', 'Headcount', 'Group', 'GivingBatch', 'Transaction', 'Expense', 'Pledge', 'Campaign', 'Event', 'EventRsvp', 'Announcement', 'Visitor', 'FollowUpProgress', 'CareTask', 'PastoralAction'])
       summary[t] = await cnt(t);
-    console.log('DONE â€”', JSON.stringify(summary));
+    console.log('DONE —', JSON.stringify(summary));
   } finally { await c.end(); }
 })().catch((e) => { console.error('ERR', e.stack || e.message); process.exit(1); });

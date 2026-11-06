@@ -238,7 +238,7 @@ export default function BranchesPage() {
               </select>
             </label>
             <label>
-              Amount (GHS)
+              Amount (GH₵)
               <input inputMode="decimal" placeholder="2500.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
             </label>
             <label style={{ flex: 1 }}>

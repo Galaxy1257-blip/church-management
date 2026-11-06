@@ -256,3 +256,70 @@ export function hasChurchWideAccess(roles: readonly RoleKey[]): boolean {
 export function hasStaffAccess(permissions: readonly string[]): boolean {
   return permissions.length > 0;
 }
+
+// What a permission actually is, in the words a church office uses. A refusal
+// that prints "members:write" is only readable by whoever wrote the code.
+const JOB_AREAS: Record<string, string> = {
+  church: 'church details',
+  users: 'staff accounts',
+  members: 'the member register',
+  demographics: 'age groups',
+  branches: 'branches',
+  services: 'services',
+  headcount: 'the attendance count',
+  checkin: 'the door register',
+  children: "the children's desk",
+  visitors: 'visitor cards',
+  giving: 'offerings',
+  finance: 'the books',
+  expenses: 'expenses',
+  sms: 'text messages',
+  campaigns: 'campaigns',
+  reports: 'reports',
+  audit: 'the audit log',
+  settings: 'settings',
+  care: 'care requests',
+  welfare: 'welfare help',
+  collection: 'the offering count',
+};
+
+const JOB_VERBS: Record<string, string> = {
+  read: 'see',
+  write: 'change',
+  import: 'import',
+  approve: 'approve',
+  moderate: 'approve',
+  send: 'send',
+  purchase: 'buy credits for',
+};
+
+// Some jobs are not well described by "change the door register": the work has
+// a name in the office, so say that instead of assembling a phrase.
+const JOB_PHRASES: Record<string, string> = {
+  'checkin:write': 'take the door register',
+  'children:write': "run the children's desk",
+  'collection:write': 'count the offering',
+  'headcount:write': 'record the attendance',
+  'giving:write': 'record offerings',
+  'expenses:write': 'record expenses',
+  'sms:purchase': 'buy text credits',
+  'sms:send': 'send texts',
+  'users:write': 'manage staff accounts',
+  'church:write': 'change church details',
+  'settings:write': 'change the settings',
+  'members:import': 'import a member list',
+  'demographics:write': 'update age groups',
+  'branches:write': 'move a member between branches',
+  'care:moderate': 'approve prayer requests',
+};
+
+/** "expenses:approve" -> "approve expenses". Unknown jobs come back unchanged. */
+export function permissionLabel(permission: string): string {
+  const phrase = JOB_PHRASES[permission];
+  if (phrase) return phrase;
+  const [area, action] = permission.split(':');
+  const noun = JOB_AREAS[area];
+  const verb = JOB_VERBS[action ?? ''];
+  if (!noun || !verb) return permission;
+  return `${verb} ${noun}`;
+}

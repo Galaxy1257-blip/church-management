@@ -99,7 +99,7 @@ export default function SignupPage() {
           {tab === 'new' ? (
             <div className="auth-hint">
               <b>14 days free, no card</b>
-              After the trial it is GHS 100 a month for the whole church — pay by MoMo, card, or cash with your
+              After the trial it is GH₵ 100 a month for the whole church — pay by MoMo, card, or cash with your
               onboarding agent.
             </div>
           ) : (
@@ -197,6 +197,11 @@ export default function SignupPage() {
             <button type="submit" disabled={busy}>
               {busy ? 'Setting up…' : tab === 'new' ? 'Create church workspace' : 'Create my account'}
             </button>
+
+            <p className="auth-foot">
+              By creating an account you agree to the <Link href="/terms">Terms of Use</Link> and the{' '}
+              <Link href="/privacy">Privacy Policy</Link>.
+            </p>
           </form>
 
           <p className="auth-foot">

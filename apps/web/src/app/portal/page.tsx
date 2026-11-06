@@ -202,8 +202,35 @@ export default function PortalPage() {
   const [anonymous, setAnonymous] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [confirmErase, setConfirmErase] = useState(false);
+  const [erasing, setErasing] = useState(false);
 
   const auth = () => ({ Authorization: `Bearer ${token}` });
+
+  // The person's own erasure right (Privacy Policy §5). Two taps so a stray
+  // click cannot delete a life's record; the server anonymises, it does not
+  // pretend: amounts stay in the church's books without the name.
+  async function eraseAccount(): Promise<void> {
+    setErasing(true);
+    try {
+      const res = await fetch(`${API}/auth/me`, { method: 'DELETE', headers: auth() });
+      if (!res.ok) {
+        setError('Could not delete your account. Ask the church office, or write to app.omnilabs.dev@gmail.com.');
+        setConfirmErase(false);
+        return;
+      }
+      forgetToken();
+      setToken('');
+      setHome(null);
+      setConfirmErase(false);
+      setStep('phone');
+      setNotice('Your account and personal data have been deleted.');
+    } catch {
+      setError('Could not reach the server. Try again, or write to app.omnilabs.dev@gmail.com.');
+    } finally {
+      setErasing(false);
+    }
+  }
 
   /** Everything the companion shows, for one token. False when the token is dead. */
   async function loadAll(t: string): Promise<boolean> {
@@ -636,6 +663,28 @@ export default function PortalPage() {
               <p className="muted" style={{ marginBottom: 0 }}>Write your name and what the offering is for when you transfer.</p>
             </div>
           ) : null}
+          <div className="card">
+            <h2>My account</h2>
+            <p className="muted">
+              You can delete your account and personal data at any time. Your name, phone, photo and care notes are
+              removed; offering amounts stay in the church&rsquo;s books without your name, as the law requires.{' '}
+              <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+            </p>
+            {confirmErase ? (
+              <div className="row">
+                <button type="button" className="danger" disabled={erasing} onClick={() => void eraseAccount()}>
+                  {erasing ? 'Deleting…' : 'Yes, delete my account and data'}
+                </button>
+                <button type="button" className="secondary" disabled={erasing} onClick={() => setConfirmErase(false)}>
+                  Keep my account
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="secondary" onClick={() => setConfirmErase(true)}>
+                Delete my account and data
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
 

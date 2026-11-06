@@ -3,7 +3,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { peekSession } from '../../../lib/session';
-import { fmtDate } from '../../../lib/format';
+import { fmtDate, ghs } from '../../../lib/format';
 import type { PdfBlock, PdfDoc } from '../../../lib/pdf';
 import { sharePdf } from '../../../lib/share';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
@@ -108,7 +108,7 @@ function personalDataDoc(data: ExportPayload): PdfDoc {
         { label: 'Amount', grow: 1.4, align: 'right' },
         { label: 'State', grow: 1.4 },
       ],
-      rows: data.transactions.slice(0, 100).map((t) => [fmtDate(t.createdAt), t.reference, t.channel ?? 'Recorded by hand', `GHS ${(t.giftMinor / 100).toFixed(2)}`, t.status]),
+      rows: data.transactions.slice(0, 100).map((t) => [fmtDate(t.createdAt), t.reference, t.channel ?? 'Recorded by hand', ghs(t.giftMinor), t.status]),
     },
     { kind: 'heading', text: 'Care and pastoral record', spaceBefore: 10 },
     {

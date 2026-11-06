@@ -174,7 +174,7 @@ export default function WelfarePage() {
               />
             </label>
             <label>
-              Amount asked for (GHS)
+              Amount asked for (GH₵)
               <input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} inputMode="decimal" placeholder="400" />
             </label>
             <label>
