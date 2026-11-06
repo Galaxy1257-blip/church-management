@@ -8,9 +8,20 @@ import Notice from '../../../components/notice';
 
 interface Branch { id: string; name: string; code: string }
 interface Household { id: string; name: string; members: { member: { firstName: string; lastName: string } }[] }
+interface Transfer {
+  id: string;
+  memberName: string;
+  memberNo: string;
+  fromBranchName: string;
+  toBranchName: string;
+  status: string;
+  requestedByName: string;
+  createdAt: string;
+}
 
 export default function OrgPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [pending, setPending] = useState<Transfer[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [branchForm, setBranchForm] = useState({ name: '', code: '' });
   const [transfer, setTransfer] = useState({ memberId: '', toBranchId: '' });
@@ -27,11 +38,12 @@ export default function OrgPage() {
 
   async function load(showBranches: boolean): Promise<void> {
     try {
-      const [b, h] = await Promise.all([
+      const [b, t, h] = await Promise.all([
         showBranches ? api<Branch[]>('/branches') : Promise.resolve<Branch[]>([]),
+        showBranches ? api<Transfer[]>('/branches/transfers?status=PENDING') : Promise.resolve<Transfer[]>([]),
         api<Household[]>('/households'),
       ]);
-      setBranches(b); setHouseholds(h);
+      setBranches(b); setPending(t); setHouseholds(h);
       if (!transfer.toBranchId && b[0]) setTransfer((p) => ({ ...p, toBranchId: b[0].id }));
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'failed'); }
@@ -54,8 +66,16 @@ export default function OrgPage() {
 
   async function requestTransfer(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/branches/transfers', { method: 'POST', body: transfer }); setNotice('Transfer requested — awaits approval by another leader'); }
+    try { await api('/branches/transfers', { method: 'POST', body: transfer }); setNotice('Transfer requested — awaits approval by another leader'); await load(true); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
+  }
+
+  async function decide(id: string, approve: boolean): Promise<void> {
+    try {
+      await api(`/branches/transfers/${id}/approve`, { method: 'POST', body: { approve } });
+      setNotice(approve ? 'Transfer approved — the member has moved branch' : 'Transfer declined — the member stays where they are');
+      await load(moduleEnabled(modules, 'branches'));
+    } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
   async function addHousehold(e: FormEvent): Promise<void> {
@@ -89,6 +109,23 @@ export default function OrgPage() {
             </select>
             <button>Request transfer (needs 2nd approval)</button>
           </form>
+          <h2>Waiting for approval ({pending.length})</h2>
+          {pending.length === 0 ? <p className="muted">No transfer is waiting.</p> : null}
+          <table><tbody>
+            {pending.map((t) => (
+              <tr key={t.id}>
+                <td>
+                  <strong>{t.memberName}</strong> <span className="muted">({t.memberNo})</span>
+                  <br />
+                  <span className="muted">{t.fromBranchName} → {t.toBranchName} · asked by {t.requestedByName}</span>
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="small" onClick={() => void decide(t.id, true)}>Approve</button>{' '}
+                  <button className="small secondary" onClick={() => void decide(t.id, false)}>Decline</button>
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
         </div>
         ) : null}
         <div className="card">

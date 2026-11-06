@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Module, Post, Put, Req } from '@nestjs/common';
 import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import { TenantService } from '../common/tenant';
 import { BracketInput, DemographicsService } from './demographics.service';
@@ -69,6 +69,13 @@ export class DemographicsController {
     return this.svc.counts(req.user!);
   }
 
+  /**
+   * The bulk job lives on the Members screen, so it belongs to that section: when
+   * a church switches Members & visitors off, this route refuses too instead of
+   * staying open behind a hidden page. The reads above stay open — the office and
+   * the children's desk both need the brackets.
+   */
+  @ForModule('people')
   @RequirePermissions('demographics:write')
   @Post('promotions/run')
   runPromotions(@Req() req: AuthedRequest, @Body() body: { apply?: boolean }) {

@@ -56,9 +56,10 @@ export default function MembersPage() {
   const [counts, setCounts] = useState<{ ageBracketId: string | null; count: number }[]>([]);
   const [bracketFilter, setBracketFilter] = useState('');
   const [promoResult, setPromoResult] = useState<null | { promotions: { name: string; age: number; fromLabel: string; toLabel: string }[] }>(null);
-  // Moving every child up an age group is its own job (demographics:write), not
-  // ordinary member editing, so the button only appears for the roles that hold it.
-  const [canPromote, setCanPromote] = useState(false);
+  // The four things this screen can change are four separate permissions in the API
+  // — the bulk age-group job, a list import, adding one person, moving one person's
+  // stage — so the screen offers only the ones this session actually holds.
+  const [perms, setPerms] = useState<string[]>([]);
   // discipleship pathway + R4.11 per-member export.
   const [stageReport, setStageReport] = useState<{ byStage: { stage: string; count: number }[]; untracked: number } | null>(null);
 
@@ -109,7 +110,7 @@ export default function MembersPage() {
   }, [q, load]);
 
   useEffect(() => {
-    setCanPromote(hasPermission(peekSession()?.permissions ?? [], 'demographics:write'));
+    setPerms(peekSession()?.permissions ?? []);
     void api<{ id: string; label: string; isActive?: boolean }[]>('/demographics/brackets').then((b) => setBrackets(b.filter((x) => x.isActive !== false))).catch(() => undefined);
     void api<{ ageBracketId: string | null; count: number }[]>('/demographics/counts').then(setCounts).catch(() => undefined);
     refreshStages();
@@ -206,14 +207,17 @@ export default function MembersPage() {
     }
   }
   const countFor = (id: string | null) => counts.find((c) => c.ageBracketId === id)?.count ?? 0;
+  const canPromote = hasPermission(perms, 'demographics:write');
+  const canImport = hasPermission(perms, 'members:import');
+  const canWrite = hasPermission(perms, 'members:write');
   return (
     <div>
       <div className="page-head">
         <h1>Members ({total})</h1>
         <div className="head-actions">
           {canPromote ? <button className="secondary" onClick={() => void runPromotions()}>Update age groups</button> : null}
-          <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import list</button>
-          <button onClick={() => setShowAdd((v) => !v)}>+ Add member</button>
+          {canImport ? <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import list</button> : null}
+          {canWrite ? <button onClick={() => setShowAdd((v) => !v)}>+ Add member</button> : null}
         </div>
       </div>
 
@@ -398,10 +402,14 @@ export default function MembersPage() {
                 <td>{m.ageSegment}</td>
                 <td>{fmtDate(m.joinedAt)}</td>
                 <td>
-                  <select value={m.discipleshipStage ?? ''} onChange={(e) => void changeStage(m.id, e.target.value || 'VISITOR')} style={{ width: 130 }}>
-                    <option value="">(none)</option>
-                    {STAGES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                  </select>
+                  {canWrite ? (
+                    <select value={m.discipleshipStage ?? ''} onChange={(e) => void changeStage(m.id, e.target.value || 'VISITOR')} style={{ width: 130 }}>
+                      <option value="">(none)</option>
+                      {STAGES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                    </select>
+                  ) : (
+                    <span className="muted">{(m.discipleshipStage ?? 'none').replace('_', ' ')}</span>
+                  )}
                 </td>
                 <td>
                   <span className={`badge ${m.status === 'ACTIVE' ? 'ok' : 'mute'}`}>{m.status}</span>

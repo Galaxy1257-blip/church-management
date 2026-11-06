@@ -530,6 +530,42 @@ this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
       new permission is proven on the request half and on the decorator for the approve half. `apps/web` still
       has no test runner, so the web half of this batch rests on the live sessions and the table diff.
 
+### Batch 17 — The three follow-ups Batch 16 reported instead of fixing ✅ (6 Nov)
+- [x] **The bulk job answers to the Members switch.** `POST /demographics/promotions/run` carries
+      `@ForModule('people')` (`apps/api/src/demographics/demographics.controller.ts:78`). A handler-level
+      section beats a controller-level one in `getAllAndOverride` (`apps/api/src/common/guards.ts:174-209`), so
+      the bracket and settings reads stay open with Members off — the office and the children's desk both need
+      them. Live: switch off → the Secretary's run is `403` while `brackets`/`counts` stay `200`; switch on →
+      `201`; the stored flags came back byte-identical to how they were found.
+- [x] **The approval step has a screen.** New `BranchesService.listTransfers`
+      (`apps/api/src/ministry/branches.module.ts:68-112`) + `GET /branches/transfers` on `branches:write`.
+      `MemberTransfer` (schema.prisma:540-552) has no relations, so the member, both branches and both workers
+      are stitched in one lookup each rather than an `include`. `/org` gained **Waiting for approval (n)** with
+      Approve / Decline per row. Live end to end: the row read "Gideon Oppong (MEM-0045) HQ Accra → Tema
+      Congregation · asked by Secretary"; clicking Approve emptied the waiting list, wrote `APPROVED` naming the
+      approver and really moved that member's `branchId`; a second row declined read "the member stays where
+      they are". Elder gets `403` on the list; the other non-holders get an empty list at best.
+- [x] **Members offers only what the session can do.** The header reads the session permissions once
+      (`apps/web/src/app/(app)/members/page.tsx:113`) and gates *Update age groups* on `demographics:write`,
+      *Import list* on `members:import`, *+ Add member* on `members:write`; the per-row stage `select` becomes
+      the plain word when the session lacks `members:write`. Live: Elder → 0 header buttons, 0 row selects,
+      stage shown as text; Secretary → all three buttons and 48 selects.
+- [x] Tests: `apps/api/src/ministry/branches.transfers.spec.ts` (5) pins the name stitching, the "no longer on
+      the book" lines, the one-lookup-per-side query shape, the no-filter history and the route's permission;
+      `demographics.permissions.spec.ts` gained the `people` section pin, including that the five reads carry no
+      section. **186/186 API over 22 files, 134/134 shared (16 files)**, api + web typechecks, lint,
+      `check:secrets` clean.
+- [x] **A gap I found and did not close:** `approveTransfer` (`branches.module.ts:51-66`) still lets the worker
+      who asked for a transfer approve it — proven live (Secretary asked, Secretary approved, `201 APPROVED`),
+      so the card's "awaits approval by another leader" is not enforced by the API. It belongs to the branch
+      hardening in Batch 5 (#60), not to this unit.
+- [x] **Not proven, said plainly:** no 390×844 measurement this batch — the chrome-devtools MCP that carried
+      `emulate` disconnected mid-session. The in-app browser was 510 CSS px wide, already past the mobile
+      breakpoints, and at that width `/org` and `/members` show **0 clipped controls**, the only over-wide
+      element being the branch table inside its own scroll wrapper. `apps/web` still has no test runner. The
+      demo church is back as found (0 branches, 0 transfers, 0 members with a branch, `people` on); the audit
+      rows these tests wrote stay, since that ledger is append-only by design.
+
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*
       while a switch 403 names the section. Batch 3 (shared notice banner) should give both one voice.

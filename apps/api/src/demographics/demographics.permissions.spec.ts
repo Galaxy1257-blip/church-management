@@ -6,7 +6,7 @@
 // roles that already did the work keep doing it. These tests pin that handover.
 import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
-import { PERMISSIONS_KEY } from '../common/decorators';
+import { MODULE_KEY, PERMISSIONS_KEY } from '../common/decorators';
 import { BranchesController } from '../ministry/branches.module';
 import { MembersController } from '../members/members.controller';
 import { DemographicsController } from './demographics.controller';
@@ -16,9 +16,24 @@ function required(handler: unknown): unknown {
   return Reflect.getMetadata(PERMISSIONS_KEY, handler as object);
 }
 
+/** The app section a route declares with @ForModule, or undefined when it has none. */
+function section(handler: unknown): unknown {
+  return Reflect.getMetadata(MODULE_KEY, handler as object);
+}
+
 describe('the two jobs that came off members:write', () => {
   it('asks for the bulk promotion run by its own permission', () => {
     expect(required(DemographicsController.prototype.runPromotions)).toEqual(['demographics:write']);
+  });
+
+  it('keeps the promotion run answerable to the Members switch', () => {
+    // The job lives on the Members screen, so a church that switches that section
+    // off has to be able to turn the route off with it. The reads stay ungated:
+    // the office and the children's desk both need the brackets with Members off.
+    expect(section(DemographicsController.prototype.runPromotions)).toBe('people');
+    for (const name of ['brackets', 'saveBrackets', 'settings', 'saveSettings', 'counts'] as const) {
+      expect(section((DemographicsController.prototype as never as Record<string, unknown>)[name])).toBeUndefined();
+    }
   });
 
   it('asks for both halves of a transfer by the branch permission', () => {

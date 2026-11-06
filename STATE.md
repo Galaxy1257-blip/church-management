@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-05 (Session AC, §0k — Batch 16, audit round 5 point 7). **Self-contained**: a fresh session can
+Last updated: 2026-11-06 (Session AD, §0l — Batch 17, the three follow-ups from round 5). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -353,6 +353,45 @@ C:\Users\HP\Desktop\church\
    **Not proven:** the transfer *approval* half has no screen and no GET behind one, so nothing in the UI calls
    it. **Next:** round 5 is finished (points 1–7). Five commits sit unpushed and I will ask before pushing,
    because it auto-deploys Render and Vercel. The standing leftovers are Batches 3–6 (#57–#60).
+
+0l. **Session AD — Batch 17, the three things Batch 16 left behind.** All three were the follow-ups I had
+   reported rather than fixed: the bulk job had no section switch, the approval step had no screen, and the
+   Members header still offered two controls that 403 on click.
+   1. **`POST /demographics/promotions/run` now carries `@ForModule('people')`**
+      (`demographics.controller.ts:78`) — the job lives on the Members screen, so switching *Members & visitors*
+      off closes the route too. Handler-level metadata wins over the controller's under
+      `getAllAndOverride` (`guards.ts:174-209`), so the five bracket/settings reads stay open: the office and
+      the children's desk both need them with Members off. **Proven live:** with the demo switch off the
+      Secretary's run is `403` while `brackets`/`counts`/the new transfers list stay `200`; switch back on,
+      `201`; the church's stored flags came back byte-identical to how they were found.
+   2. **The approval step has a screen.** New `BranchesService.listTransfers` (`branches.module.ts:68-112`) and
+      `GET /branches/transfers` on `branches:write`. `MemberTransfer` has no Prisma relations, so the member,
+      both branches and the two workers are stitched in one lookup each — the remittance-report pattern, not
+      an `include`. On `/org` the *Transfer member* card gains **Waiting for approval (n)** with Approve and
+      Decline per row, naming the member, the number, both branches and who asked. **Proven live end to end:**
+      the row rendered "Gideon Oppong (MEM-0045) HQ Accra → Tema Congregation · asked by Secretary"; the
+      Approve click emptied the list, wrote `APPROVED` with the approver named, and moved that member's
+      `branchId` for real; a second row declined the same way read "the member stays where they are". The Elder
+      gets `403` on the list and the row set is empty for the other three non-holders.
+   3. **Members offers only what the session can actually do.** The header reads the session permissions once
+      (`members/page.tsx:113`) and gates *Update age groups* on `demographics:write`, *Import list* on
+      `members:import` and *+ Add member* on `members:write`; the per-row stage `select` is a plain word when
+      the session lacks `members:write`. **Proven live:** the Elder sees 0 header buttons, 0 row selects and
+      the stage as text; the Secretary sees all three buttons and 48 selects.
+   **One gap I did not close, and it is a real one:** `approveTransfer` (`branches.module.ts:51-66`) still lets
+   the worker who *asked* for a transfer approve it — proven live (the Secretary asked and approved, `201
+   APPROVED`), so the card's promise of approval "by another leader" is not enforced. It belongs with the
+   branch hardening in Batch 5 (#60), not here.
+   **Numbers:** `186/186` API over 22 files (5 new transfer tests + the promotion-run ones), `134/134` shared, api
+   + web typechecks, lint, `check:secrets` clean. Earlier in the batch `test/integration.spec.ts` timed 2 of its
+   tests out in the parallel run and passed 11/11 alone — the same pre-existing contention as Batch 16, and the
+   final run was 186/186 with nothing removed. **What the phone pass could not
+   do:** the chrome-devtools MCP that carried `emulate` disconnected mid-session, so 390×844 was not
+   re-measured. The in-app browser was 510 CSS px wide on its own, which is already past the mobile
+   breakpoints: 0 clipped controls on `/org` and `/members`, and the only element wider than the viewport is
+   the branch table inside its own scroll wrapper. **Demo church left as found** — 0 branches, 0 transfers, 0
+   members with a branch, `people` switch on; the audit rows my tests wrote stay, because that ledger is
+   append-only. **Next:** Batches 3–6 (#57–#60) and pushing this batch, which auto-deploys Render and Vercel.
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

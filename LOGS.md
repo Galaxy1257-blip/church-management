@@ -1784,3 +1784,61 @@ defect, one screen wide, and I did not fold it into this unit.
 and shipped. Five commits sit unpushed (`54e3d1a`, `4f7ab0d`, `f2a6f46`, `daabf40`, this one) and pushing
 auto-deploys Render and Vercel, so that waits for a word. After that, the standing leftovers the audit found
 but did not own: Batches 3–6 (#57–#60).
+
+## 2026-11-06 — Batch 17: the three things Batch 16 reported instead of fixing (`committed`)
+
+**Owner's ask:** "fix those 3 things" — the three items the Batch 16 report had left open: no section switch on
+the bulk promotion run, no screen for the transfer approval step, and two Members buttons that 403 on click.
+
+**1 — the bulk job answers to the Members switch.** `POST /demographics/promotions/run` now carries
+`@ForModule('people')` (`apps/api/src/demographics/demographics.controller.ts:78`). ModuleGuard reads
+handler metadata before class metadata (`apps/api/src/common/guards.ts:174-209`), so one route can join a
+section without pulling its controller in, and the five bracket/settings/counts reads stay open — the platform
+office and the children's desk both need the brackets with Members off. Proved live against the running API:
+with the demo church's `people` flag off the Secretary's run returns `403` while `brackets`, `counts` and the
+new transfers list stay `200`; back on, `201`; and `modules restored identical to found: true`.
+
+**2 — the approval step has a screen.** `BranchesService.listTransfers`
+(`apps/api/src/ministry/branches.module.ts:68-112`) and `GET /branches/transfers` on `branches:write`. The
+`MemberTransfer` model has no Prisma relations, so the member, both branches and the two workers are stitched
+in one lookup each — the pattern `remittanceReport` already uses, not an `include`. `/org` gained *Waiting for
+approval (n)*: the member's name and number, `HQ → Tema`, who asked, and Approve / Decline on the row.
+End-to-end in the browser as the Secretary: the row rendered "Gideon Oppong (MEM-0045) HQ Accra → Tema
+Congregation · asked by Secretary"; the Approve click emptied the list, wrote `APPROVED` with the approver
+named in the history, and moved that member's `branchId` for real (checked against the database, not just the
+screen); a second row declined showed "Transfer declined — the member stays where they are". The Elder gets
+`403` on the list, and the four non-holders get `403` on both the list and the request.
+
+**3 — Members offers only what the session can do.** The screen reads its permissions once
+(`apps/web/src/app/(app)/members/page.tsx:113`) and gates three controls on the three permissions the API
+actually checks: *Update age groups* on `demographics:write`, *Import list* on `members:import`, *+ Add
+member* on `members:write`; the per-row stage `select` degrades to the plain word without `members:write`, so
+the column still reads. Live: Elder → 0 header buttons, 0 row selects, stage as text; Secretary → all three
+buttons and 48 selects over 48 rows.
+
+**Tests:** `apps/api/src/ministry/branches.transfers.spec.ts` (new, 5 tests) pins the stitched names, the "No
+longer on the book" / "A worker no longer on the team" lines, that each side is looked up once with no
+duplicate ids, that dropping the status filter asks for the history, and the route's permission. The
+demographics spec gained the `people` pin plus the assertion that the reads carry no section. **186/186 API
+over 22 files, 134/134 shared, api + web typechecks, lint, `check:secrets` clean.** Earlier in the batch
+`test/integration.spec.ts` timed 2 tests out in the parallel run and passed 11/11 alone — the same pre-existing
+Postgres contention logged in Batch 16; the final full run was clean.
+
+**A gap I found while proving it, and did not close:** `approveTransfer` (`branches.module.ts:51-66`) does not
+stop the worker who asked from approving their own request — measured live (Secretary asked, Secretary
+approved, `201 APPROVED`), so the card's promise of approval "by another leader" is not enforced by the API.
+It belongs with the branch hardening already queued in Batch 5 (#60); I logged it rather than widen this unit.
+
+**Not proven, said plainly:** no 390×844 pass this batch. The chrome-devtools MCP that carried `emulate`
+disconnected mid-session and the in-app browser cannot resize (a `window.open` at 390 was blocked). The
+browser was 510 CSS px wide, already past the mobile breakpoints: `/org` and `/members` show 0 clipped
+controls, and the only element wider than the viewport is the branch table inside its own scroll wrapper.
+`apps/web` still has no test runner, so the two screen changes rest on the live sessions.
+
+**Data left as found:** the round-trip tests created two branches and two transfers in the demo church and
+deleted exactly those rows afterwards — `branches=0 transfers=0 members-with-branch=0`, the same as before,
+and the `people` switch restored on. The audit rows those actions wrote stay: that ledger is hash-chained and
+append-only by design, so deleting test entries would have broken the verification the log screen reports.
+
+**Next:** push this batch (the owner said to, and pushing auto-deploys Render and Vercel), then the standing
+leftovers — Batches 3–6 (#57–#60), which now also hold the self-approval rule.

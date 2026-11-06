@@ -65,7 +65,54 @@ export class BranchesService {
     });
   }
 
+  /**
+   * The approval step needs a list to approve from. `MemberTransfer` has no Prisma
+   * relations, so the person and the two branches are looked up in one pass each
+   * and stitched by hand — the same way the remittance report names its branches.
+   */
+  listTransfers(user: AuthUser, status?: string) {
+    return this.tenant.run(user, async (tx) => {
+      const rows = await tx.memberTransfer.findMany({
+        where: { churchId: user.churchId, ...(status ? { status } : {}) },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      });
+      const [branches, members, people] = await Promise.all([
+        tx.branch.findMany({
+          where: { id: { in: [...new Set(rows.flatMap((t) => [t.fromBranchId, t.toBranchId]))] } },
+          select: { id: true, name: true },
+        }),
+        tx.member.findMany({
+          where: { id: { in: [...new Set(rows.map((t) => t.memberId))] } },
+          select: { id: true, firstName: true, lastName: true, memberNo: true },
+        }),
+        tx.user.findMany({
+          where: {
+            id: { in: [...new Set(rows.flatMap((t) => [t.requestedBy, t.approvedBy ?? '']))].filter((id) => id !== '') },
+          },
+          select: { id: true, name: true },
+        }),
+      ]);
+      const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? 'Unknown branch';
+      const person = (id: string) => {
+        const m = members.find((x) => x.id === id);
+        return m ? { name: `${m.firstName} ${m.lastName}`, memberNo: m.memberNo } : { name: 'No longer on the book', memberNo: '—' };
+      };
+      const requester = (id: string) => people.find((u) => u.id === id)?.name ?? 'A worker no longer on the team';
+      return rows.map((t) => ({
+        ...t,
+        memberName: person(t.memberId).name,
+        memberNo: person(t.memberId).memberNo,
+        fromBranchName: branchName(t.fromBranchId),
+        toBranchName: branchName(t.toBranchId),
+        requestedByName: requester(t.requestedBy),
+        approvedByName: t.approvedBy ? requester(t.approvedBy) : null,
+      }));
+    });
+  }
+
   // ---- R4.5 branch → HQ remittance tracking (2-step approval) ----
+
 
   submitRemittance(
     user: AuthUser,
@@ -186,6 +233,12 @@ export class BranchesController {
   @Post()
   create(@Req() req: AuthedRequest, @Body() dto: BranchDto) {
     return this.svc.create(req.user!, dto, req.ip);
+  }
+
+  @RequirePermissions('branches:write')
+  @Get('transfers')
+  listTransfers(@Req() req: AuthedRequest, @Query('status') status?: string) {
+    return this.svc.listTransfers(req.user!, status);
   }
 
   @RequirePermissions('branches:write')
