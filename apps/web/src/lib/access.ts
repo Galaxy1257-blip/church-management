@@ -56,7 +56,12 @@ export interface SessionUser {
   modules?: ModuleFlags;
   /** Extras the platform office added for this church alone. */
   extras?: CustomFeature[];
-  church: { name: string; slug?: string; branding?: { logoDataUrl?: string | null; primaryColor?: string } | null };
+  church: {
+    name: string;
+    slug?: string;
+    /** The letterhead a downloaded PDF is built from (see auth.service#me). */
+    branding?: { logoDataUrl?: string | null; tagline?: string | null; primaryColor?: string | null } | null;
+  };
   /** Subscription state (see api billing.logic) — the shell shows the lock screen from it. */
   billing?: {
     state: string;

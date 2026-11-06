@@ -143,9 +143,14 @@ export class BranchesService {
     });
   }
 
+  /**
+   * A remittance is church money moving, so the list has to say whose hand put
+   * it in motion and whose second hand approved it. `Remittance` stores both as
+   * bare user ids, so they are stitched the way the transfer list does it.
+   */
   listRemittances(user: AuthUser, opts: { branchId?: string; status?: string } = {}) {
-    return this.tenant.run(user, (tx) =>
-      tx.remittance.findMany({
+    return this.tenant.run(user, async (tx) => {
+      const rows = await tx.remittance.findMany({
         where: {
           churchId: user.churchId,
           ...(opts.branchId ? { fromBranchId: opts.branchId } : {}),
@@ -154,8 +159,15 @@ export class BranchesService {
         orderBy: { createdAt: 'desc' },
         take: 200,
         include: { fromBranch: { select: { name: true, code: true } } },
-      }),
-    );
+      });
+      const ids = [...new Set(rows.flatMap((r) => [r.submittedBy, r.approvedBy ?? '']).filter((id) => id !== ''))];
+      const people = ids.length
+        ? await tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+        : [];
+      const worker = (id: string | null) =>
+        id === null ? 'Not approved yet' : people.find((p) => p.id === id)?.name ?? 'A worker no longer on the team';
+      return rows.map((r) => ({ ...r, submittedByName: worker(r.submittedBy), approvedByName: worker(r.approvedBy) }));
+    });
   }
 
   /** Step approvals: APPROVED (trustee), REMITTED (finance posts to HQ), REJECTED. */

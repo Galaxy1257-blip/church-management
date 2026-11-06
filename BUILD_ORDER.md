@@ -163,7 +163,7 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
 - [x] Push: POST /push/subscribe (store PushSubscription); send when VAPID keys set
 - [x] Turnstile: verify on /public/:slug/visitors when TURNSTILE_SECRET_KEY set
 - [ ] USSD: deferred (telecom integration required — confirm with owner)
-- [ ] Statements PDF: print view shipped; PDF lib deferred
+- [x] Statements PDF: built-in branded writer (Batch 18) — no PDF library dependency was ever added
 
 ## R4. Ghana-market MVP+ pack (owner request 21 Oct — triaged from Sets 1&2; priority order)
 - [x] R4.1 **Missing-member alerts** — nightly: members with 3+ missed Sundays (from Attendance) →
@@ -565,6 +565,44 @@ this round, so it is the next unit — shipped as Batch 13 below; 4–7 follow.
       element being the branch table inside its own scroll wrapper. `apps/web` still has no test runner. The
       demo church is back as found (0 branches, 0 transfers, 0 members with a branch, `people` on); the audit
       rows these tests wrote stay, since that ledger is append-only by design.
+
+### Batch 18 — Every shareable leaves the app as one branded PDF, and it names the people behind the money ✅ (6 Nov)
+Owner brief: *"make all shareables in neatly branded pdfs … no json unless very necessary"*, then *"add the
+person who signed off or initiated payments/expenses and the names of people who donated"*. No new dependency:
+the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
+- [x] **The writer prints pictures, not only text.** A generic `{ kind:'image', jpeg, maxSide, caption }` block
+      joins `heading`/`table`/`fields`/`rule`; each distinct JPEG becomes one `/DCTDecode` XObject however many
+      pages use it, and page objects moved to `6 + imageObjects.length` so the numbering stays exact. The join
+      card now prints its own QR square with "Point your camera here" under it.
+- [x] **Nine documents in the staff app, two in the member portal** — expenses month summary, finance board
+      report, branch remittance report, roster sheet, check-in attendance sheet, member directory, one member's
+      Act 843 personal-data copy, campaigns/pledges board sheet, join card; plus the portal statement and my-data
+      copies (`apps/web/src/app/portal/page.tsx:334,420`). JSON downloads stay where a machine must read them,
+      with a readable PDF beside them (`#71`–`#74`).
+- [x] **The people are named, not their UUIDs.** `expenses/summary` → `startedByName`/`approvedByName` per row
+      and a `signOffBy` line in the header (`apps/api/src/ministry/expenses.module.ts`); `/finance/analytics` →
+      givers grouped by `COALESCE(member name, giverName)` with private gifts totalled but never named
+      (`apps/api/src/finance/finance.service.ts`); remittances, roster shifts and pledges each resolve people in
+      one lookup, with plain-English fallbacks ("No longer on the book", "Not approved yet").
+- [x] Tests: 17 new in 5 files — `ministry/expenses.names.spec.ts` (5), `finance/givers.spec.ts` (4, pins the
+      `LEFT JOIN "Member"`, the `isAnonymous = false` filter and that the private query never selects a name),
+      `ministry/branches.remittances.spec.ts` (3), `ministry/roster.names.spec.ts` (3),
+      `ministry/pledges.names.spec.ts` (2). **192/192 API over 23 files, 134/134 shared**, api + web typechecks,
+      lint, `check:secrets` clean.
+- [x] **Proven in the running app:** 9 of 9 pressed buttons produced a file and **0 byte-level problems over 9
+      documents** (every xref offset lands on its own object, every `/Length` matches its stream). Real content
+      where the demo church has data: expenses `Signed off by: Pastor` with `Secretary`/`Pastor` down every
+      payment row; finance 3 pages with named givers; directory 2 pages / 48 members; `DEMO-0109` personal data;
+      campaigns "Akua Danso MEM-0026 · GHS 7500 · Once"; join card with 1 embedded image and code `TML3ED5P`.
+      Screenshots taken of the rendered expenses PDF and of `/expenses` at 390×844 (0 viewport overflow).
+- [x] **Not proven, said plainly:** the two portal PDFs need a member SMS code and the mock gateway stores only
+      its hash, so they were read in code only. `/roster`, `/checkin` and `/branches` hold **0 rows** in the demo
+      church, so those sheets printed headers + "Nothing to show." but no real names — the lookups behind them
+      are covered by the new API tests, not by the browser. On desktop Chrome `navigator.canShare({files})` is
+      true, so a PDF button opens the Windows share flyout and waits on it; the phone path is what the fallback
+      wording describes and was not exercised here.
+- [x] Demo church flags left exactly as found: `worship`, `roster` and `special_offerings` were turned on for the
+      pass and restored to `false` after it.
 
 ### Found in Batch 1, deliberately left for the batch that owns it
 - [ ] `PermissionsGuard` returns `false`, so a permission 403 prints Nest's generic *"Forbidden resource"*

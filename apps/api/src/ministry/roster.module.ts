@@ -17,10 +17,23 @@ class ShiftDto {
 export class RosterService {
   constructor(private readonly tenant: TenantService) {}
 
+  /**
+   * A duty list nobody can read is not a roster. `RosterShift` stores the person
+   * as a bare id, so the names and numbers are stitched in one pass — the way the
+   * transfer list does it — and the sheet a teacher carries can name every helper.
+   */
   list(user: AuthUser, serviceId: string) {
-    return this.tenant.run(user, (tx) =>
-      tx.rosterShift.findMany({ where: { churchId: user.churchId, serviceId }, take: 500 }),
-    );
+    return this.tenant.run(user, async (tx) => {
+      const rows = await tx.rosterShift.findMany({ where: { churchId: user.churchId, serviceId }, take: 500 });
+      const members = await tx.member.findMany({
+        where: { id: { in: [...new Set(rows.map((r) => r.memberId))] } },
+        select: { id: true, firstName: true, lastName: true, memberNo: true },
+      });
+      return rows.map((r) => {
+        const m = members.find((x) => x.id === r.memberId);
+        return { ...r, memberName: m ? `${m.firstName} ${m.lastName}` : 'No longer on the book', memberNo: m?.memberNo ?? '—' };
+      });
+    });
   }
 
   assign(user: AuthUser, input: ShiftDto, ip?: string) {

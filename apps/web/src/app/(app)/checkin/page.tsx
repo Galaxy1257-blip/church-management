@@ -1,6 +1,10 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { fmtDate, fmtDateTime } from '../../../lib/format';
+import type { PdfDoc } from '../../../lib/pdf';
+import { sharePdf } from '../../../lib/share';
+import { peekSession } from '../../../lib/session';
 import Notice from '../../../components/notice';
 import QRCode from 'qrcode';
 
@@ -33,6 +37,55 @@ interface CheckInResult {
   section?: string | null;
 }
 
+interface AttendanceRow {
+  checkedInAt: string;
+  method: string;
+  member: { firstName: string; lastName: string; memberNo: string } | null;
+}
+
+/** The ledger's method codes, said the way a door worker would say them. */
+function methodLabel(method: string): string {
+  if (method === 'QR') return 'Card or code';
+  if (method === 'PHONE_LOOKUP') return 'By phone';
+  if (method === 'MANUAL') return 'At the desk';
+  return method;
+}
+
+/** The sheet the lead usher signs at the end of the service. */
+function sheetDoc(service: Service | undefined, rows: AttendanceRow[], counted: number, segments: DoorSetup['segments']): PdfDoc {
+  return {
+    title: 'Sunday attendance sheet',
+    subtitle: service ? `${service.name} · ${fmtDate(service.startsAt)}` : 'Attendance for the day',
+    blocks: [
+      {
+        kind: 'fields',
+        rows: [
+          { label: 'In the room', value: String(counted), bold: true },
+          { label: 'Names on this sheet', value: String(rows.length) },
+          ...(segments.length ? [{ label: 'By group', value: segments.map((s) => `${s.label} ${s.net}`).join(' · ') }] : []),
+        ],
+      },
+      { kind: 'heading', text: 'Who came in', spaceBefore: 10 },
+      {
+        kind: 'table',
+        columns: [
+          { label: 'Name', grow: 3 },
+          { label: 'Number', grow: 1.6 },
+          { label: 'Time', grow: 1.3 },
+          { label: 'How they were counted', grow: 2.2 },
+        ],
+        rows: rows.map((r) => [
+          r.member ? `${r.member.firstName} ${r.member.lastName}` : 'Visitor',
+          r.member?.memberNo ?? '—',
+          fmtDateTime(r.checkedInAt),
+          methodLabel(r.method),
+        ]),
+      },
+    ],
+    footnote: 'Counted at the door in the church app. A visitor is counted without a name on the book; anyone listed as present once is not counted twice.',
+  };
+}
+
 export default function CheckinPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState('');
@@ -47,6 +100,33 @@ export default function CheckinPage() {
   // Newcomers add themselves with this: the door shows it, they scan and join.
   const [join, setJoin] = useState<{ enabled: boolean; code: string; slug: string } | null>(null);
   const [joinQr, setJoinQr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // The sheet the lead usher signs: everyone the desk has counted for this service.
+  async function printSheet(): Promise<void> {
+    if (!serviceId) {
+      setError('choose a service first');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const rows = await api<AttendanceRow[]>(`/checkin?serviceId=${encodeURIComponent(serviceId)}`);
+      const result = await sharePdf({
+        church: peekSession()?.church,
+        doc: sheetDoc(services.find((s) => s.id === serviceId), rows, counted, segments),
+        filename: `attendance-${serviceId.slice(0, 8)}.pdf`,
+        title: 'Sunday attendance sheet',
+        text: `${counted} in the room`,
+      });
+      if (result.kind === 'failed') setError(result.message);
+      else if (result.message) setNotice(result.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not build the sheet');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // The Sunday to work, and how many are already in — one call, refreshed after
   // every check-in so the number at the top of the screen is the room.
@@ -148,6 +228,12 @@ export default function CheckinPage() {
             {segments.map((s) => `${s.label} ${s.net}`).join(' · ')}
           </p>
         ) : null}
+        <div className="row" style={{ marginTop: '0.6rem' }}>
+          <button className="small" onClick={() => void printSheet()} disabled={busy || !serviceId}>
+            {busy ? 'Preparing...' : 'Attendance sheet'}
+          </button>
+          <span className="muted">Hand this to the lead usher at the end of the service.</span>
+        </div>
       </div>
 
       {notice ? (

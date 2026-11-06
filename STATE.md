@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-06 (Session AD, §0l — Batch 17, the three follow-ups from round 5). **Self-contained**: a fresh session can
+Last updated: 2026-11-06 (Session AE, §0m — Batch 18, every shareable as a branded PDF, with the people named in them). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
@@ -392,6 +392,43 @@ C:\Users\HP\Desktop\church\
    the branch table inside its own scroll wrapper. **Demo church left as found** — 0 branches, 0 transfers, 0
    members with a branch, `people` switch on; the audit rows my tests wrote stay, because that ledger is
    append-only. **Next:** Batches 3–6 (#57–#60) and pushing this batch, which auto-deploys Render and Vercel.
+
+0m. **Session AE — the branded-PDF batch (#70–#75): everything shareable now leaves the app as one branded PDF,
+   and the PDFs say who stood behind the money.** The owner's brief was "all shareables in neatly branded PDFs,
+   no JSON unless very necessary", plus "add the person who signed off or initiated payments and the names of
+   people who donated". Both are done in code and both were exercised in the running app.
+   1. **The writer takes any JPEG, not only the logo** (`pdf.ts`). An `{ kind:'image', jpeg, maxSide, caption }`
+      block now sits beside `heading`/`table`/`fields`, gets its own `/DCTDecode` XObject once however many pages
+      use it, and the object numbering moved so pages follow the images (`firstPageObject = 6 + imageObjects.length`).
+      **Proven at the byte level:** every xref offset lands on its own `n 0 obj` and every `/Length` equals the bytes
+      actually between `stream` and `endstream`.
+   2. **Nine documents in the staff app, two in the member portal:** expenses month summary, the finance board
+      report, the branch remittance report, the roster sheet, the check-in attendance sheet, the member directory,
+      one member's Act 843 personal-data copy, the join card (with its QR square printed) and the campaigns/pledges
+      board sheet. The JSON downloads stay where a machine has to read them, with a PDF beside them.
+   3. **Names, not UUIDs.** `expenses/summary` returns `startedByName`/`approvedByName` per payment and a
+      `signOffBy` list for the header (`expenses.module.ts`); `/finance/analytics` groups gifts by giver with
+      `COALESCE(member name, giverName)` and reports private gifts as a total only, never a name
+      (`finance.service.ts`); remittances, roster shifts and pledges each resolve their people in one lookup.
+      `campaignRaisedWhere` still bounds a campaign by its own dates.
+   **Numbers:** `192/192` API over 23 files (17 of them new name tests in 5 files), `134/134` shared, api + web
+   typechecks, lint and `check:secrets` clean. In the running app **9 of 9 pressed PDF buttons produced a file,
+   0 byte-level problems over 9 documents** — expenses (1p, 7 objects, `Signed off by: Pastor`, `Secretary`/`Pastor`
+   in every payment row), finance (3p, 11 objects, named givers + "no gift was marked private"), members directory
+   (2p, 48 members with names, numbers and phones), personal data for `DEMO-0109`, campaigns board sheet (pledges
+   read "Akua Danso MEM-0026 · GHS 7500 · Once"), join card (1 embedded QR image, church code `TML3ED5P`), roster,
+   attendance and remittance sheets (headers and fallbacks correct). Screenshots: the expenses PDF rendered in
+   Chrome at `1000×760` and `/expenses` at `390×844` with 0 viewport overflow.
+   **What I could not prove, and why:** the two portal PDFs (annual statement, my-data) need a member SMS code and
+   the mock gateway hashes it, so they were read in code only. `/roster`, `/checkin` and `/branches` have **0 rows**
+   in the demo church, so those three sheets printed their headers and their "Nothing to show." line but no real
+   names — the name lookups behind them are covered by the new API tests, not by the browser. On desktop Chrome
+   `navigator.canShare({files})` is true, so a PDF button opens the Windows share flyout and the button sits at
+   "Preparing…" until it is dismissed; the phone path (share to WhatsApp, or downloads) is what the fallback text
+   describes and was not exercised here.
+   **Demo church left as found** — `worship`, `roster` and `special_offerings` were switched on for the pass and
+   restored to `false` afterwards, byte-identical to the flags read before the batch. **Next:** commit + push
+   (auto-deploys Render and Vercel), then migrations 12/13 on Neon, then Batches 3–6 (#57–#60).
 1. **R4 pack — ✅ DONE (Session G)**, all 12 items ticked in BUILD_ORDER; Paystack/Ghana requirements   guide delivered in chat (sandbox keys, webhook URL, Paystack subaccount-per-branch model, cSMS
    token steps, Bible licences).
 2. **Owner operator gates (R0)** — remaining: paste cSMS token in

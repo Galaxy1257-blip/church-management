@@ -80,13 +80,22 @@ export class ExpensesService {
     const from = new Date(Date.UTC(year, mm - 1, 1));
     const to = new Date(Date.UTC(year, mm, 1));
 
-    const rows = await this.tenant.run(user, (tx) =>
-      tx.expense.findMany({
+    const { rows, people } = await this.tenant.run(user, async (tx) => {
+      const found = await tx.expense.findMany({
         where: { churchId: user.churchId, spentOn: { gte: from, lt: to } },
         include: { category: { select: { name: true } } },
         orderBy: { spentOn: 'asc' },
-      }),
-    );
+      });
+      // `Expense` stores the two people as bare ids, so the report has to name
+      // them the way the transfer list does — one lookup for the whole month.
+      const ids = [...new Set(found.flatMap((e) => [e.submittedBy, e.approvedBy ?? '']).filter((id) => id !== ''))];
+      const users = ids.length
+        ? await tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+        : [];
+      return { rows: found, people: users };
+    });
+    const worker = (id: string | null) =>
+      id === null ? 'Not approved yet' : people.find((p) => p.id === id)?.name ?? 'A worker no longer on the team';
 
     const byCategory = new Map<string, { name: string; approvedMinor: number; pendingMinor: number; count: number }>();
     let approvedMinor = 0;
@@ -112,6 +121,7 @@ export class ExpensesService {
       label,
       approvedMinor,
       pendingMinor,
+      signOffBy: [...new Set(approved.map((row) => worker(row.approvedBy)))].sort(),
       categories: [...byCategory.values()].sort((a, b) => b.approvedMinor - a.approvedMinor),
       items: approved.map((row) => ({
         spentOn: row.spentOn.toISOString(),
@@ -119,6 +129,8 @@ export class ExpensesService {
         payee: row.payee,
         amountMinor: row.amountMinor,
         note: row.note,
+        startedByName: worker(row.submittedBy),
+        approvedByName: worker(row.approvedBy),
       })),
     };
   }

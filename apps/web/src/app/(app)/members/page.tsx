@@ -4,9 +4,137 @@ import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { peekSession } from '../../../lib/session';
 import { fmtDate } from '../../../lib/format';
+import type { PdfBlock, PdfDoc } from '../../../lib/pdf';
+import { sharePdf } from '../../../lib/share';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
 import MemberDrawer from '../../../components/member-drawer';
 import Notice from '../../../components/notice';
+
+const STAGE_WORDS: Record<string, string> = {
+  VISITOR: 'Visitor',
+  NEW_BELIEVER: 'New believer',
+  MEMBER: 'Member',
+  WORKER: 'Worker',
+  LEADER: 'Leader',
+};
+
+/** The list the secretary hands to a pastor: who is on the book, as filtered. */
+function directoryDoc(rows: Member[], total: number, filterLabel: string): PdfDoc {
+  return {
+    title: 'Member directory',
+    subtitle: `${rows.length} of ${total} on the book${filterLabel ? ` · ${filterLabel}` : ''} · prepared ${fmtDate(new Date())}`,
+    blocks: [
+      {
+        kind: 'table',
+        columns: [
+          { label: 'Name', grow: 2.6 },
+          { label: 'Number', grow: 1.4 },
+          { label: 'Phone', grow: 1.8 },
+          { label: 'Group', grow: 1.4 },
+          { label: 'Status', grow: 1.3 },
+          { label: 'Stage', grow: 1.4 },
+        ],
+        rows: rows.map((m) => [
+          `${m.firstName} ${m.lastName}`,
+          m.memberNo,
+          m.phoneE164 ?? '-',
+          m.ageSegment,
+          m.status,
+          m.discipleshipStage ? (STAGE_WORDS[m.discipleshipStage] ?? m.discipleshipStage) : '-',
+        ]),
+      },
+    ],
+    footnote: 'Membership list from the church app. It holds personal details, so it is shared with leaders who need it and nobody else.',
+  };
+}
+
+interface ExportPayload {
+  exportedAt: string;
+  member: {
+    memberNo: string; firstName: string; lastName: string; phoneE164: string | null; email: string | null;
+    gender: string | null; dob: string | null; status: string; joinedAt: string | null; address: string | null;
+    discipleshipStage: string | null; smsConsent?: boolean;
+    salvationDate?: string | null; baptismDate?: string | null; marriageDate?: string | null; ordinationDate?: string | null;
+  };
+  attendance: Array<{ checkedInAt: string; method: string }>;
+  transactions: Array<{ reference: string; giftMinor: number; status: string; createdAt: string; channel: string | null }>;
+  groups: Array<{ groupId: string }>;
+  careTasks: Array<{ type: string; status: string; dueAt: string | null; note: string | null; createdAt: string }>;
+  pastoralActions: Array<{ type: string; actionDate: string; note: string | null }>;
+}
+
+/** The same personal data the JSON download gives, written so a person can read it. */
+function personalDataDoc(data: ExportPayload): PdfDoc {
+  const m = data.member;
+  const yesNo = (v?: boolean) => (v === undefined ? '-' : v ? 'Yes' : 'No');
+  const blocks: PdfBlock[] = [
+    {
+      kind: 'fields',
+      rows: [
+        { label: 'Name', value: `${m.firstName} ${m.lastName}`, bold: true },
+        { label: 'Member number', value: m.memberNo },
+        { label: 'Phone', value: m.phoneE164 ?? '-' },
+        { label: 'Email', value: m.email ?? '-' },
+        { label: 'Address', value: m.address ?? '-' },
+        { label: 'Status on the book', value: m.status },
+        { label: 'Joined', value: m.joinedAt ? fmtDate(m.joinedAt) : '-' },
+        { label: 'Stage', value: m.discipleshipStage ? (STAGE_WORDS[m.discipleshipStage] ?? m.discipleshipStage) : '-' },
+        { label: 'Happy to receive texts', value: yesNo(m.smsConsent) },
+      ],
+    },
+    { kind: 'heading', text: 'Spiritual milestones', spaceBefore: 10 },
+    {
+      kind: 'fields',
+      rows: [
+        { label: 'Salvation', value: m.salvationDate ? fmtDate(m.salvationDate) : '-' },
+        { label: 'Baptism', value: m.baptismDate ? fmtDate(m.baptismDate) : '-' },
+        { label: 'Marriage', value: m.marriageDate ? fmtDate(m.marriageDate) : '-' },
+        { label: 'Ordination', value: m.ordinationDate ? fmtDate(m.ordinationDate) : '-' },
+      ],
+    },
+    { kind: 'heading', text: `Worship attendance (${data.attendance.length})`, spaceBefore: 10 },
+    {
+      kind: 'table',
+      columns: [{ label: 'Date', grow: 2 }, { label: 'Time', grow: 1.6 }, { label: 'Counted by', grow: 1.6 }],
+      rows: data.attendance.slice(0, 100).map((a) => [fmtDate(a.checkedInAt), new Date(a.checkedInAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), a.method]),
+    },
+    { kind: 'heading', text: `Gifts recorded (${data.transactions.length})`, spaceBefore: 10 },
+    {
+      kind: 'table',
+      columns: [
+        { label: 'Date', grow: 1.4 },
+        { label: 'Reference', grow: 2.4 },
+        { label: 'Way', grow: 1.6 },
+        { label: 'Amount', grow: 1.4, align: 'right' },
+        { label: 'State', grow: 1.4 },
+      ],
+      rows: data.transactions.slice(0, 100).map((t) => [fmtDate(t.createdAt), t.reference, t.channel ?? 'Recorded by hand', `GHS ${(t.giftMinor / 100).toFixed(2)}`, t.status]),
+    },
+    { kind: 'heading', text: 'Care and pastoral record', spaceBefore: 10 },
+    {
+      kind: 'fields',
+      rows: [
+        { label: 'Groups joined', value: String(data.groups.length) },
+        { label: 'Care tasks', value: String(data.careTasks.length) },
+        { label: 'Pastoral actions', value: String(data.pastoralActions.length) },
+      ],
+    },
+    {
+      kind: 'table',
+      columns: [{ label: 'Date', grow: 1.6 }, { label: 'Type', grow: 2 }, { label: 'State', grow: 1.6 }, { label: 'Note', grow: 3 }],
+      rows: [
+        ...data.careTasks.slice(0, 40).map((c) => [c.dueAt ? fmtDate(c.dueAt) : fmtDate(c.createdAt), c.type, c.status, c.note ?? '-']),
+        ...data.pastoralActions.slice(0, 40).map((p) => [fmtDate(p.actionDate), p.type, 'Recorded', p.note ?? '-']),
+      ],
+    },
+  ];
+  return {
+    title: 'Personal data copy',
+    subtitle: `Everything the church holds on ${m.firstName} ${m.lastName} · ${fmtDate(data.exportedAt)}`,
+    blocks,
+    footnote: 'Prepared under the Data Protection Act, 2012 (Act 843) data-access request. The full machine-readable file is available beside this copy.',
+  };
+}
 
 interface Member {
   id: string;
@@ -60,6 +188,7 @@ export default function MembersPage() {
   // — the bulk age-group job, a list import, adding one person, moving one person's
   // stage — so the screen offers only the ones this session actually holds.
   const [perms, setPerms] = useState<string[]>([]);
+  const [pdfBusy, setPdfBusy] = useState(false);
   // discipleship pathway + R4.11 per-member export.
   const [stageReport, setStageReport] = useState<{ byStage: { stage: string; count: number }[]; untracked: number } | null>(null);
 
@@ -89,6 +218,38 @@ export default function MembersPage() {
       URL.revokeObjectURL(url);
       setNotice('Data export downloaded (Act 843 data-access request).');
     } catch (e) { setError(e instanceof Error ? e.message : 'export failed'); }
+  }
+
+  /** The same request, answered as a document a member can actually read. */
+  async function printMemberData(m: Member): Promise<void> {
+    setPdfBusy(true);
+    try {
+      const data = await api<ExportPayload>(`/members/${m.id}/export`);
+      const result = await sharePdf({
+        church: peekSession()?.church,
+        doc: personalDataDoc(data),
+        filename: `${m.memberNo}-${m.lastName}-data.pdf`,
+        title: `Personal data - ${m.firstName} ${m.lastName}`,
+        text: `Data copy for ${m.firstName} ${m.lastName}`,
+      });
+      if (result.kind === 'failed') setError(result.message);
+      else if (result.message) setNotice(result.message);
+    } catch (e) { setError(e instanceof Error ? e.message : 'export failed'); } finally { setPdfBusy(false); }
+  }
+
+  async function printDirectory(): Promise<void> {
+    setPdfBusy(true);
+    const label = brackets.find((b) => b.id === bracketFilter)?.label ?? '';
+    const result = await sharePdf({
+      church: peekSession()?.church,
+      doc: directoryDoc(members, total, label),
+      filename: `members-${new Date().toISOString().slice(0, 10)}.pdf`,
+      title: 'Member directory',
+      text: `${members.length} of ${total} members`,
+    });
+    if (result.kind === 'failed') setError(result.message);
+    else if (result.message) setNotice(result.message);
+    setPdfBusy(false);
   }
 
   const load = useCallback(async (search: string) => {
@@ -216,6 +377,7 @@ export default function MembersPage() {
         <h1>Members ({total})</h1>
         <div className="head-actions">
           {canPromote ? <button className="secondary" onClick={() => void runPromotions()}>Update age groups</button> : null}
+          <button className="secondary" onClick={() => void printDirectory()} disabled={pdfBusy}>Directory PDF</button>
           {canImport ? <button className="secondary" onClick={() => setShowImport((v) => !v)}>Import list</button> : null}
           {canWrite ? <button onClick={() => setShowAdd((v) => !v)}>+ Add member</button> : null}
         </div>
@@ -397,6 +559,7 @@ export default function MembersPage() {
                     {m.firstName} {m.lastName}
                   </button>{' '}
                   <button className="small secondary" title="Export this member's data (Act 843)" onClick={() => void exportMember(m)}>⤓</button>
+                  <button className="small secondary" title="Readable PDF copy of this member's data (Act 843)" disabled={pdfBusy} onClick={() => void printMemberData(m)}>🖨</button>
                 </td>
                 <td>{m.phoneE164 ?? '—'}</td>
                 <td>{m.ageSegment}</td>

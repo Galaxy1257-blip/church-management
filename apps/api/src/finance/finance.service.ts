@@ -313,7 +313,7 @@ export class FinanceService {
     });
   }
 
-  /** Giving analytics: daily trend, channel mix, top (non-anonymous) givers. */
+  /** Giving analytics: daily trend, channel mix, and who gave across every channel. */
   analytics(user: AuthUser, days = 90) {
     return this.tenant.run(user, async (tx) => {
       const since = new Date(Date.now() - days * 86400_000);
@@ -328,18 +328,36 @@ export class FinanceService {
         _sum: { giftMinor: true },
         _count: { _all: true },
       });
-      const top = await tx.transaction.groupBy({
-        by: ['memberId'],
-        where: { churchId: user.churchId, status: 'SUCCESS', paidAt: { gte: since }, memberId: { not: null }, isAnonymous: false },
-        _sum: { giftMinor: true },
-        orderBy: { _sum: { giftMinor: 'desc' } },
-        take: 10,
-      });
+      const givers = await tx.$queryRaw<{ name: string | null; memberno: string | null; total: bigint; count: bigint }[]>`
+        SELECT COALESCE(NULLIF(TRIM(CONCAT(m."firstName", ' ', m."lastName")), ''), NULLIF(TRIM(t."giverName"), '')) AS name,
+               m."memberNo",
+               SUM(t."giftMinor") AS total, COUNT(t.id) AS count
+        FROM "Transaction" t
+        LEFT JOIN "Member" m ON m.id = t."memberId"
+        WHERE t."churchId" = ${user.churchId}::uuid
+          AND t.status = 'SUCCESS'
+          AND t."paidAt" >= ${since}
+          AND t."isAnonymous" = false
+        GROUP BY 1, 2
+        ORDER BY total DESC
+        LIMIT 25`;
+      const anon = await tx.$queryRaw<{ total: bigint; count: bigint }[]>`
+        SELECT COALESCE(SUM("giftMinor"), 0) AS total, COUNT(id) AS count
+        FROM "Transaction"
+        WHERE "churchId" = ${user.churchId}::uuid AND status = 'SUCCESS' AND "paidAt" >= ${since} AND "isAnonymous" = true`;
       return {
         days,
         daily: daily.map((r) => ({ date: r.day, totalMinor: Number(r.total), count: Number(r.count) })),
         channels: channels.map((c) => ({ channel: c.channel, totalMinor: c._sum.giftMinor ?? 0, count: c._count._all })),
-        topMembers: top.map((t) => ({ memberId: t.memberId, totalMinor: t._sum.giftMinor ?? 0 })),
+        // Every channel lands in "Transaction", so one grouped read names members
+        // and walk-in givers alike; a private gift stays unnamed but still counts.
+        topGivers: givers.map((g) => ({
+          name: g.name ?? 'A giver who did not leave a name',
+          memberNo: g.memberno,
+          totalMinor: Number(g.total),
+          count: Number(g.count),
+        })),
+        privateGiven: { totalMinor: Number(anon[0].total), count: Number(anon[0].count) },
       };
     });
   }

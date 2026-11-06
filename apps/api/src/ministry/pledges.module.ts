@@ -96,11 +96,16 @@ export class PledgesService {
     });
   }
 
+  /** A pledge is a promise by a person, so the list has to carry the person's name. */
   pledges(user: AuthUser, memberId?: string) {
     return this.tenant.run(user, (tx) =>
       tx.pledge.findMany({
         where: { churchId: user.churchId, ...(memberId ? { memberId } : {}) },
-        include: { fund: { select: { name: true } } },
+        include: {
+          fund: { select: { name: true } },
+          member: { select: { firstName: true, lastName: true, memberNo: true } },
+          campaign: { select: { name: true } },
+        },
         orderBy: { startsOn: 'desc' },
         take: 200,
       }),

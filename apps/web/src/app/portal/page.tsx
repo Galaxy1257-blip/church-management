@@ -2,8 +2,9 @@
 // Member companion: OTP login (member phone, no staff account) with tabs —
 // Home, My giving + statement, Volunteer shifts, Events/RSVP, Prayer.
 import { FormEvent, useEffect, useState } from 'react';
-import { fmtDateTime, ghs } from '../../lib/format';
-import { pdfBlob } from '../../lib/pdf';
+import { fmtDate, fmtDateTime, ghs } from '../../lib/format';
+import type { PdfBlock, PdfDoc } from '../../lib/pdf';
+import { buildPdfFile, saveFile } from '../../lib/share';
 import { fileToPhotoDataUrl } from '../../lib/photo';
 import { cardPayload } from '../../lib/card';
 import QRCode from 'qrcode';
@@ -70,6 +71,106 @@ interface EventRow { id: string; title: string; startsAt: string; venue: string 
 interface Reminder { id: string; kind: string; title: string; body: string; scheduledFor: string; readAt: string | null }
 interface AssignedWelfare { id: string; category: string; status: string; amountRequestedMinor: number | null; createdAt: string; description: string | null; member: { firstName: string; lastName: string } | null }
 interface MyPost { id: string; title: string; body: string; moderation: string; publishAt: string; photoDataUrl?: string | null }
+/** GET /portal/export — everything the church holds about this one person. */
+interface MyData {
+  exportedAt: string;
+  member: Record<string, string | number | boolean | null>;
+  attendance: Array<{ checkedInAt: string; method: string }>;
+  transactions: Array<{ reference: string; giftMinor: number; status: string; createdAt: string }>;
+  groups: Array<{ groupId: string }>;
+  prayerRequests: Array<{ body: string; isAnonymous: boolean; createdAt: string }>;
+  pastoralActions: Array<{ type: string; actionDate: string | null; note: string | null }>;
+}
+
+/**
+ * The field names a database uses are not the words a person reads. Anything not
+ * listed still prints, with the underscore turned into a space, so a column
+ * added later is never silently missing from somebody's legal copy of their data.
+ */
+const MY_DATA_LABELS: Record<string, string> = {
+  firstName: 'First name', lastName: 'Last name', phoneE164: 'Phone', memberNo: 'Member number',
+  email: 'Email', birthDate: 'Date of birth', gender: 'Gender', address: 'Address',
+  occupation: 'Occupation', maritalStatus: 'Marital status', savedAt: 'Born again',
+  baptizedAt: 'Baptised', joinedAt: 'Joined', status: 'Status', note: 'Note',
+};
+
+/** One stored field as a label and a readable value, or nothing if it is internal. */
+function myDataField(key: string, value: unknown): { label: string; value: string } | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'object' || typeof value === 'function') return null;
+  if (key === 'id' || key.endsWith('Id') || key === 'photoUrl' || key === 'photoDataUrl') return null;
+  if (key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('token')) return null;
+  const words = MY_DATA_LABELS[key] ?? key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+  const label = words[0].toUpperCase() + words.slice(1);
+  if (typeof value === 'boolean') return { label, value: value ? 'Yes' : 'No' };
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return { label, value: fmtDate(value) };
+  if (typeof value === 'string' && value.startsWith('data:image')) return null;
+  return { label, value: String(value) };
+}
+
+/**
+ * A person's own data as one readable document: what the church holds about
+ * them, in the four groups the Act asks about — who they are, where they were
+ * counted, what they gave, and what was prayed or done for them.
+ */
+function myDataDoc(data: MyData): PdfDoc {
+  const personal = Object.entries(data.member ?? {})
+    .map(([key, value]) => myDataField(key, value))
+    .filter((row): row is { label: string; value: string } => row !== null);
+  const blocks: PdfBlock[] = [
+    { kind: 'heading', text: 'Who you are on the book' },
+    { kind: 'fields', rows: personal.length ? personal : [{ label: 'Record', value: 'No personal fields were returned.' }] },
+    {
+      kind: 'heading',
+      text: 'Attendance',
+      spaceBefore: 12,
+    },
+    {
+      kind: 'table',
+      columns: [{ label: 'When', grow: 2 }, { label: 'How it was recorded', grow: 3 }],
+      rows: (data.attendance ?? []).map((a) => [fmtDateTime(a.checkedInAt), a.method]),
+    },
+    { kind: 'heading', text: 'What you gave', spaceBefore: 12 },
+    {
+      kind: 'table',
+      columns: [
+        { label: 'When', grow: 1.6 },
+        { label: 'Reference', grow: 2 },
+        { label: 'Amount', grow: 1.4, align: 'right' },
+        { label: 'Status', grow: 1.4 },
+      ],
+      rows: (data.transactions ?? []).map((t) => [fmtDate(t.createdAt), t.reference, ghs(t.giftMinor), t.status]),
+    },
+    { kind: 'heading', text: 'Prayer requests you sent', spaceBefore: 12 },
+    {
+      kind: 'table',
+      columns: [{ label: 'When', grow: 1.4 }, { label: 'What you wrote', grow: 5 }],
+      rows: (data.prayerRequests ?? []).map((p) => [fmtDate(p.createdAt), p.isAnonymous ? 'Sent without your name on it' : p.body]),
+    },
+    { kind: 'heading', text: 'Pastoral care recorded', spaceBefore: 12 },
+    {
+      kind: 'table',
+      columns: [{ label: 'When', grow: 1.4 }, { label: 'What', grow: 2 }, { label: 'Note', grow: 4 }],
+      rows: (data.pastoralActions ?? []).map((a) => [a.actionDate ? fmtDate(a.actionDate) : '-', a.type, a.note ?? '']),
+    },
+    {
+      kind: 'text',
+      muted: true,
+      size: 9,
+      spaceBefore: 14,
+      text:
+        `You are listed in ${(data.groups ?? []).length} class or ministry group(s). ` +
+        'This is everything the app holds about you as well as the full file in JSON form. To have any of it corrected or removed, ask your church office.',
+    },
+  ];
+  return {
+    title: 'My personal data',
+    subtitle: `Prepared for your Act 843 request · ${fmtDateTime(data.exportedAt)}`,
+    blocks,
+    footnote: 'A copy of the personal data a church app holds about you.',
+  };
+}
+
 
 type Tab = 'home' | 'giving' | 'shifts' | 'events' | 'prayer' | 'notices';
 
@@ -184,35 +285,58 @@ export default function PortalPage() {
   }
 
   /**
-   * The annual statement as a real PDF — the same dependency-free writer the
-   * expense summary uses, so a member away from Ghana can download one file for
-   * their records instead of printing a screen.
+   * The annual statement as a real PDF — the same writer the expense summary
+   * uses, so a member away from Ghana can download one file for their records
+   * instead of printing a screen.
    */
-  function downloadStatement(): void {
+  function statementDoc(s: Statement): PdfDoc {
+    const contact = home?.church?.contact;
+    const where = [contact?.phone, contact?.address].filter(Boolean).join(' · ');
+    return {
+      title: 'Statement of Giving',
+      subtitle: home ? `${home.member.firstName} ${home.member.lastName} · ${s.year}` : `Year ${s.year}`,
+      blocks: [
+        {
+          kind: 'fields',
+          rows: [
+            { label: 'Year', value: String(s.year) },
+            { label: 'Total given', value: ghs(s.totalMinor), bold: true },
+            { label: 'Number of offerings', value: String(s.rows.length) },
+            { label: 'Issued', value: fmtDate(new Date()) },
+          ],
+        },
+        {
+          kind: 'table',
+          spaceBefore: 8,
+          columns: [
+            { label: 'Date', grow: 1.4 },
+            { label: 'What for', grow: 2.6 },
+            { label: 'Amount', grow: 1.6, align: 'right' },
+            { label: 'Reference', grow: 2 },
+          ],
+          rows: s.rows.map((g) => [g.date ? fmtDate(g.date) : '-', g.fund, ghs(g.amountMinor), g.reference]),
+        },
+        {
+          kind: 'text',
+          muted: true,
+          size: 9,
+          spaceBefore: 14,
+          text: "This statement is a record of what was given to the church's own funds.",
+        },
+      ],
+      footnote: where || undefined,
+    };
+  }
+
+  async function downloadStatement(): Promise<void> {
     if (!statement || statement.rows.length === 0) { setError('There is nothing to put in the statement yet.'); return; }
-    const churchName = home?.church?.name ?? '';
-    const who = home ? `${home.member.firstName} ${home.member.lastName}` : '';
-    const lines = [
-      { text: churchName ? `${churchName} - Statement of Giving` : 'Statement of Giving', bold: true, size: 16 },
-      { text: `Year: ${statement.year}`, bold: true },
-      ...(who ? [{ text: `Member: ${who}` }] : []),
-      { text: `Total given: ${ghs(statement.totalMinor)}`, bold: true },
-      { text: `Issued: ${new Date().toISOString().slice(0, 10)}` },
-      { text: '' },
-      ...statement.rows.map((g) => ({
-        text: `${g.date ? g.date.slice(0, 10) : '-'}  ${g.fund}  ${ghs(g.amountMinor)}  ref ${g.reference}`,
-      })),
-      { text: '' },
-      { text: `${statement.rows.length} gift(s). This statement is a record of what was given to the church's own funds.` },
-    ];
-    const file = new File([pdfBlob(lines)], `statement-${statement.year}.pdf`, { type: 'application/pdf' });
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    URL.revokeObjectURL(url);
-    setNotice(`Statement for ${statement.year} downloaded as a PDF.`);
+    try {
+      const file = await buildPdfFile(home?.church, statementDoc(statement), `statement-${statement.year}.pdf`);
+      saveFile(file);
+      setNotice(`Statement for ${statement.year} downloaded as a PDF.`);
+    } catch {
+      setError('Could not build the statement PDF.');
+    }
   }
 
   async function rsvp(eventId: string, partySize = 1): Promise<void> {
@@ -267,11 +391,17 @@ export default function PortalPage() {
   }
 
   // export-my-data (Act 843): download everything the church holds about you.
+  // The JSON is the legal copy — it holds every field exactly as stored — and
+  // the PDF beside it is the copy a person can actually read.
+  async function loadMyData(): Promise<MyData> {
+    const res = await fetch(`${API}/portal/export`, { headers: auth() });
+    if (!res.ok) throw new Error('export failed');
+    return (await res.json()) as MyData;
+  }
+
   async function exportMyData(): Promise<void> {
     try {
-      const res = await fetch(`${API}/portal/export`, { headers: auth() });
-      if (!res.ok) throw new Error('export failed');
-      const data = await res.json();
+      const data = await loadMyData();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -281,6 +411,17 @@ export default function PortalPage() {
       URL.revokeObjectURL(url);
     } catch {
       setNotice('Could not download your data — try again.');
+    }
+  }
+
+  async function printMyData(): Promise<void> {
+    try {
+      const data = await loadMyData();
+      const file = await buildPdfFile(home?.church, myDataDoc(data), `chms-my-data-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveFile(file);
+      setNotice('A readable copy of your data downloaded as a PDF. The button next to it gives the full machine-readable file.');
+    } catch {
+      setNotice('Could not build the readable copy — try again.');
     }
   }
 
@@ -445,6 +586,7 @@ export default function PortalPage() {
               <a className="badge ok" href={home?.links.give}>Give an offering →</a>
               <a className="badge mute" href="/bible">Read the Bible →</a>
               <button className="small secondary" onClick={() => void exportMyData()}>Download my data</button>
+              <button className="small secondary" onClick={() => void printMyData()}>Readable copy</button>
             </div>
           </div>
           {assigned.length > 0 ? (

@@ -1,10 +1,12 @@
 'use client';
 // Expenses: submit receipts; approver decides (submitter can't approve own).
-// The month summary is totalled by the API, then sent as a PDF.
+// The month summary is totalled by the API, then sent as a PDF on the church's
+// own letterhead.
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDate, ghs } from '../../../lib/format';
-import { canShareFiles, pdfBlob, type PdfLine } from '../../../lib/pdf';
+import type { PdfBlock, PdfDoc } from '../../../lib/pdf';
+import { sharePdf } from '../../../lib/share';
 import { peekSession } from '../../../lib/session';
 import Notice from '../../../components/notice';
 
@@ -25,8 +27,9 @@ interface Summary {
   label: string;
   approvedMinor: number;
   pendingMinor: number;
+  signOffBy: string[];
   categories: Array<{ name: string; approvedMinor: number; pendingMinor: number; count: number }>;
-  items: Array<{ spentOn: string; category: string; payee: string; amountMinor: number; note: string | null }>;
+  items: Array<{ spentOn: string; category: string; payee: string; amountMinor: number; note: string | null; startedByName: string; approvedByName: string }>;
 }
 
 function thisMonth(): string {
@@ -102,35 +105,49 @@ export default function ExpensesPage() {
     }
   }
 
-  /** The pages a treasurer actually reads out: heading, totals, then each payment. */
-  function summaryLines(s: Summary): PdfLine[] {
-    const church = peekSession()?.church?.name ?? 'Church expenses';
-    const lines: PdfLine[] = [
-      { text: church, bold: true, size: 16 },
-      { text: `Expenses - ${s.label}`, size: 12, spaceBefore: 6 },
-      { text: `Total approved: ${ghs(s.approvedMinor)}`, bold: true, spaceBefore: 10 },
-      { text: `Waiting for approval: ${ghs(s.pendingMinor)}`, spaceBefore: 2 },
-      { text: 'Where the money went', bold: true, size: 13, spaceBefore: 14 },
+  /** What a treasurer actually hands to the board: the totals, then every payment. */
+  function summaryDoc(s: Summary): PdfDoc {
+    const blocks: PdfBlock[] = [
+      {
+        kind: 'fields',
+        rows: [
+          { label: 'Total approved', value: ghs(s.approvedMinor), bold: true },
+          { label: 'Waiting for approval', value: ghs(s.pendingMinor) },
+          { label: 'Payments in the month', value: String(s.items.length) },
+          { label: 'Signed off by', value: s.signOffBy.length ? s.signOffBy.join(', ') : 'No payment signed off yet' },
+        ],
+      },
+      { kind: 'heading', text: 'Where the money went', spaceBefore: 8 },
+      {
+        kind: 'table',
+        columns: [{ label: 'Category', grow: 3 }, { label: 'Approved', grow: 2, align: 'right' }, { label: 'Items', grow: 1, align: 'right' }],
+        rows: s.categories.map((c) => [c.name, ghs(c.approvedMinor), String(c.count)]),
+      },
+      { kind: 'heading', text: 'Each payment', spaceBefore: 10 },
+      {
+        kind: 'table',
+        columns: [
+          { label: 'Date', grow: 1.3 },
+          { label: 'Paid to', grow: 2.2 },
+          { label: 'Amount', grow: 1.3, align: 'right' },
+          { label: 'Started by', grow: 1.9 },
+          { label: 'Approved by', grow: 1.9 },
+        ],
+        rows: s.items.map((item) => [
+          fmtDate(item.spentOn),
+          item.note ? `${item.payee} (${item.note})` : item.payee,
+          ghs(item.amountMinor),
+          item.startedByName,
+          item.approvedByName,
+        ]),
+      },
     ];
-    for (const c of s.categories) {
-      lines.push({ text: `- ${c.name}: ${ghs(c.approvedMinor)} (${c.count} item${c.count === 1 ? '' : 's'})` });
-    }
-    lines.push({ text: 'Each payment', bold: true, size: 13, spaceBefore: 14 });
-    for (const item of s.items) {
-      lines.push({ text: `${fmtDate(item.spentOn)}  ${ghs(item.amountMinor)}  ${item.category} - ${item.payee}${item.note ? ` (${item.note})` : ''}` });
-    }
-    if (s.items.length === 0) lines.push({ text: 'No approved expense in this month yet.' });
-    lines.push({ text: `Prepared ${fmtDate(new Date())} in the church app.`, spaceBefore: 16 });
-    return lines;
-  }
-
-  function saveToPhone(file: File): void {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    URL.revokeObjectURL(url);
+    return {
+      title: `Expenses - ${s.label}`,
+      subtitle: `Approved and paid out in ${s.label}.`,
+      blocks,
+      footnote: `Prepared ${fmtDate(new Date())} in the church app. Figures come from the expense ledger. Each payment was started by one leader and approved by a second, as recorded in the app.`,
+    };
   }
 
   async function share(): Promise<void> {
@@ -138,30 +155,16 @@ export default function ExpensesPage() {
     setBusy(true);
     setNotice('');
     setError('');
-    const file = new File([pdfBlob(summaryLines(summary))], `expenses-${summary.month}.pdf`, { type: 'application/pdf' });
-    try {
-      if (canShareFiles(file)) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: `Expenses - ${summary.label}`,
-            text: `${summary.label}: ${ghs(summary.approvedMinor)}`,
-          });
-          setNotice('Done - the PDF went to WhatsApp from your phone.');
-        } catch (err) {
-          if ((err as Error).name === 'AbortError') return;
-          saveToPhone(file);
-          setNotice('Your browser would not share the file, so it saved to your phone. Open WhatsApp and attach it from there.');
-        }
-      } else {
-        saveToPhone(file);
-        setNotice('This phone does not allow the app to open WhatsApp with a file attached. The PDF is in your downloads - attach it to the chat yourself.');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'could not build the PDF');
-    } finally {
-      setBusy(false);
-    }
+    const result = await sharePdf({
+      church: peekSession()?.church,
+      doc: summaryDoc(summary),
+      filename: `expenses-${summary.month}.pdf`,
+      title: `Expenses - ${summary.label}`,
+      text: `${summary.label}: ${ghs(summary.approvedMinor)}`,
+    });
+    if (result.kind === 'failed') setError(result.message);
+    else if (result.message) setNotice(result.message);
+    setBusy(false);
   }
 
   return (

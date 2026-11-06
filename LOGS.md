@@ -1842,3 +1842,53 @@ append-only by design, so deleting test entries would have broken the verificati
 
 **Next:** push this batch (the owner said to, and pushing auto-deploys Render and Vercel), then the standing
 leftovers — Batches 3–6 (#57–#60), which now also hold the self-approval rule.
+
+---
+
+## 2026-11-06 — Batch 18: every shareable as one branded PDF, with the people behind the money named (`this commit`)
+
+**Brief:** *"make all shareables in neatly branded pdfs (unless other formats is necessary xlx etc) but no json
+unless very necesary"*, then mid-batch *"is it possible to add the person who signed off or initiated
+payments/expenses and also add names of people who donated… If yes, add to task list and continue"*. Both are
+yes: the data was already in `Expense.submittedBy/approvedBy` and `Transaction.memberId/giverName`, it simply
+never reached the paper. No dependency was added — the hand-written writer in `apps/web/src/lib/pdf.ts` does all
+of it, which is what the owner approved over pulling in a PDF library.
+
+**Built:**
+1. **The writer prints pictures.** A generic `{ kind:'image', jpeg, maxSide, caption }` block joins the text
+   blocks; each distinct JPEG becomes one `/DCTDecode` XObject, once, however many pages use it; page objects
+   shifted to `6 + imageObjects.length` so the byte-exact xref still lands. The join card now carries its own QR
+   square on the church's letterhead, and `apps/web/src/lib/share.ts` holds the one share-or-download path every
+   screen uses, so the wording about "it went into your downloads" is identical everywhere.
+2. **Nine documents in the staff app, two in the member portal:** expenses month summary, finance board report,
+   branch remittance report, roster sheet, check-in attendance sheet, member directory, one member's Act 843
+   personal-data copy, campaigns/pledges board sheet, join card — plus the portal statement and my-data copies.
+   The JSON downloads stay where a machine has to read them, with a readable PDF beside them.
+3. **Names instead of UUIDs.** `expenses/summary` returns `startedByName`/`approvedByName` on every payment and a
+   `signOffBy` list for the header; `/finance/analytics` groups gifts by `COALESCE(member name, giverName)` and
+   reports private gifts as a total only, never a name; remittances, roster shifts and pledges each resolve their
+   people in one lookup with plain-English fallbacks. Same rule as the transfer list: fetch the rows, collect the
+   distinct ids, one query, map back.
+
+**Numbers:** 192/192 API over 23 files (17 new name tests across 5 files), 134/134 shared, api + web typechecks,
+lint and `check:secrets` clean. In the running app: **9 of 9 pressed PDF buttons produced a file, 0 byte-level
+problems over 9 documents** — every xref offset points at its own `n 0 obj`, every `/Length` equals the bytes
+actually in its stream. Where the demo church has real data the names print: expenses `Signed off by: Pastor`
+with `Secretary`/`Pastor` down all seven payment rows (8,535 bytes, 1 page), finance 3 pages / 11 objects with
+named givers and "No gift in this period was marked private", directory 2 pages / 48 members with numbers and
+phones, `DEMO-0109` personal data, campaigns "Akua Danso MEM-0026 · GHS 7500 · Once", join card with one embedded
+image and church code `TML3ED5P`. Screenshots: the expenses PDF rendered in Chrome and `/expenses` at 390×844.
+
+**Not proven, said plainly:** the two portal PDFs need a member SMS code and the mock gateway stores only its
+hash, so they were read in code and not clicked. `/roster`, `/checkin` and `/branches` hold **0 rows** in the
+demo church, so those three sheets printed their headers and their "Nothing to show." line but no real names —
+the lookups behind them rest on the new API tests, not on the browser. On desktop Chrome
+`navigator.canShare({files})` returns true, so a PDF button opens the Windows share flyout and sits at
+"Preparing…" until it is dismissed; the phone path the fallback text describes was not exercised here.
+
+**Data left as found:** `worship`, `roster` and `special_offerings` were switched on for the pass and restored to
+`false` afterwards, byte-identical to the flags read before it. The scratch harnesses used to validate the bytes
+were deleted and never staged.
+
+**Next:** push this batch (auto-deploys Render and Vercel), apply migrations 12/13 to Neon, then the standing
+leftovers — Batches 3–6 (#57–#60) and the feature backlog.
