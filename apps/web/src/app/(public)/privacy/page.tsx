@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { APP_NAME, CONTACT_EMAIL, LEGAL_UPDATED, OPERATOR } from '../legal-meta';
+import { APP_NAME, CONTACT_EMAIL, LEGAL_UPDATED, OPERATOR, PROCESSORS } from '../legal-meta';
 
 export const metadata: Metadata = {
   title: `Privacy Policy · ${APP_NAME}`,
@@ -89,9 +89,9 @@ export default function PrivacyPage() {
           church&rsquo;s at the database level.
         </li>
         <li>
-          <b>Our processors:</b> the companies that host and move the data for us — the database host (Neon), the API
-          host (Render), the web host (Vercel), the payment provider (Paystack) and the SMS gateway the operator
-          configures. They process data only to provide their service to us.
+          <b>Our processors:</b> the companies that host and move the data for us — the database host ({PROCESSORS.database}),
+          the API host ({PROCESSORS.api}), the web host ({PROCESSORS.web}), the payment provider ({PROCESSORS.payments}) and
+          {PROCESSORS.sms}. They process data only to provide their service to us.
         </li>
         <li>
           <b>By law:</b> we may disclose records where a court or a law lawfully requires it, and we will tell the church
