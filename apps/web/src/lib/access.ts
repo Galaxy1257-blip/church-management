@@ -228,6 +228,9 @@ export const NAV_AREAS: NavArea[] = [
       // themselves to the church without anyone retyping their details.
       { href: '/join-card', label: 'Join code', permissions: ['members:read'], module: 'people' },
       { href: '/care', label: 'Care', permissions: ['care:read'], module: 'care' },
+      // Counselling notes are encrypted at rest and readable only by the author
+      // or someone they shared the note with; the screen follows the Care switch.
+      { href: '/counseling', label: 'Counselling notes', permissions: ['care:read'], module: 'care' },
       // Follow-up plans are for the visitor team, not a care-only teacher.
       { href: '/drip', label: 'Follow-up', permissions: ['visitors:read'], module: 'followup' },
     ],
@@ -341,6 +344,8 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/collection', permissions: ['collection:write'], label: 'Collection' },
   { prefix: '/children', permissions: [], test: canRunChildrenDesk, label: 'Children' },
   { prefix: '/care', permissions: ['care:read'], label: 'Care' },
+  // Same permission and Care switch as /care; the notes are encrypted at rest.
+  { prefix: '/counseling', permissions: ['care:read'], label: 'Counselling notes' },
   { prefix: '/groups', permissions: ['members:write'], label: 'Groups' },
   { prefix: '/services', permissions: ['services:read'], label: 'Services' },
   { prefix: '/checkin', permissions: ['checkin:write'], label: 'Check-in' },

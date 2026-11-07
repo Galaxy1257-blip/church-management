@@ -221,6 +221,14 @@ export default function AppNav({
           <Link href="/about" className={`side-action${isActive('/about') ? ' active' : ''}`}>
             About
           </Link>
+          {me.church.slug ? (
+            <Link
+              href={`/flyers/${me.church.slug}`}
+              className={`side-action${isActive(`/flyers/${me.church.slug}`) ? ' active' : ''}`}
+            >
+              Share links
+            </Link>
+          ) : null}
           <Link href="/help" className="side-action">
             Help
           </Link>

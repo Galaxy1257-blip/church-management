@@ -341,7 +341,17 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       141/141 · API 213/213 (incl. new dispatcher + service quiet-hours specs) · web 10/10 · all typechecks ·
       eslint · `check:secrets` clean. Worker-side fixes (followup.ts nextRunAt off-by-one during the last quiet
       hour; verse-of-day has no quiet-hours guard) belong to the parallel session — reported, not committed.
-- [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
+- [x] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
+      **DONE Session AG** — new `/counseling` screen (find a member or your class → their encrypted notes →
+      add a note with optional shared-with member IDs); nav item + route rule, both `care:read` and the Care
+      switch (API is `@ForModule('care')` too). "Share links" foot action in the app shell → `/flyers/:slug`
+      (was an orphan page, only reached by guessing the URL); its guest link corrected to `/join/:slug` (it
+      pointed at the member portal). FEATURES §15 rewritten honestly: `/flyers` lists links (it does not
+      generate graphics/QRs), guest sign-up is `/join/:slug` (not `/public/:slug/visitors`), and the portal
+      bullet "update personal contact information" is corrected to "not available yet; members can delete
+      their own account instead". Verified live: deny-path 403 renders plain English with Care off, nav hides
+      the item, `/flyers/demo` renders the corrected links. Gates: web typecheck, eslint, web 10/10,
+      `check:secrets` clean.
 ### Batch 7 — member posts ✅ (owner ask, 4 Nov)
 - [x] Notices tab in the companion: title, body, optional photo; *Waiting for a leader* / *Approved* / *Not
       approved*. Prayer requests take a photo too.

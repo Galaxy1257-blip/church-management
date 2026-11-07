@@ -2005,3 +2005,30 @@ eslint clean · `check:secrets` clean. Worker excluded from gates (parallel sess
 
 **Next:** Batch 6 (#59 — counselling notes screen, `/flyers` link, honest FEATURES §15), then the owner's
 program-tracking feature, then the full-app debugging pass.
+
+### Session AG continued — Batch 6 done (counselling screen, Share links, honest FEATURES)
+
+- **Counselling notes screen (`/counseling`):** the API endpoints existed (add + list per subject, AES-GCM
+  encrypted at rest, author-or-sharedWith readable) but nothing rendered them. New page: member search
+  (`/members?q=`, falls back to `/care/class` for a Sunday School teacher), pick a subject → their notes →
+  add a note with optional shared-with member IDs. Gated end to end by the Care switch + `care:read`:
+  nav item (`access.ts`, module care) + ROUTE_ACCESS rule (a missing rule would have left the deep link
+  ungated — `canAccessPath` returns true on no-match) + the API's own `@ForModule('care')` + permission
+  decorators. Verified live: with Care off the shell renders the plain-English 403, the nav hides the item;
+  the happy path is verified statically (the demo Secretary cannot switch Care on — correct permission
+  behaviour, and nothing was written to demo data).
+- **Share links wired:** `/flyers/:slug` existed but was orphaned (only reachable by typing the URL). New
+  "Share links" foot action in the app shell → `/flyers/:slug` from `me.church.slug`. Verified live:
+  `/flyers/demo` renders three links with Copy buttons.
+- **Honest FEATURES §15 (and the flyers page copy):** the section claimed a "Social Media Flyer Generator"
+  and `/public/:slug/visitors`; neither exists. Rewritten from source evidence: `/flyers` lists shareable
+  links (no graphics/QR generation), guest sign-up is `/join/:slug` (code-gated, creates a Member), portal
+  bullets verified (OTP true, statement PDF true/in-app, shifts + RSVP true, prayer true) and the false
+  "update personal contact information" corrected to "not available yet — members can delete their own
+  account instead". The flyers page's stale QR-rendering comment and copy corrected to match.
+
+**Gates:** web typecheck clean, eslint clean, web 10/10, `check:secrets` clean. (No shared/API code changed
+in this batch.)
+
+**Next:** the owner's program-tracking feature (#81 — anniversaries/milestones, off by default, leader-set
+reminders to leaders, member push after approval), then the full-app debugging pass.
