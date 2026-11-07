@@ -3,6 +3,7 @@ import { FormEvent, use, useEffect, useState } from 'react';
 import { apiRaw } from '../../../lib/api';
 import { ghs, toPesewas } from '../../../lib/format';
 import Notice from '../../../components/notice';
+import BackBar from '../../../components/back-bar';
 
 interface ChurchPublic {
   id?: string;
@@ -96,6 +97,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
 
   return (
     <div className="container" style={{ maxWidth: 460, paddingTop: '6vh' }}>
+      <BackBar />
       <div className="card">
         {church.branding?.logoDataUrl ? (
           <img src={church.branding.logoDataUrl} alt={`${church.name} logo`} style={{ height: 56, margin: '0 auto 0.5rem', display: 'block' }} />

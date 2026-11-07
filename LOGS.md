@@ -2116,3 +2116,22 @@ github.com would not resolve (raw.githubusercontent.com worked for the WEB regen
 
 **Next:** #85 mobile "no way back" audit (investigate all standalone pages first, then one shared fix);
 Asante drop-in once licensed; #49 Twi identity; push.
+
+### Session AH continued — #85 mobile "no way back" audit + shared fix
+
+- **Audit first (owner: "investigate if that is the case before fixing"):** the root layout
+  (`apps/web/src/app/layout.tsx`) renders no navigation, so standalone pages must supply their own way
+  back. Found: `/bible`, `/flyers/:slug`, `/give/:slug`, `/give/thanks`, `/join/:slug` had **no** back/home
+  affordance; `/handoff` (transient token swap) had no exit on its error state; `/portal` already has its
+  own tab bar; `/give/mock-pay` is the dev-only mock checkout (left untouched per the mock-flow boundary).
+- **One shared pattern:** new `apps/web/src/components/back-bar.tsx` — a "← Back" button that uses
+  `router.back()` when `history.length > 1`, else pushes a safe `fallbackHref` (so it is never a dead
+  button), plus a Home/Dashboard link. `.back-bar` styles in globals.css. Applied to the five pages
+  (`/bible` & guests → `/`; `/flyers` → `/dashboard`); `/handoff` error state got a "Go to sign in" link.
+- **Verified live:** `/bible` BackBar renders (aria-labeled, 24px+ target); direct landing (history 1)
+  Back → `/` public home; with history Back → the prior page (`/help`); `/flyers/demo` fallback shows
+  Dashboard. Both branches of the back decision exercised in the running app.
+
+**Gates:** web typecheck clean · web 10/10 · eslint clean · `check:secrets` clean (web-only change).
+
+**Next:** Asante drop-in once the licence email is answered; #49 Twi identity; push (link still intermittent).

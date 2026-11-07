@@ -101,10 +101,16 @@ Open work:
       fragment, e.g. Gen 3:16) and left sparse holes as JSON `null`; now joins blocks
       and densifies to `''`. Regenerated web.json (66 books, 31,102 verses; 4 genuine
       critical-text omissions kept empty). Regression guard: `bible.service.spec.ts` (3).
-- [ ] **Mobile "no way back" audit + fix** (#85) — owner flagged the full Bible
-      page as one example; audit all standalone pages (`/bible`, `/flyers/:slug`,
-      `/handoff`, `/give/*`, `/join/:slug`) for missing back affordances (PWA
-      phones have no browser chrome), then fix with one shared pattern.
+- [x] **Mobile "no way back" audit + fix** (#85) — DONE. Audited every standalone
+      page (root layout has no nav): `/bible`, `/flyers/:slug`, `/give/:slug`,
+      `/give/thanks`, `/join/:slug` had no way back; `/handoff` had no exit on error;
+      `/portal` already has its own tab bar (left alone); `/give/mock-pay` is the
+      untouched dev mock flow (left alone). Added one shared `BackBar`
+      (`apps/web/src/components/back-bar.tsx`): "← Back" uses history when present,
+      else a safe fallback link (never a dead button) + a Home/Dashboard link.
+      Applied to the five pages; `/handoff` error gets a "Go to sign in" link.
+      Verified live: direct landing Back → `/`; with history Back → prior page;
+      `/flyers` fallback shows Dashboard; 24px+ aria-labeled target.
 - [ ] **Pack the Asante Twi** once the owner's permission email is answered —
       text itself must not be repacked without that written permission.
 - [ ] **Twi edition identity audit** (#49) — labels now say classic/modern

@@ -49,6 +49,7 @@ function HandoffInner() {
               The link can only be used once and lasts about two minutes. Ask the platform office
               for a fresh one.
             </p>
+            <p style={{ marginTop: 8 }}><a href="/login">Go to sign in</a></p>
           </>
         ) : (
           <p className="muted">Signing you in…</p>

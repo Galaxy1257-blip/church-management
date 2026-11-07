@@ -364,10 +364,16 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       quotation marks). 97% of verses differ — two distinct editions. No dialect claim: the modern one's
       source app is named "Akuapem" but labels itself "Asante" (identity audit stays #49).
 - [x] **Plain-English English Bible packed:** `web.json` — World English Bible (public domain), 66 books /
-      31,103 verses, via `scripts/fetch-web-bible.mjs` (source TehShrike/world-english-bible). Verified live.
+      31,102 verses, via `scripts/fetch-web-bible.mjs` (source TehShrike/world-english-bible). Session AH
+      fixed the converter (join multi-block verses; densify holes to '' not null) + regression spec. Verified live.
 - [x] 1871 Akuapem (archive.org, PD) **rejected per owner** — another Akuapem + badly degraded OCR.
-- [ ] Left open: side-by-side two-translation reading; mobile "no way back" audit; Asante Twi once GBS/
-      Biblica answer the owner's permission email (open items §G; licence table lives there).
+- [x] **Side-by-side two-translation reading (#83, Session AH):** `/bible` "Read alongside" picker, verse-aligned
+      pairs (two columns ≥700px, stacked on phones), per-verse copy, missing-chapter note. Verified live.
+- [x] **Mobile "no way back" audit + fix (#85, Session AH):** shared `BackBar` (history-back + safe fallback) on
+      `/bible`, `/flyers/:slug`, `/give/:slug`, `/give/thanks`, `/join/:slug`; `/handoff` error → sign-in link.
+      `/portal` (own tab bar) and `/give/mock-pay` (dev mock) left alone. Verified live both back paths.
+- [ ] Left open: Asante Twi once GBS/Biblica answer the owner's permission email; #49 Twi identity audit
+      (open items §G; licence table lives there).
 
 ### Program tracking ✅ (owner ask, 7 Nov)
 - [x] `Program` table (migration 15) + `/programs` screen: a church program repeats on a member's date (birthday,

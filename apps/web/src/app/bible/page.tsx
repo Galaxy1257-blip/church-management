@@ -4,6 +4,7 @@
 // Click a verse to copy it.
 import { FormEvent, useEffect, useState } from 'react';
 import { translationLabel } from '../../lib/bible';
+import BackBar from '../../components/back-bar';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -119,6 +120,7 @@ export default function BiblePage() {
 
   return (
     <div className="container" style={{ maxWidth: comparing ? 960 : 720, paddingTop: '3vh' }}>
+      <BackBar />
       <div className="card">
         <div className="spread">
           <h1 style={{ margin: 0 }}>Bible</h1>

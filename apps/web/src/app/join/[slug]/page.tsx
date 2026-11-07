@@ -5,6 +5,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Notice from '../../../components/notice';
+import BackBar from '../../../components/back-bar';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -50,6 +51,7 @@ export default function JoinPage() {
 
   return (
     <div className="container" style={{ maxWidth: 460, paddingTop: '8vh' }}>
+      <BackBar />
       <div className="card">
         <h1>{church?.name ?? 'Join your church'}</h1>
         <p className="muted">

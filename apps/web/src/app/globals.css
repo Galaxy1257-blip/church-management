@@ -756,6 +756,11 @@ button.card:active { transform: none; }
   .bible-pair-head { grid-template-columns: 1fr; gap: 0.15rem; }
 }
 
+/* Shared way back on standalone pages (no app shell, no browser chrome on a
+   phone PWA). Sits above the page content; the home link tucks to the right. */
+.back-bar { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 0.75rem; }
+.back-bar-home { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
+
 .stat {
   position: relative;
   overflow: hidden;

@@ -1,7 +1,9 @@
 'use client';
+import BackBar from '../../../components/back-bar';
 export default function GiveThanksPage() {
   return (
     <div className="container" style={{ maxWidth: 440, paddingTop: '8vh' }}>
+      <BackBar />
       <div className="card" style={{ textAlign: 'center' }}>
         <h1>Thank you! 🙏</h1>
         <p className="muted">Your gift has been recorded. An SMS receipt is on its way.</p>
