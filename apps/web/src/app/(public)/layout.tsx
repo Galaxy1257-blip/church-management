@@ -4,6 +4,9 @@ import './public.css';
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="pub-shell">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <header className="pub-top">
         <Link href="/" className="pub-mark">
           <i>C</i> ChMS <span className="pub-tag">for churches</span>
@@ -11,7 +14,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <nav className="pub-links">
           <Link href="/#features">What it does</Link>
           <Link href="/#pricing">Price</Link>
-          <Link href="/#help">Help</Link>
+          <Link href="/help">Help</Link>
         </nav>
         <div className="pub-cta">
           <Link href="/login" className="link">
@@ -22,8 +25,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </Link>
         </div>
       </header>
-      <main className="pub-main">{children}</main>
-      <footer className="pub-foot" id="help">
+      <main id="main-content" tabIndex={-1} className="pub-main">{children}</main>
+      <footer className="pub-foot">
         <div className="pub-foot-inner">
           <div>
             <b>ChMS</b> · church management for Ghana

@@ -218,6 +218,9 @@ export default function AppNav({
           <Link href="/about" className={`side-action${isActive('/about') ? ' active' : ''}`}>
             About
           </Link>
+          <Link href="/help" className="side-action">
+            Help
+          </Link>
           <button type="button" className="side-action" onClick={onLogout}>
             Log out
           </button>

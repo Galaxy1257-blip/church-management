@@ -1916,3 +1916,29 @@ data-handling change updates the two pages and bumps `LEGAL_UPDATED` in the same
 an App-section switch.
 
 **Next:** commit + push (auto-deploys Render + Vercel), then Batches 4/5/6 (#58/#60/#59) and the feature backlog.
+
+---
+
+## 2026-11-07 — Session AG (Help that answers + dead-click sweep)
+
+**Owner ask:** "clicking on help section does nothing … brainstorm all possible user complaints, solutions and
+FAQs and implement … check all such similar that clicking does nothing."
+
+**Done:**
+- **Real `/help` page** — the public nav "Help" pointed at `/#help`, which only scrolled to the contact footer.
+  Built a searchable Help & FAQ: 62 plain-English answers across 13 topics, each grounded in actual app behaviour
+  (14-day trial / GH₵ 100 per church / 7-day grace then pause; erasure is a right even while locked; switches gate
+  the API; usher mode; two-counter money; SMS segments + STOP; encrypted counselling notes; PWA install + offline;
+  themes/dark mode; row-level branch isolation). Native `<details>` disclosures, live search filter, contact card.
+  Answers avoid promising screens that do not exist (e.g. SMS quiet-hours-on-send is Batch 5, not yet claimed).
+- **Nav fixed** — public `Help → /help`; in-app `Help` link added to the menu footer beside About.
+- **Dead-click sweep** — enumerated all 46 routes and every `href` target: 0 × 404, no no-op `onClick`, no
+  `TODO`/`coming soon`/`disabled` placeholders. `/#features` + `/#pricing` resolve to real home sections; `/#help`
+  was the only dead link.
+
+**Verified live:** `/help` 200; 62 FAQs / 13 groups render; search "locked" → 3 of 62, resets to 62; 0 horizontal
+overflow; widest contact button 244px (fits 390px). Web typecheck clean, eslint clean, `check:secrets` clean.
+**Honest limit:** in-app browser surface is hidden, so `take_screenshot` fails — verified by DOM/snapshot instead,
+no before/after image captured.
+
+**Next:** finish Batch 4 (#58 — aria-labels + drawer focus), then Batch 5 (#60), Batch 6 (#59), then the backlog.

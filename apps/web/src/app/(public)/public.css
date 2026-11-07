@@ -273,3 +273,42 @@
 .legal-links { margin-top: 1.8rem; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
 .pub-foot-legal { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.84rem; }
 .pub-foot-legal a { color: var(--muted); text-decoration: underline; }
+
+/* Help & FAQ: a searchable answer book. Native <details> disclosures keep it
+   keyboard- and screen-reader-friendly with no focus trap to maintain. */
+.help { max-width: 820px; padding-top: 1.6rem; padding-bottom: 2rem; }
+.help h1 { font-size: 1.9rem; margin: 0.3rem 0 0.4rem; }
+.help-lead { color: var(--muted); font-size: 0.98rem; line-height: 1.6; margin: 0 0 1.1rem; }
+.help-lead a { color: var(--brand); font-weight: 600; }
+.help-search { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.help-search input {
+  flex: 1; min-width: 220px; font: inherit; padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink);
+}
+.help-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.help-count { color: var(--muted); font-size: 0.84rem; white-space: nowrap; }
+.help-quick { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.4rem; }
+.help-group { margin-bottom: 1.5rem; }
+.help-group h2 { font-size: 1.12rem; margin: 0 0 0.6rem; }
+.help-faqs { display: grid; gap: 0.5rem; }
+.help-faq { border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
+.help-faq summary {
+  cursor: pointer; padding: 0.8rem 1rem; font-weight: 600; font-size: 0.96rem; color: var(--ink);
+  list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  min-height: 24px;
+}
+.help-faq summary::-webkit-details-marker { display: none; }
+.help-faq summary::after { content: '+'; color: var(--muted); font-weight: 700; font-size: 1.1rem; line-height: 1; }
+.help-faq[open] summary::after { content: '–'; }
+.help-faq summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.help-faq[open] summary { border-bottom: 1px solid var(--line); }
+.help-answer { padding: 0.8rem 1rem 1rem; }
+.help-answer p { margin: 0; font-size: 0.94rem; line-height: 1.65; color: var(--ink); }
+.help-cta { display: inline-block; margin-top: 0.7rem; color: var(--brand); font-weight: 600; font-size: 0.9rem; }
+.help-none, .help-contact { margin-top: 1rem; }
+.help-contact h2 { font-size: 1.12rem; margin: 0 0 0.3rem; }
+.help-contact .help-quick { margin: 0.8rem 0 0; }
+@media (max-width: 600px) {
+  .help h1 { font-size: 1.6rem; }
+  .help-search input { min-width: 100%; }
+}

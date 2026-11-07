@@ -130,6 +130,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`app-shell${showUsher ? ' usher-shell' : ''}`}>
+      {/* First thing a keyboard reaches: the menu is ~30 links deep, so without
+          this everyone tabs through the whole sidebar to reach the page. */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <AppNav
         me={me}
         groups={groups}
@@ -141,7 +146,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onLogout={logout}
       />
       <div className="app-body">
-        <main className={showUsher ? 'container usher' : 'container'}>
+        <main id="main-content" tabIndex={-1} className={showUsher ? 'container usher' : 'container'}>
           {denied ? (
             <div className="card">
               <h1>{areaOff ? 'Area switched off' : 'Not available for your role'}</h1>

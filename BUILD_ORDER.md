@@ -621,6 +621,20 @@ the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
       Buttons in the member portal and staff About page. Erasure is a right, not a switch.
 - [ ] #78 Dashboard cards fully follow every App-section switch (partially done — re-audit each card).
 
+### Session AG additions (Help that answers + no dead clicks — owner ask, 7 Nov)
+- [x] **The public "Help" link did nothing useful** — it pointed at `/#help`, which only scrolled to the
+      contact footer. Replaced with a real, searchable `/help` page: 62 plain-English answers in 13 topics
+      (getting started, billing, members, attendance, offerings, SMS, care, groups/branches, switches/roles,
+      Bible, appearance/phone, data/privacy, troubleshooting), each grounded in what the app actually does.
+      Native `<details>` disclosures (keyboard + screen-reader friendly), live search filter, contact card.
+- [x] Public nav `Help → /help`; added an in-app `Help` link in the menu footer beside About.
+- [x] **Dead-click sweep**: every `href` target resolves to a real route/anchor (0 × 404); no no-op `onClick`
+      handlers; no `TODO`/`coming soon`/`disabled` placeholder buttons. `/#features` and `/#pricing` resolve to
+      real home-page sections. `/#help` was the only dead link.
+- [x] Verified live: `/help` 200, 62 FAQs / 13 groups render, search "locked" → 3 of 62 then resets, 0 horizontal
+      overflow, widest button 244px (fits 390px). Typecheck + eslint + `check:secrets` clean. Screenshots not
+      available (in-app browser surface hidden) — DOM verification used instead.
+
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed
 tokens) · households/guardians ✅ · children dual-ticket ✅ · visitor slips + GH phone norm ✅ · drip

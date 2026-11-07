@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-06 (Session AF — Batch 3 done: one GH₵ format everywhere, plain-English 403s, legible accent; plus Terms/Privacy pages and a self-service erasure right). **Self-contained**: a fresh session can
+Last updated: 2026-11-07 (Session AG — real searchable `/help` FAQ (62 answers / 13 topics) replaces the dead `/#help` footer link; in-app Help link added; dead-click sweep found 0 other dead links/buttons. Batch 4 in progress: skip links + 24px targets done, aria-labels + drawer focus remaining). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 
