@@ -148,10 +148,10 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
   - [x] Once licensed file received: **APK → `node scripts/extract-apk-bible.mjs <apk> <code> <Language>`**
       (handles UTF-16, HTML styles, legacy-font decode, structural validation vs KJV — proven on Twi) or
       manual convert to bundle shape → drop into `apps/api/data/bible/` → appears in picker automatically (zero code changes)
-  - [ ] Show licence attribution on /bible footer per translation. `bundle.license` is already returned and
-        today reaches the screen only as a `title` tooltip on the language chip
-        (`apps/web/src/app/bible/page.tsx:93`) — it needs a visible line, especially for the six Ghana
-        bundles marked `publicDomain:false`.
+  - [x] Show licence attribution on /bible per translation (#47, Session AH) — DONE. A visible
+        "Licence:" line under the reader shows `translationLabel` + `bundle.license` for the active
+        translation, and a second line for the compare translation in side-by-side mode. Verified live
+        (KJV public-domain line; Ghana bundles' honest "licence not verified" line).
 - [x] Verse-of-the-day SMS: worker job daily 05:55 (source ANNOUNCEMENT = opt-out respected, idempotent vod:{church}:{day}:{member}); settings card on /settings (`/churches/me/devotional`)
 - [ ] **R2.2 More English translations (verify-before-build sources)**
   - [x] ASV (1901, public domain) — bundled from scrollmapper/bible_databases (MIT) — 66 books, `asv.json`

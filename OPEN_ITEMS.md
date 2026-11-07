@@ -32,7 +32,10 @@ auto-deploys Render + Vercel).
 - [ ] #40 Daily reading as an in-app notification, with its own switch (also #45)
 - [ ] #45 Put the daily reading in the app with its own switch (dup of #40 — reconcile)
 - [ ] #46 Encrypted counselling notes: screen or delete (feeds #59)
-- [ ] #47 Show each Bible's licence on the reader
+- [x] #47 Show each Bible's licence on the reader — DONE. `/bible` shows a visible
+      "Licence:" line under the reader (label + licence text per translation; both
+      shown in compare mode). Verified live: KJV public-domain line, Twi honest
+      "licence not verified" line.
 - [ ] #48 Link the share-links page + correct FEATURES §15
 - [ ] #49 Audit the two Twi bundles; get a genuine Akuapem if needed
 
@@ -87,12 +90,12 @@ lists processors updates from that one constant. Also re-check the deploy path i
 | Asante Twi "Nkwa Asɛm" (Biblica) | *not packed* | **Licensed** — owner emailing GBS/Biblica for permission (9 Nov morning); pack only with written permission, drop-in ready |
 
 Open work:
-- [ ] **Push the local commits** (bundles + Bible labels/WEB + #83) to GitHub — repeated attempts on
-      8 Nov died with "unexpected disconnect while reading sideband packet" / "schannel: server closed
-      abruptly" on the ~25MB bundle pack; HTTP/1.1 + postBuffer also failed, and at one point github.com
-      would not even resolve (link is intermittent — raw.githubusercontent.com worked for the WEB regen).
-      Commits are safe locally; retry `git push origin main` when the connection is better. Remote `main`
-      is still at `3edf7ae`.
+- [x] **Push the local commits** to GitHub — RESOLVED. After repeated 8 Nov failures
+      ("unexpected disconnect while reading sideband packet" / "schannel: server closed
+      abruptly" on the ~25MB pack), the link recovered and
+      `git -c http.version=HTTP/1.1 -c http.postBuffer=524288000 push origin main`
+      succeeded (`3edf7ae..363080b`). Remote `main` confirmed == local HEAD `363080b`
+      (bundles + Bible labels/WEB + #83 + #85). #47 pushed in a follow-up commit.
 - [x] **Side-by-side two-translation reading** (#83) — DONE. `/bible` has a "Read
       alongside" picker; verse-aligned pairs (two columns ≥700px, stacked per verse
       on phones), per-verse copy, missing-chapter handled. Verified live (KJV↔WEB

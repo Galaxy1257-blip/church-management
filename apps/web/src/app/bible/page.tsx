@@ -167,6 +167,12 @@ export default function BiblePage() {
         </form>
         {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
         {copied ? <div className="muted" style={{ marginTop: 6 }}>Copied {copied} ✓</div> : null}
+        {active ? (
+          <p className="muted" style={{ margin: '10px 0 0', fontSize: '0.78rem', lineHeight: 1.45 }}>
+            <b>Licence:</b> {translationLabel(active)} — {active.license}
+            {comparing && compareInfo ? (<><br />{translationLabel(compareInfo)} — {compareInfo.license}</>) : null}
+          </p>
+        ) : null}
       </div>
       {results.length > 0 ? (
         <div className="card">

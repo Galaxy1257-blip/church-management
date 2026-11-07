@@ -2135,3 +2135,20 @@ Asante drop-in once licensed; #49 Twi identity; push.
 **Gates:** web typecheck clean · web 10/10 · eslint clean · `check:secrets` clean (web-only change).
 
 **Next:** Asante drop-in once the licence email is answered; #49 Twi identity; push (link still intermittent).
+
+### Session AH continued — push resolved + #47 visible Bible licence
+
+- **Push RESOLVED:** the intermittent github.com link recovered; `git -c http.version=HTTP/1.1
+  -c http.postBuffer=524288000 push origin main` succeeded (`3edf7ae..363080b`). Remote `main`
+  confirmed == local HEAD `363080b` (bundles + Bible labels/WEB + #83 + #85 all on GitHub).
+- **#47 visible licence DONE:** `/bible` now shows a "Licence:" line under the reader —
+  `translationLabel(active)` + `active.license`, plus a second line for the compare translation in
+  side-by-side mode (`apps/web/src/app/bible/page.tsx`). Previously the licence reached the screen only
+  as a `title` tooltip. Verified live: KJV → "Public domain (KJV crown copyright expired 2016)";
+  Twi (classic wording) → honest "Extracted from … APK (licence not verified — confirm translation
+  copyright before redistribution)"; compare mode shows both licences.
+
+**Gates:** web typecheck clean · web 10/10 · eslint clean · `check:secrets` clean (web-only change).
+
+**Next:** Asante drop-in once the owner's GBS/Biblica licence email is answered (no copyrighted repack
+without written permission); #49 Twi identity audit (needs external evidence). Both blocked on the owner.
