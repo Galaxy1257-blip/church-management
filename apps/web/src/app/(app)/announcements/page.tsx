@@ -2,12 +2,13 @@
 // Announcements: post church-wide notices (in-app now; SMS via campaigns).
 // Clicking a notice opens it in full — including the photo published with it
 // (e.g. a deceased parent) and the member it is about, with their contact card.
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
 import { fmtDateTime } from '../../../lib/format';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
 import MemberDrawer from '../../../components/member-drawer';
 import Notice from '../../../components/notice';
+import { useDialogFocus } from '../../../components/use-dialog-focus';
 
 interface MemberLite {
   id: string;
@@ -46,6 +47,9 @@ export default function AnnouncementsPage() {
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   // Notices members sent in from the companion, waiting for a leader.
   const [pending, setPending] = useState<Announcement[]>([]);
+  const dialogRef = useRef<HTMLElement>(null);
+  // When the member drawer opens on top, it owns focus; this trap stands down.
+  useDialogFocus(dialogRef, !!openId && !openMemberId);
 
   async function load(cat = filter): Promise<void> {
     try {
@@ -227,7 +231,7 @@ export default function AnnouncementsPage() {
       {openId ? (
         <>
           <button type="button" className="drawer-scrim" aria-label="Close announcement" onClick={() => { setOpenId(null); setDetail(null); }} />
-          <aside className="drawer" role="dialog" aria-modal="true" aria-label="Announcement">
+          <aside ref={dialogRef} tabIndex={-1} className="drawer" role="dialog" aria-modal="true" aria-label="Announcement">
             <div className="drawer-head">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ margin: 0 }}>{detail?.title ?? 'Announcement'}</h2>

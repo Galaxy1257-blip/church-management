@@ -314,9 +314,19 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       only when unticked), restored on reload, cleared by Sign out. Verified live.
 - Gates: shared 126/126 · api 128/128 · both typechecks · eslint · `check:secrets` clean.
 
-### Batches 3–7 (approved or requested, not started)
-- [ ] **Batch 3 — display:** GH₵ formatting everywhere, one shared notice banner component, accent legibility.
-- [ ] **Batch 4 — phone and keyboard accessibility sweep.**
+### Batches 3–7 (approved or requested)
+- [x] **Batch 3 — display:** GH₵ formatting everywhere, one shared notice banner component, accent legibility.
+      **DONE Session AF** — `ghs()` across 65 call sites / 16 screens, plain-English 403s, `--accent-ink` 6.23:1.
+- [x] **Batch 4 — phone and keyboard accessibility sweep.** **DONE Session AG** — skip-to-content links (app +
+      public shells); WCAG 2.5.8 24px floor on button/select/input controls; **46 aria-labels** applied (27 from
+      placeholder context, 19 hand-written), re-audit shows **0 unlabeled controls**; one shared `useDialogFocus`
+      hook (pure `trapTarget` boundary helper + 7 unit tests) wired into **4/4 dialogs** (member drawer, Bible dock,
+      announcement drawer, phone menu). Verified live in the running app: focus moves in, Tab wraps last→first,
+      Shift+Tab wraps first→last, Escape closes, focus restores to the trigger — Bible dock 44 focusables, phone
+      menu 15, member drawer 3, announcement 1. Members page: 0 unlabeled visible controls, 0 horizontal overflow.
+      Drawers 390px-safe (`min(420px,94vw)` / full-width bottom sheet). Gates: shared 136/136 · API 208/208 ·
+      web 10/10 · shared/db/api/web typechecks · eslint · `check:secrets` clean. Screenshots unavailable (hidden
+      browser surface) — DOM + live keyboard-event verification used instead.
 - [ ] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
 - [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
 ### Batch 7 — member posts ✅ (owner ask, 4 Nov)

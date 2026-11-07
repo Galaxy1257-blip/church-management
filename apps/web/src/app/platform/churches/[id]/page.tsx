@@ -1037,7 +1037,7 @@ function UserEditor({
             <div>
               <div className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Care class</div>
               <div className="row" style={{ marginTop: '0.3rem' }}>
-                <select value={careClass} onChange={(e) => setCareClass(e.target.value)} style={{ flex: 1 }}>
+                <select aria-label="Care class" value={careClass} onChange={(e) => setCareClass(e.target.value)} style={{ flex: 1 }}>
                   <option value="">No class assigned</option>
                   {options.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>

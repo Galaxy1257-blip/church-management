@@ -95,16 +95,16 @@ export default function OrgPage() {
           <h2>Branches</h2>
           {canAddBranch ? (
             <form className="row" onSubmit={addBranch}>
-              <input placeholder="Name" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} required style={{ flex: 1 }} />
-              <input placeholder="Code" value={branchForm.code} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} required style={{ width: 90 }} />
+              <input aria-label="Branch name" placeholder="Name" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} required style={{ flex: 1 }} />
+              <input aria-label="Branch code" placeholder="Code" value={branchForm.code} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} required style={{ width: 90 }} />
               <button>Add</button>
             </form>
           ) : null}
           <table><tbody>{branches.map((b) => <tr key={b.id}><td>{b.name}</td><td><span className="badge mute">{b.code}</span></td></tr>)}</tbody></table>
           <h2>Transfer member</h2>
           <form className="stack" onSubmit={requestTransfer}>
-            <input placeholder="Member ID" value={transfer.memberId} onChange={(e) => setTransfer({ ...transfer, memberId: e.target.value })} required />
-            <select value={transfer.toBranchId} onChange={(e) => setTransfer({ ...transfer, toBranchId: e.target.value })}>
+            <input aria-label="Member ID to transfer" placeholder="Member ID" value={transfer.memberId} onChange={(e) => setTransfer({ ...transfer, memberId: e.target.value })} required />
+            <select aria-label="Transfer to branch" value={transfer.toBranchId} onChange={(e) => setTransfer({ ...transfer, toBranchId: e.target.value })}>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
             <button>Request transfer (needs 2nd approval)</button>
@@ -131,8 +131,8 @@ export default function OrgPage() {
         <div className="card">
           <h2>Households</h2>
           <form className="row" onSubmit={addHousehold}>
-            <input placeholder="Household name" value={hhForm.name} onChange={(e) => setHhForm({ ...hhForm, name: e.target.value })} required style={{ flex: 1 }} />
-            <input placeholder="Head member ID" value={hhForm.headMemberId} onChange={(e) => setHhForm({ ...hhForm, headMemberId: e.target.value })} style={{ flex: 1 }} />
+            <input aria-label="Household name" placeholder="Household name" value={hhForm.name} onChange={(e) => setHhForm({ ...hhForm, name: e.target.value })} required style={{ flex: 1 }} />
+            <input aria-label="Head of household member ID" placeholder="Head member ID" value={hhForm.headMemberId} onChange={(e) => setHhForm({ ...hhForm, headMemberId: e.target.value })} style={{ flex: 1 }} />
             <button>Create</button>
           </form>
           <table><thead><tr><th>Household</th><th>Members</th></tr></thead><tbody>

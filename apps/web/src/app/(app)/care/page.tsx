@@ -80,7 +80,7 @@ export default function CarePage() {
       <div className="card">
         <h2>Prayer wall</h2>
         <form className="stack" onSubmit={addPrayer}>
-          <textarea value={prayerBody} onChange={(e) => setPrayerBody(e.target.value)} placeholder="Prayer request…" required />
+          <textarea aria-label="Prayer request" value={prayerBody} onChange={(e) => setPrayerBody(e.target.value)} placeholder="Prayer request…" required />
           <button>Submit request</button>
         </form>
         {prayers.map((p) => (
@@ -119,23 +119,23 @@ export default function CarePage() {
             } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
           }}>
             <div className="row">
-              <select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}>
+              <select aria-label="Care task type" value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}>
                 <option value="VISIT_HOME">Home visit</option>
                 <option value="VISIT_HOSPITAL">Hospital visit</option>
                 <option value="VISIT_BEREAVEMENT">Bereavement visit</option>
                 <option value="FUNERAL_SUPPORT">Funeral / one-week support</option>
               </select>
               {classScoped ? (
-                <select value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} required>
+                <select aria-label="Member" value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} required>
                   <option value="">Choose a child</option>
                   {classMembers.map((m) => (
                     <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
                   ))}
                 </select>
               ) : (
-                <input placeholder="Member ID (optional)" value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} />
+                <input aria-label="Member ID (optional)" placeholder="Member ID (optional)" value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} />
               )}
-              <input style={{ flex: 2 }} placeholder="Note (who / where / when)" value={taskForm.note} onChange={(e) => setTaskForm({ ...taskForm, note: e.target.value })} />
+              <input aria-label="Care note: who, where, when" style={{ flex: 2 }} placeholder="Note (who / where / when)" value={taskForm.note} onChange={(e) => setTaskForm({ ...taskForm, note: e.target.value })} />
               <button className="small" disabled={classScoped && !taskForm.memberId}>Add</button>
             </div>
           </form>

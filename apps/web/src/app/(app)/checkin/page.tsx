@@ -247,7 +247,7 @@ export default function CheckinPage() {
         <div className="card">
           <h2>Help someone check in</h2>
           <form className="stack" onSubmit={onSearch}>
-            <input
+            <input aria-label="Search to check in by name, member number or phone"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="name, member number or phone"
@@ -287,7 +287,7 @@ export default function CheckinPage() {
         <div className="card">
           <h2>Card or code</h2>
           <form className="stack" onSubmit={onQr}>
-            <input value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="member number, phone, or scanned card" />
+            <input aria-label="Member number, phone or scanned card" value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="member number, phone, or scanned card" />
             <button>Check in</button>
           </form>
           <p className="muted">Type the member number from the door, or scan the card if this phone has a camera scanner.</p>

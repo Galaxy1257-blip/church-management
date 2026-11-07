@@ -533,6 +533,10 @@ p { margin: 0 0 0.7rem; }
 .skip-link:focus { transform: translateY(0); }
 /* Tapping or focusing the target must not leave a ring around the whole page. */
 main[tabindex='-1']:focus { outline: none; }
+/* A dialog container receives focus programmatically so screen readers announce
+   its name; the ring belongs on the controls inside it, not the whole panel. */
+[role='dialog'][tabindex='-1']:focus,
+#app-menu[tabindex='-1']:focus { outline: none; }
 
 /* WCAG 2.5.8: no control smaller than 24×24 CSS px. Inline links inside a
    sentence keep their natural size (they are exempt); anything that is a

@@ -505,7 +505,7 @@ export default function MembersPage() {
             written until you confirm.
           </p>
           <form className="stack" onSubmit={doPreview}>
-            <textarea
+            <textarea aria-label="CSV rows to import"
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder={'firstName,lastName,phone\nKwame,Asante,0241234567'}
@@ -532,7 +532,7 @@ export default function MembersPage() {
       ) : null}
 
       <div className="card">
-        <input
+        <input aria-label="Search members by name, phone or member number"
           placeholder="Search name, phone, member no…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -566,7 +566,7 @@ export default function MembersPage() {
                 <td>{fmtDate(m.joinedAt)}</td>
                 <td>
                   {canWrite ? (
-                    <select value={m.discipleshipStage ?? ''} onChange={(e) => void changeStage(m.id, e.target.value || 'VISITOR')} style={{ width: 130 }}>
+                    <select aria-label="Discipleship stage" value={m.discipleshipStage ?? ''} onChange={(e) => void changeStage(m.id, e.target.value || 'VISITOR')} style={{ width: 130 }}>
                       <option value="">(none)</option>
                       {STAGES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
                     </select>

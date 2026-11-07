@@ -13,6 +13,7 @@ import {
   type NavItem,
   type SessionUser,
 } from '../lib/access';
+import { useDialogFocus } from './use-dialog-focus';
 
 export default function AppNav({
   me,
@@ -37,6 +38,8 @@ export default function AppNav({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
+  useDialogFocus(menuRef, drawerOpen);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -115,7 +118,7 @@ export default function AppNav({
         </Link>
       </div>
 
-      <aside id="app-menu" className={`side-nav${drawerOpen ? ' open' : ''}`} aria-label="Main menu">
+      <aside ref={menuRef} tabIndex={-1} id="app-menu" className={`side-nav${drawerOpen ? ' open' : ''}`} aria-label="Main menu">
         <div className="side-head">
           <Link href={home} className="brand" title={me.church.name}>
             {logo ? <img src={logo} alt="" style={{ height: 22 }} /> : null}

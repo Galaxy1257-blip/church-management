@@ -1942,3 +1942,27 @@ overflow; widest contact button 244px (fits 390px). Web typecheck clean, eslint 
 no before/after image captured.
 
 **Next:** finish Batch 4 (#58 — aria-labels + drawer focus), then Batch 5 (#60), Batch 6 (#59), then the backlog.
+
+### Session AG continued — Batch 4 done (phone + keyboard accessibility)
+
+- **46 aria-labels** applied across 14 files (27 derived from placeholder context, 19 hand-written from verified
+  surrounding UI). Improved the audit to honour `htmlFor`/`id` associations and multi-line tags; re-audit reports
+  **0 unlabeled controls** (was 46). Members page verified live: 0 unlabeled visible controls, 0 horizontal overflow.
+- **One shared focus rule, not four copies:** `lib/focus.ts` (pure `trapTarget` boundary maths + `FOCUSABLE`
+  selector) and `components/use-dialog-focus.ts` (move focus in, trap Tab, restore on close). Wired into **4/4
+  dialogs** — member drawer, Bible dock, announcement drawer (stands down while its nested member drawer is on
+  top), phone menu. Dialog containers get `tabIndex={-1}`; the container focus ring is suppressed (ring belongs on
+  the controls inside). 7 new unit tests for the wrap boundaries (`lib/focus.test.ts`).
+- **Verified live in the running app** (authenticated demo session, keyboard events dispatched): every dialog moves
+  focus in on open, Tab wraps last→first, Shift+Tab wraps first→last, Escape closes, and focus restores to the
+  trigger. Bible dock 44 focusables, phone menu 15, member drawer 3, announcement 1 — all pass. Skip link + 24px
+  floor confirmed live earlier in the session.
+- **390px:** drawers use `min(420px,94vw)` (366px at 390) and become a full-width bottom sheet on phones; Bible
+  drawer `min(460px,96vw)`. No fixed-width overflow. Verified at the in-app browser's 504px viewport; a true 390px
+  screenshot was not possible (hidden browser surface), so layout safety is argued from the responsive CSS + DOM
+  measurements, not an image.
+
+**Gates:** shared 136/136 (16 files) · API 208/208 · web 10/10 (2 files) · shared/db/api/web typechecks clean ·
+eslint clean · `check:secrets` clean. Worker excluded (parallel session owns `apps/worker`).
+
+**Next:** Batch 5 (#60 — branch RLS backstop, Render start command, SMS quiet hours on send), then Batch 6 (#59).

@@ -230,7 +230,7 @@ export default function PlatformTeamPage() {
                       </div>
                       {selected?.id === row.id ? (
                         <div className="row" style={{ marginTop: '0.4rem' }}>
-                          <input
+                          <input aria-label="New password (10 or more characters)"
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}

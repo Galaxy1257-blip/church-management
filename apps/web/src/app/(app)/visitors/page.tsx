@@ -113,7 +113,7 @@ export default function VisitorsPage() {
       <div className="card">
         <div className="spread">
           <h2 style={{ margin: 0 }}>Directory</h2>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Visitor status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="NEW">New</option>
             <option value="IN_FOLLOWUP">In follow-up</option>

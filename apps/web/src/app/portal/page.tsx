@@ -693,7 +693,7 @@ export default function PortalPage() {
           <div className="spread">
             <h2 style={{ margin: 0 }}>My offerings</h2>
             <div className="row">
-              <input style={{ width: 70 }} value={year} onChange={(e) => setYear(e.target.value)} />
+              <input aria-label="Statement year" style={{ width: 70 }} value={year} onChange={(e) => setYear(e.target.value)} />
               <button className="small secondary" onClick={() => void loadStatement()}>Statement {year}</button>
               {statement && statement.year === Number(year) && statement.rows.length > 0 ? (
                 <button className="small" onClick={downloadStatement}>Download PDF</button>
@@ -808,7 +808,7 @@ export default function PortalPage() {
         <div className="card">
           <h2>Prayer request</h2>
           <form className="stack" onSubmit={submitPrayer}>
-            <textarea value={prayerBody} onChange={(e) => setPrayerBody(e.target.value)} placeholder="How can we pray for you?" required />
+            <textarea aria-label="Prayer request" value={prayerBody} onChange={(e) => setPrayerBody(e.target.value)} placeholder="How can we pray for you?" required />
             <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} />
               Submit anonymously

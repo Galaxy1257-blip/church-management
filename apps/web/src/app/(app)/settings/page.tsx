@@ -397,11 +397,11 @@ export default function SettingsPage() {
         </div>
         {brackets.map((b, i) => (
           <div className="row" key={i}>
-            <input style={{ flex: 2 }} value={b.label} onChange={(e) => upd(i, { label: e.target.value })} placeholder="Group name" />
-            <input style={{ width: 110 }} value={b.key} onChange={(e) => upd(i, { key: e.target.value, segmentKey: e.target.value })} placeholder="KEY" />
-            <input style={{ width: 70 }} type="number" value={b.minAge} onChange={(e) => upd(i, { minAge: Number(e.target.value) })} />
+            <input aria-label="Age group name" style={{ flex: 2 }} value={b.label} onChange={(e) => upd(i, { label: e.target.value })} placeholder="Group name" />
+            <input aria-label="Age group key" style={{ width: 110 }} value={b.key} onChange={(e) => upd(i, { key: e.target.value, segmentKey: e.target.value })} placeholder="KEY" />
+            <input aria-label="Age group minimum age" style={{ width: 70 }} type="number" value={b.minAge} onChange={(e) => upd(i, { minAge: Number(e.target.value) })} />
             <span>to</span>
-            <input style={{ width: 70 }} type="number" value={b.maxAge ?? ''} placeholder="∞" onChange={(e) => upd(i, { maxAge: e.target.value === '' ? null : Number(e.target.value) })} />
+            <input aria-label="Age group maximum age (blank for no limit)" style={{ width: 70 }} type="number" value={b.maxAge ?? ''} placeholder="∞" onChange={(e) => upd(i, { maxAge: e.target.value === '' ? null : Number(e.target.value) })} />
             <label style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={b.genderSplit} onChange={(e) => upd(i, { genderSplit: e.target.checked })} />
               Split into two
@@ -692,8 +692,8 @@ export default function SettingsPage() {
         </div>
         {funds.map((f) => (
           <div className="row" key={f.id}>
-            <input style={{ flex: 2 }} value={f.name} onChange={(e) => setFunds(funds.map((x) => (x.id === f.id ? { ...x, name: e.target.value } : x)))} />
-            <select style={{ width: 150 }} value={f.type} onChange={(e) => setFunds(funds.map((x) => (x.id === f.id ? { ...x, type: e.target.value } : x)))}>
+            <input aria-label="Fund name" style={{ flex: 2 }} value={f.name} onChange={(e) => setFunds(funds.map((x) => (x.id === f.id ? { ...x, name: e.target.value } : x)))} />
+            <select aria-label="Fund type" style={{ width: 150 }} value={f.type} onChange={(e) => setFunds(funds.map((x) => (x.id === f.id ? { ...x, type: e.target.value } : x)))}>
               {['TITHE', 'OFFERING', 'WELFARE', 'BUILDING', 'MISSIONS', 'SEED', 'EVENT', 'OTHER', 'FIRST_FRUIT', 'THANKSGIVING', 'HARVEST', 'ANNIVERSARY'].map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <label style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -704,8 +704,8 @@ export default function SettingsPage() {
           </div>
         ))}
         <div className="row">
-          <input style={{ flex: 2 }} placeholder="New category or event (e.g. Harvest 2027)" value={newFund.name} onChange={(e) => setNewFund({ ...newFund, name: e.target.value })} />
-          <select value={newFund.type} onChange={(e) => setNewFund({ ...newFund, type: e.target.value })}>
+          <input aria-label="New fund category or event name" style={{ flex: 2 }} placeholder="New category or event (e.g. Harvest 2027)" value={newFund.name} onChange={(e) => setNewFund({ ...newFund, name: e.target.value })} />
+          <select aria-label="New fund type" value={newFund.type} onChange={(e) => setNewFund({ ...newFund, type: e.target.value })}>
             {['OFFERING', 'TITHE', 'WELFARE', 'BUILDING', 'MISSIONS', 'SEED', 'EVENT', 'OTHER', 'FIRST_FRUIT', 'THANKSGIVING', 'HARVEST', 'ANNIVERSARY'].map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <button className="small" type="submit">+ Add category</button>

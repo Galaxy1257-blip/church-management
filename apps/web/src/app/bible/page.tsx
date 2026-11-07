@@ -113,19 +113,19 @@ export default function BiblePage() {
           </p>
         ) : null}
         <div className="row" style={{ marginTop: 8 }}>
-          <select style={{ flex: 2 }} value={book} onChange={(e) => { setChapter(1); setBook(e.target.value); }}>
+          <select aria-label="Book" style={{ flex: 2 }} value={book} onChange={(e) => { setChapter(1); setBook(e.target.value); }}>
             {index?.books.map((b) => <option key={b.name} value={b.name}>{b.localName}</option>)}
           </select>
-          <select style={{ flex: 1 }} value={chapter} onChange={(e) => setChapter(Number(e.target.value))}>
+          <select aria-label="Chapter" style={{ flex: 1 }} value={chapter} onChange={(e) => setChapter(Number(e.target.value))}>
             {Array.from({ length: bookInfo?.chapters ?? 1 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
           </select>
         </div>
         <form className="row" style={{ marginTop: 8 }} onSubmit={gotoRef}>
-          <input placeholder="Jump to ref, e.g. John 3:16" value={ref} onChange={(e) => setRef(e.target.value)} style={{ flex: 1 }} />
+          <input aria-label="Jump to Bible reference" placeholder="Jump to ref, e.g. John 3:16" value={ref} onChange={(e) => setRef(e.target.value)} style={{ flex: 1 }} />
           <button className="secondary">Go</button>
         </form>
         <form className="row" style={{ marginTop: 6 }} onSubmit={search}>
-          <input placeholder="Search this translation…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1 }} />
+          <input aria-label="Search this translation" placeholder="Search this translation…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1 }} />
           <button className="secondary">Search</button>
         </form>
         {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}

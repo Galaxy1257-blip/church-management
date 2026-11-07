@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link';
 import { api } from '../lib/api';
 import { translationLabel } from '../lib/bible';
+import { useDialogFocus } from './use-dialog-focus';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 const POSITION_KEY = 'chms.bibleDock';
@@ -46,6 +47,8 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  useDialogFocus(panelRef, open);
 
   const notesPath = token ? '/portal/bible-notes' : '/bible/notes';
 
@@ -252,7 +255,7 @@ export default function BibleDock({ token, on = true }: { token?: string | null;
       {open ? (
         <>
           <button type="button" className="drawer-scrim" aria-label="Close the Bible" onClick={() => setOpen(false)} />
-          <section id="bible-panel" className="drawer bible-drawer" role="dialog" aria-modal="true" aria-label="Bible">
+          <section ref={panelRef} tabIndex={-1} id="bible-panel" className="drawer bible-drawer" role="dialog" aria-modal="true" aria-label="Bible">
             <header className="drawer-head">
               <h2 className="bible-title">Bible</h2>
               <select

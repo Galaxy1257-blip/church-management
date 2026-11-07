@@ -108,8 +108,8 @@ export default function RosterPage() {
           </select>
         </label>
         <form className="row" onSubmit={assign}>
-          <input placeholder="Member ID" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} required style={{ flex: 1 }} />
-          <input placeholder="Duty (e.g. Ushering)" value={form.duty} onChange={(e) => setForm({ ...form, duty: e.target.value })} required style={{ flex: 1 }} />
+          <input aria-label="Member ID" placeholder="Member ID" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} required style={{ flex: 1 }} />
+          <input aria-label="Duty" placeholder="Duty (e.g. Ushering)" value={form.duty} onChange={(e) => setForm({ ...form, duty: e.target.value })} required style={{ flex: 1 }} />
           <button>Assign</button>
         </form>
       </div>

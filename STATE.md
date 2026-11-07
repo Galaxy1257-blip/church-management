@@ -1,5 +1,5 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-07 (Session AG — real searchable `/help` FAQ (62 answers / 13 topics) replaces the dead `/#help` footer link; in-app Help link added; dead-click sweep found 0 other dead links/buttons. Batch 4 in progress: skip links + 24px targets done, aria-labels + drawer focus remaining). **Self-contained**: a fresh session can
+Last updated: 2026-11-07 (Session AG — real searchable `/help` FAQ (62 answers / 13 topics) replaces the dead `/#help` footer link; dead-click sweep found 0 other dead links. **Batch 4 DONE**: skip links, 24px targets, 46 aria-labels (0 unlabeled remain), one shared `useDialogFocus` hook in 4/4 dialogs verified live (move-in/wrap/Escape/restore). Gates green: shared 136, API 208, web 10. Next: Batch 5 (#60) then Batch 6 (#59)). **Self-contained**: a fresh session can
 resume from it alone. Update it + LOGS.md + BUILD_ORDER.md at every session end
 (see §10 Session handoff protocol).
 

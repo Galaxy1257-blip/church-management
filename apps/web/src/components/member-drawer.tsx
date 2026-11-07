@@ -3,10 +3,11 @@
 // queue, missing-member tasks, announcements and the dashboard. It shows the
 // contact and location details the office needs to follow up, plus groups and
 // open care tasks.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { fmtDate, fmtDateTime } from '../lib/format';
 import Notice from './notice';
+import { useDialogFocus } from './use-dialog-focus';
 
 export interface MemberGroup {
   id: string;
@@ -46,6 +47,8 @@ export default function MemberDrawer({
 }) {
   const [member, setMember] = useState<MemberDetail | null>(null);
   const [error, setError] = useState('');
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, true);
 
   useEffect(() => {
     let live = true;
@@ -75,7 +78,7 @@ export default function MemberDrawer({
   return (
     <>
       <button type="button" className="drawer-scrim" aria-label="Close member details" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Member details">
+      <aside ref={dialogRef} tabIndex={-1} className="drawer" role="dialog" aria-modal="true" aria-label="Member details">
         <div className="drawer-head">
           {member?.photoDataUrl ? (
             <img className="avatar avatar-lg" src={member.photoDataUrl} alt={`${member.firstName} ${member.lastName}`} />

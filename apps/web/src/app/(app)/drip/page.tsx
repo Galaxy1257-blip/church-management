@@ -95,7 +95,7 @@ export default function FollowUpPage() {
                     ✕
                   </button>
                 </div>
-                <input
+                <input aria-label="Message template"
                   value={s.template}
                   onChange={(e) => upd(i, { template: e.target.value })}
                   placeholder={s.type === 'SMS' ? 'Message…' : s.type === 'TASK' ? 'What should the leader do?' : 'Question to ask'}

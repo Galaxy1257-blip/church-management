@@ -267,13 +267,13 @@ export default function GroupsPage() {
 
           <h3 style={{ marginTop: '1rem' }}>Members ({detail.members.length})</h3>
           <form className="row" onSubmit={addMember} style={{ marginBottom: '0.4rem' }}>
-            <select style={{ flex: 1 }} value={addMemberId} onChange={(e) => setAddMemberId(e.target.value)}>
+            <select aria-label="Member to add" style={{ flex: 1 }} value={addMemberId} onChange={(e) => setAddMemberId(e.target.value)}>
               <option value="">Choose a person…</option>
               {memberChoices.map((m) => (
                 <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.memberNo})</option>
               ))}
             </select>
-            <select value={addRole} onChange={(e) => setAddRole(e.target.value)}>
+            <select aria-label="Role in group" value={addRole} onChange={(e) => setAddRole(e.target.value)}>
               <option value="MEMBER">Member</option>
               <option value="LEADER">Leader</option>
               <option value="ASSISTANT">Assistant</option>
@@ -332,8 +332,8 @@ export default function GroupsPage() {
 
           <h3 style={{ marginTop: '1.2rem' }}>Meetings &amp; events</h3>
           <form className="row" onSubmit={recordMeeting}>
-            <input style={{ flex: 2 }} placeholder="What was the meeting about?" value={meeting.topic} onChange={(e) => setMeeting({ ...meeting, topic: e.target.value })} />
-            <input style={{ width: 130 }} placeholder="Offering GH₵" inputMode="decimal" value={meeting.offering} onChange={(e) => setMeeting({ ...meeting, offering: e.target.value })} />
+            <input aria-label="Meeting topic" style={{ flex: 2 }} placeholder="What was the meeting about?" value={meeting.topic} onChange={(e) => setMeeting({ ...meeting, topic: e.target.value })} />
+            <input aria-label="Meeting offering in cedis" style={{ width: 130 }} placeholder="Offering GH₵" inputMode="decimal" value={meeting.offering} onChange={(e) => setMeeting({ ...meeting, offering: e.target.value })} />
             <button className="small">Record meeting</button>
           </form>
           <table style={{ marginTop: '0.5rem' }}>
