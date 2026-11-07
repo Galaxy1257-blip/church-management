@@ -87,6 +87,10 @@ lists processors updates from that one constant. Also re-check the deploy path i
 | Asante Twi "Nkwa Asɛm" (Biblica) | *not packed* | **Licensed** — owner emailing GBS/Biblica for permission (9 Nov morning); pack only with written permission, drop-in ready |
 
 Open work:
+- [ ] **Push the two local commits** (bundles + Bible labels/WEB) to GitHub — 3 push attempts on 8 Nov
+      ~08:00 died with "unexpected disconnect while reading sideband packet" (the ~25MB bundle payload
+      over a bad link). Commits are safe locally; retry `git push origin main` when the connection is
+      better. Remote `main` is still at `3edf7ae`.
 - [ ] **Side-by-side two-translation reading** (#83) — not started.
 - [ ] **Mobile "no way back" audit + fix** (#85) — owner flagged the full Bible
       page as one example; audit all standalone pages (`/bible`, `/flyers/:slug`,
