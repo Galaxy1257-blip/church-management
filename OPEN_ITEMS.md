@@ -87,11 +87,20 @@ lists processors updates from that one constant. Also re-check the deploy path i
 | Asante Twi "Nkwa Asɛm" (Biblica) | *not packed* | **Licensed** — owner emailing GBS/Biblica for permission (9 Nov morning); pack only with written permission, drop-in ready |
 
 Open work:
-- [ ] **Push the two local commits** (bundles + Bible labels/WEB) to GitHub — 3 push attempts on 8 Nov
-      ~08:00 died with "unexpected disconnect while reading sideband packet" (the ~25MB bundle payload
-      over a bad link). Commits are safe locally; retry `git push origin main` when the connection is
-      better. Remote `main` is still at `3edf7ae`.
-- [ ] **Side-by-side two-translation reading** (#83) — not started.
+- [ ] **Push the local commits** (bundles + Bible labels/WEB + #83) to GitHub — repeated attempts on
+      8 Nov died with "unexpected disconnect while reading sideband packet" / "schannel: server closed
+      abruptly" on the ~25MB bundle pack; HTTP/1.1 + postBuffer also failed, and at one point github.com
+      would not even resolve (link is intermittent — raw.githubusercontent.com worked for the WEB regen).
+      Commits are safe locally; retry `git push origin main` when the connection is better. Remote `main`
+      is still at `3edf7ae`.
+- [x] **Side-by-side two-translation reading** (#83) — DONE. `/bible` has a "Read
+      alongside" picker; verse-aligned pairs (two columns ≥700px, stacked per verse
+      on phones), per-verse copy, missing-chapter handled. Verified live (KJV↔WEB
+      Genesis 3, 24 aligned pairs). Fixed two WEB data bugs found while verifying:
+      `scripts/fetch-web-bible.mjs` overwrote multi-block verses (kept only the last
+      fragment, e.g. Gen 3:16) and left sparse holes as JSON `null`; now joins blocks
+      and densifies to `''`. Regenerated web.json (66 books, 31,102 verses; 4 genuine
+      critical-text omissions kept empty). Regression guard: `bible.service.spec.ts` (3).
 - [ ] **Mobile "no way back" audit + fix** (#85) — owner flagged the full Bible
       page as one example; audit all standalone pages (`/bible`, `/flyers/:slug`,
       `/handoff`, `/give/*`, `/join/:slug`) for missing back affordances (PWA

@@ -60,11 +60,20 @@ for (const slug of SLUGS) {
     if (!block || block.verseNumber == null || block.chapterNumber == null || typeof block.value !== 'string') continue;
     const ch = String(block.chapterNumber);
     (chapters[ch] ??= []);
-    chapters[ch][block.verseNumber - 1] = block.value.trim();
+    // The source splits many verses into several blocks (same chapter+verse).
+    // Join them in order — overwriting kept only the last fragment (e.g. WEB
+    // Genesis 3:16 came out as just "and he will rule over you.").
+    const idx = block.verseNumber - 1;
+    const piece = block.value.trim();
+    if (!piece) continue;
+    chapters[ch][idx] = chapters[ch][idx] ? `${chapters[ch][idx]} ${piece}` : piece;
   }
-  // Fill any holes (missing verses) so the reader never shows `undefined`.
+  // Fill any holes (verses the WEB omits, e.g. Acts 8:37) and normalise the
+  // joined whitespace. Array.from visits every index — .map would skip sparse
+  // holes and leave them, which JSON serialises as null (copied as "null").
   for (const ch of Object.keys(chapters)) {
-    chapters[ch] = chapters[ch].map((v) => v ?? '');
+    const src = chapters[ch];
+    chapters[ch] = Array.from({ length: src.length }, (_, i) => (src[i] ?? '').replace(/\s+/g, ' ').trim());
   }
   const chapterCount = Object.keys(chapters).length;
   const kjvBook = kjv.books.find((b) => b.name === name);

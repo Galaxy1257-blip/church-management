@@ -92,7 +92,9 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
 ## R2. Phase 2.5 — Bible & worship companion
 - [x] scripts/fetch-bible.mjs — bundle public-domain KJV (offline JSON, gitignored) — 66 books bundled 21 Oct
 - [x] /bible API — **multi-translation**: scans `apps/api/data/bible/*.json`; books/chapter/search/verse refs + `?translation=`
-- [x] /bible web page — translation picker, read + search + click-to-copy verse
+- [x] /bible web page — translation picker, read + search + click-to-copy verse; **side-by-side compare
+  (Session AH, #83)**: "Read alongside" picker, verse-aligned pairs (two columns ≥700px, stacked per verse
+  on phones), per-verse copy, missing-chapter note. Regression guard `apps/api/src/bible/bible.service.spec.ts`.
 - [x] **R2.0b The Bible button (Session R)** — one small fixed button on every staff page AND in the
   member companion, for every role: 7 languages, tap-a-verse notes in 5 colours (server-side, per author,
   `BibleNote` + `migrations/11_bible_notes`), verse search, cross-translation compare, remembered place.
@@ -153,10 +155,11 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
 - [x] Verse-of-the-day SMS: worker job daily 05:55 (source ANNOUNCEMENT = opt-out respected, idempotent vod:{church}:{day}:{member}); settings card on /settings (`/churches/me/devotional`)
 - [ ] **R2.2 More English translations (verify-before-build sources)**
   - [x] ASV (1901, public domain) — bundled from scrollmapper/bible_databases (MIT) — 66 books, `asv.json`
-  - [ ] WEB (World English Bible, public domain) — **sources tried 21 Oct**: scrollmapper (404 on WEB/WBT/WBS),
-    bible-api.com chapter assembly (100% connection failures from this network). Next: verify a reachable
-    public-domain WEB source (e.g. official worldenglish.bible downloads) → convert TXT→bundle shape →
-    write web.json into apps/api/data/bible/ (auto-served, zero code changes).
+  - [x] WEB (World English Bible, public domain) — **BUNDLED (Session AG/AH)**: source
+    `TehShrike/world-english-bible` per-book JSON → `scripts/fetch-web-bible.mjs` → `web.json`
+    (66 books, 31,102 verses). Session AH fixed two converter bugs: multi-block verses were overwritten
+    (only the last fragment survived) and sparse holes serialized as `null`; now joins blocks and densifies
+    to `''`. The 4 critical-text omissions (Acts 8:37/15:34/24:7, Luke 17:36) stay empty by design.
 
 ## R3. Deferred-tail wiring (skeletons now, providers later)
 - [x] WhatsApp template registry (sending gated on provider approval)

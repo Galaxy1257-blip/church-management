@@ -744,6 +744,18 @@ button.card:active { transform: none; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
+/* Bible side-by-side: one row per verse, two translations aligned. On a phone
+   the pair stacks (primary then secondary) so each verse stays together. */
+.bible-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin: 0.55rem 0; align-items: start; }
+.bible-pair .bible-col { margin: 0; cursor: pointer; }
+.bible-pair .bible-col.secondary { color: var(--muted, inherit); border-left: 2px solid var(--line); padding-left: 0.7rem; }
+.bible-pair-head { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 0.35rem; }
+@media (max-width: 700px) {
+  .bible-pair { grid-template-columns: 1fr; gap: 0.3rem; }
+  .bible-pair .bible-col.secondary { border-left: none; border-top: 1px dashed var(--line); padding-left: 0; padding-top: 0.3rem; }
+  .bible-pair-head { grid-template-columns: 1fr; gap: 0.15rem; }
+}
+
 .stat {
   position: relative;
   overflow: hidden;

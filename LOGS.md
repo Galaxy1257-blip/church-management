@@ -2089,3 +2089,30 @@ Code unchanged since the last full gate run (shared 149 / API 217 / worker 15 / 
 **Next (open, in OPEN_ITEMS §G):** side-by-side two-translation reading (#83); mobile "no way back" audit +
 fix (#85 — the Bible full page is one example; investigate all standalone pages first); pack Asante Twi once
 the licence email is answered; Twi edition identity audit (#49).
+
+## 2026-11-08 — Session AH (#83 side-by-side Bible reading + WEB data fix)
+
+- **#83 side-by-side reading DONE:** `/bible` gained a "Read alongside" picker (any second translation).
+  The reading card renders verse-aligned pairs — two columns at ≥700px, stacked per verse on phones
+  (`.bible-pair` in globals.css). Each cell copies its own translation's verse; a chapter the second
+  bundle lacks clears the column with a plain note, not an error. Container widens to 960px when comparing.
+  Verified live: KJV↔WEB Genesis 3 = 24 aligned pairs, both column headers, verse 16 full in both.
+- **Two WEB data bugs found while verifying (fixed):** `scripts/fetch-web-bible.mjs` (1) overwrote
+  multi-block verses — the source splits many verses into several blocks and only the last fragment
+  survived (WEB Gen 3:16 came out as just "and he will rule over you."); (2) used `.map` to fill holes,
+  which skips sparse indices, so omitted verses serialized as JSON `null` (would copy the literal "null").
+  Now joins blocks in order and densifies with `Array.from` to `''`. Regenerated `web.json`: 66 books,
+  31,102 verses, 0 nulls; the 4 genuine critical-text omissions (Acts 8:37, 15:34, 24:7; Luke 17:36) stay
+  empty so numbering still lines up with the KJV column.
+- **Regression guard:** new `apps/api/src/bible/bible.service.spec.ts` (3 tests) reads the committed
+  bundles — Gen 3:16 is the whole verse, KJV/WEB John 3 align at 36 verses, Acts 8:37 stays empty.
+
+**Gates:** shared 150/150 (17 files) · API 220/220 (32 files, +3 Bible) · worker 15/15 · web 10/10 ·
+all 5 typechecks clean · eslint clean · `check:secrets` clean.
+
+**Push still blocked:** github.com link intermittent — HTTP/1.1 + postBuffer also failed and at one point
+github.com would not resolve (raw.githubusercontent.com worked for the WEB regen). Remote `main` still
+`3edf7ae`; commits safe locally; retry when the link recovers (OPEN_ITEMS §G).
+
+**Next:** #85 mobile "no way back" audit (investigate all standalone pages first, then one shared fix);
+Asante drop-in once licensed; #49 Twi identity; push.

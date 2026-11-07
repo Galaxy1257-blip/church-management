@@ -1,6 +1,7 @@
 'use client';
 // Bible reader: multi-translation (English + Ghana local languages as they
-// are licensed in), chapter reading, ref jump, search. Click verse to copy.
+// are licensed in), chapter reading, ref jump, search, side-by-side compare.
+// Click a verse to copy it.
 import { FormEvent, useEffect, useState } from 'react';
 import { translationLabel } from '../../lib/bible';
 
@@ -28,6 +29,10 @@ export default function BiblePage() {
   const [results, setResults] = useState<Hit[]>([]);
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
+  // '' = read one translation; otherwise the code shown alongside it.
+  const [compare, setCompare] = useState('');
+  const [compareVerses, setCompareVerses] = useState<Verse[]>([]);
+  const [compareBookLocal, setCompareBookLocal] = useState('');
 
   useEffect(() => {
     void fetch(`${API}/bible`).then((r) => r.json()).then((d: Index) => {
@@ -44,6 +49,18 @@ export default function BiblePage() {
       const d = (await res.json()) as Chapter;
       setVerses(d.verses); setBook(d.book); setBookLocal(d.bookLocal); setChapter(d.chapter); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'failed'); }
+  }
+
+  // The second column reads the same canonical book/chapter in another bundle.
+  // A missing chapter there (different canon) clears the column, not the reader.
+  async function loadCompare(t: string, b: string, c: number): Promise<void> {
+    if (!t) { setCompareVerses([]); setCompareBookLocal(''); return; }
+    try {
+      const res = await fetch(`${API}/bible/chapter?book=${encodeURIComponent(b)}&chapter=${c}&translation=${encodeURIComponent(t)}`);
+      if (!res.ok) throw new Error('not in this translation');
+      const d = (await res.json()) as Chapter;
+      setCompareVerses(d.verses); setCompareBookLocal(d.bookLocal);
+    } catch { setCompareVerses([]); setCompareBookLocal(''); }
   }
 
   function pickTranslation(code: string): void {
@@ -65,6 +82,10 @@ export default function BiblePage() {
     if (translation) void loadChapter(translation, book, chapter);
   }, [translation, book, chapter]);
 
+  useEffect(() => {
+    void loadCompare(compare, book, chapter);
+  }, [compare, book, chapter]);
+
   async function gotoRef(e: FormEvent): Promise<void> {
     e.preventDefault();
     try {
@@ -84,21 +105,24 @@ export default function BiblePage() {
     } catch { /* empty */ }
   }
 
-  function copy(v: Verse): void {
-    void navigator.clipboard?.writeText(`"${v.text}" — ${bookLocal} ${chapter}:${v.n}`);
-    setCopied(`${bookLocal} ${chapter}:${v.n}`);
+  function copyVerse(text: string, label: string): void {
+    void navigator.clipboard?.writeText(`"${text}" — ${label}`);
+    setCopied(label);
     setTimeout(() => setCopied(''), 1500);
   }
 
   const bookInfo = index?.books.find((b) => b.name === book);
   const active = index?.translations.find((t) => t.code === translation);
+  const compareInfo = index?.translations.find((t) => t.code === compare);
+  const comparing = Boolean(compare && compareInfo);
+  const verseCount = Math.max(verses.length, compareVerses.length);
 
   return (
-    <div className="container" style={{ maxWidth: 720, paddingTop: '3vh' }}>
+    <div className="container" style={{ maxWidth: comparing ? 960 : 720, paddingTop: '3vh' }}>
       <div className="card">
         <div className="spread">
           <h1 style={{ margin: 0 }}>Bible</h1>
-          {active ? <span className="badge mute">{translationLabel(active)}</span> : null}
+          {active ? <span className="badge mute">{translationLabel(active)}{comparing && compareInfo ? ` ↔ ${translationLabel(compareInfo)}` : ''}</span> : null}
         </div>
         <div className="row" style={{ marginTop: 8 }}>
           {index?.translations.map((t) => (
@@ -107,6 +131,17 @@ export default function BiblePage() {
             </button>
           ))}
         </div>
+        {index && index.translations.length > 1 ? (
+          <div className="row" style={{ marginTop: 8 }}>
+            <label htmlFor="bible-compare" className="muted" style={{ margin: 0 }}>Read alongside</label>
+            <select id="bible-compare" aria-label="Read alongside another translation" style={{ flex: 1 }} value={compare} onChange={(e) => setCompare(e.target.value)}>
+              <option value="">Off — one translation</option>
+              {index.translations.filter((t) => t.code !== translation).map((t) => (
+                <option key={t.code} value={t.code}>{translationLabel(t)}</option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         {index && index.translations.length === 1 ? (
           <p className="muted" style={{ margin: '6px 0 0' }}>
             Licensed translations &amp; Ghana local languages (Twi, Fante, Ewe, Ga…) appear here once their files are dropped into apps/api/data/bible/
@@ -140,12 +175,43 @@ export default function BiblePage() {
         </div>
       ) : null}
       <div className="card">
-        <h2>{bookLocal} {chapter}</h2>
-        {verses.map((v) => (
-          <p key={v.n} style={{ margin: '6px 0', cursor: 'pointer' }} onClick={() => copy(v)} title="Click to copy">
-            <sup><b>{v.n}</b></sup> {v.text}
-          </p>
-        ))}
+        <h2>{bookLocal} {chapter}{comparing && compareBookLocal ? ` · ${compareBookLocal} ${chapter}` : ''}</h2>
+        {comparing ? (
+          <>
+            <div className="bible-pair-head">
+              <span className="badge mute">{active ? translationLabel(active) : ''}</span>
+              <span className="badge mute">{compareInfo ? translationLabel(compareInfo) : ''}</span>
+            </div>
+            {compareVerses.length === 0 ? (
+              <p className="muted" style={{ margin: '6px 0' }}>This translation does not have {bookLocal} {chapter}.</p>
+            ) : null}
+            {Array.from({ length: verseCount }, (_, i) => {
+              const n = i + 1;
+              const p = verses[i];
+              const s = compareVerses[i];
+              return (
+                <div className="bible-pair" key={n}>
+                  {p ? (
+                    <p className="bible-col" onClick={() => copyVerse(p.text, `${bookLocal} ${chapter}:${n}`)} title="Click to copy">
+                      <sup><b>{n}</b></sup> {p.text}
+                    </p>
+                  ) : <span />}
+                  {s ? (
+                    <p className="bible-col secondary" onClick={() => copyVerse(s.text, `${compareBookLocal} ${chapter}:${n}`)} title="Click to copy">
+                      <sup><b>{n}</b></sup> {s.text}
+                    </p>
+                  ) : <span />}
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          verses.map((v) => (
+            <p key={v.n} style={{ margin: '6px 0', cursor: 'pointer' }} onClick={() => copyVerse(v.text, `${bookLocal} ${chapter}:${v.n}`)} title="Click to copy">
+              <sup><b>{v.n}</b></sup> {v.text}
+            </p>
+          ))
+        )}
       </div>
 
     </div>
