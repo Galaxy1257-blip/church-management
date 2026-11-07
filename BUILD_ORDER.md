@@ -352,6 +352,20 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       their own account instead". Verified live: deny-path 403 renders plain English with Care off, nav hides
       the item, `/flyers/demo` renders the corrected links. Gates: web typecheck, eslint, web 10/10,
       `check:secrets` clean.
+### Bible bundles + plain English ✅ (owner ask, 8 Nov)
+- [x] **Dropdown showed English only** — root cause: `.gitignore` kept every bundle except `kjv.json` out of
+      git, so the deployed API served one translation. All six local bundles (asv, ewe, fante, ga, twi,
+      twi-asante) now committed; deployed reader serves 8 translations.
+- [x] **Two Twi editions labelled by observed wording** (owner: "strong, soft, easy… something else"):
+      `Twi (classic wording)` (older spellings, no quotes) vs `Twi (modern wording)` (modern spellings,
+      quotation marks). 97% of verses differ — two distinct editions. No dialect claim: the modern one's
+      source app is named "Akuapem" but labels itself "Asante" (identity audit stays #49).
+- [x] **Plain-English English Bible packed:** `web.json` — World English Bible (public domain), 66 books /
+      31,103 verses, via `scripts/fetch-web-bible.mjs` (source TehShrike/world-english-bible). Verified live.
+- [x] 1871 Akuapem (archive.org, PD) **rejected per owner** — another Akuapem + badly degraded OCR.
+- [ ] Left open: side-by-side two-translation reading; mobile "no way back" audit; Asante Twi once GBS/
+      Biblica answer the owner's permission email (open items §G; licence table lives there).
+
 ### Program tracking ✅ (owner ask, 7 Nov)
 - [x] `Program` table (migration 15) + `/programs` screen: a church program repeats on a member's date (birthday,
       wedding anniversary, salvation/baptism/ordination day). Leaders set the reminder window (1 day – 1 month

@@ -58,7 +58,10 @@ auto-deploys Render + Vercel).
 
 - [ ] **Migrations 12 + 13** (`member_posts`, `notifications`) are applied to local
       Postgres only — NOT yet applied to Neon. Apply via `prepare_database_migration`
-      before any Neon schema write.
+      before any Neon schema write. **Also 14 (`program_collections`) and 15
+      (`programs`)**: the Render start command now runs `prisma migrate deploy`, so
+      check the deploy log first — a push to main may have applied 12–15 already;
+      only apply manually if not.
 - [ ] Check Neon for seeded **mojibake** in expense/announcement text (the demo seed
       `scripts/tmp-demo-data2.js` had double-encoded em-dashes, now fixed at source; the
       DB rows seeded earlier may still hold them).
@@ -70,6 +73,30 @@ as processors, so **when hosting moves, update `PROCESSORS` in
 `apps/web/src/app/(public)/legal-meta.ts` and bump `LEGAL_UPDATED`** — every page that
 lists processors updates from that one constant. Also re-check the deploy path in
 `project-hosting-deploy-path.md` memory and the Render start command (#60).
+
+## G. Bible bundles — licence structure + open work (owner ask, 8 Nov)
+
+| Bundle | Label in dropdown | Licence status |
+| --- | --- | --- |
+| `kjv.json` | KJV | **Free** — public domain (crown copyright expired 2016) |
+| `asv.json` | ASV (1901) | **Free** — public domain (1901) |
+| `web.json` | World English Bible (WEB) | **Free** — public domain (packed 8 Nov, `scripts/fetch-web-bible.mjs`) |
+| `twi.json` | Twi (classic wording) | **Unverified** — extracted from `com.mobobi.twibibleoffline` APK |
+| `twi-asante.json` | Twi (modern wording) | **Unverified** — extracted from Akuapem Twi Bible & Audio APK (app labels itself Asante; identity audited in #49) |
+| `ewe.json` / `fante.json` / `ga.json` | Ewe / Fante / Ga | **Unverified** — extracted from APKs |
+| Asante Twi "Nkwa Asɛm" (Biblica) | *not packed* | **Licensed** — owner emailing GBS/Biblica for permission (9 Nov morning); pack only with written permission, drop-in ready |
+
+Open work:
+- [ ] **Side-by-side two-translation reading** (#83) — not started.
+- [ ] **Mobile "no way back" audit + fix** (#85) — owner flagged the full Bible
+      page as one example; audit all standalone pages (`/bible`, `/flyers/:slug`,
+      `/handoff`, `/give/*`, `/join/:slug`) for missing back affordances (PWA
+      phones have no browser chrome), then fix with one shared pattern.
+- [ ] **Pack the Asante Twi** once the owner's permission email is answered —
+      text itself must not be repacked without that written permission.
+- [ ] **Twi edition identity audit** (#49) — labels now say classic/modern
+      wording (what the text proves); which edition is Akuapem vs Asante is
+      still unverified.
 
 ## Questions still owed by the owner
 

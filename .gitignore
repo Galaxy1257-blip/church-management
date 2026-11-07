@@ -32,6 +32,7 @@ apps/api/data/bible/*
 !apps/api/data/bible/ga.json
 !apps/api/data/bible/twi.json
 !apps/api/data/bible/twi-asante.json
+!apps/api/data/bible/web.json
 scripts/*.exe
 # Scratch scripts that once carried a live database password — keep them local.
 # (Credentials belong in .env, which is ignored above; these files must read

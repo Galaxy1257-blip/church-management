@@ -2060,3 +2060,32 @@ reminders to leaders, member push after approval), then the full-app debugging p
 eslint clean · `check:secrets` clean.
 
 **Next:** push to GitHub (owner-authorized), then stop — no debugging pass per owner.
+
+### Session AG continued — Bible bundles, Twi labels, WEB packed (owner ask, 8 Nov)
+
+- **Dropdown English-only root cause:** `.gitignore` whitelisted only `kjv.json`, so the deployed API served
+  one translation while the Twi/Ewe/Fante/Ga/ASV bundles sat local. Committed all six (owner: "send
+  Twi/Ewe/Fante/Ga/ASV bundles to git"); deployed reader now serves 8.
+- **Two Twi editions labelled from evidence** (owner asked for "strong/soft/easy… something else"): sampled
+  both bundles — 97% of verses differ; classic spellings/no quotes vs modern spellings/quotes. Labels:
+  `Twi (classic wording)` / `Twi (modern wording)`. No dialect claim: the modern bundle's source app is
+  named "akaupem" but its UI says "Asante" — identity audit remains #49. Owner decided: keep both, don't
+  drop; a genuine Asante gets added as a third when licensed.
+- **Asante Twi licensing:** no free complete Asante exists (Biblica "Nkwa Asɛm" and UBS texts are
+  copyrighted; archive.org's 1964 UBS item is Genesis-only). Owner will email GBS/Biblica (9 Nov) for a
+  licence. The copyrighted text will NOT be repacked without written permission; everything else is ready
+  for a drop-in.
+- **1871 Akuapem Twi Bible (archive.org, PD)** downloaded and evaluated: OCR badly degraded ("wgde yen yee
+  nkoa"), and the owner said "don't add another Akuapem bible" — dropped.
+- **WEB packed:** `web.json` = World English Bible (public domain), 66 books / 31,103 verses, converted by
+  the new `scripts/fetch-web-bible.mjs` (source TehShrike/world-english-bible). Verified live: index shows 8
+  translations (3 PD), John 3 serves 36 verses in WEB. `.gitignore` whitelists web.json.
+- **Licence structure recorded** in OPEN_ITEMS §G (free / unverified / licensed-permission-pending per
+  bundle) — the owner asked for it in the final report.
+
+**Gates:** lint clean · `check:secrets` clean · API verified live (8 translations, WEB text correct).
+Code unchanged since the last full gate run (shared 149 / API 217 / worker 15 / typechecks all green).
+
+**Next (open, in OPEN_ITEMS §G):** side-by-side two-translation reading (#83); mobile "no way back" audit +
+fix (#85 — the Bible full page is one example; investigate all standalone pages first); pack Asante Twi once
+the licence email is answered; Twi edition identity audit (#49).
