@@ -219,6 +219,17 @@ d('integration', () => {
       create: { churchId: ctx.user.churchId, balanceUnits: 100 },
       update: { balanceUnits: { increment: 100 } },
     });
+    // This test exercises opt-out mechanics, not quiet hours: switch the
+    // church's quiet window off so the QUEUED outcome does not depend on what
+    // time the suite happens to run (default window is 20:00–08:00).
+    const church = await platformPrisma.church.findUniqueOrThrow({
+      where: { id: ctx.user.churchId },
+      select: { settings: true },
+    });
+    await platformPrisma.church.update({
+      where: { id: ctx.user.churchId },
+      data: { settings: { ...(church.settings as any), smsQuietHours: { enabled: false } } },
+    });
     await withTenant(ctx.user.churchId, ctx.user.userId, async (tx) => {
       const r = await dispatcher.dispatch(tx, {
         churchId: ctx.user.churchId,

@@ -9,8 +9,10 @@ import {
   normalizeGhPhone,
   PhoneError,
   render,
+  smsQuietHoursBlocked,
   smsSegments,
   SMS_OPTOUT_EXEMPT_SOURCES,
+  SMS_OPTOUT_BLOCKING_SOURCES,
   SmsSource,
 } from '@chms/shared';
 import { QueuesService } from '../queues/queues.module';
@@ -29,6 +31,7 @@ export interface DispatchInput {
 export type DispatchOutcome =
   | { status: 'QUEUED'; logId: string; segments: number }
   | { status: 'SUPPRESSED'; reason: 'OPTED_OUT'; logId: null; segments: 0 }
+  | { status: 'SUPPRESSED'; reason: 'QUIET_HOURS'; logId: null; segments: 0 }
   | { status: 'SUPPRESSED'; reason: 'NO_BALANCE'; logId: null; segments: number };
 
 @Injectable()
@@ -61,6 +64,20 @@ export class SmsDispatcher {
       });
       if (optOut) {
         return { status: 'SUPPRESSED', reason: 'OPTED_OUT', logId: null, segments: 0 };
+      }
+    }
+
+    // Marketing-style sends wait for the church's quiet hours to end. The
+    // window lives in church.settings.smsQuietHours (default 20:00–08:00, on)
+    // and is read from the church timezone — same rule the drip engine uses.
+    // Transactional sources (receipt, OTP, reply, nudge, adhoc) are never held.
+    if (SMS_OPTOUT_BLOCKING_SOURCES.includes(input.source)) {
+      const church = await tx.church.findUnique({
+        where: { id: input.churchId },
+        select: { settings: true, timezone: true },
+      });
+      if (church && smsQuietHoursBlocked(church.settings, church.timezone)) {
+        return { status: 'SUPPRESSED', reason: 'QUIET_HOURS', logId: null, segments: 0 };
       }
     }
 

@@ -327,7 +327,20 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       Drawers 390px-safe (`min(420px,94vw)` / full-width bottom sheet). Gates: shared 136/136 · API 208/208 ·
       web 10/10 · shared/db/api/web typechecks · eslint · `check:secrets` clean. Screenshots unavailable (hidden
       browser surface) — DOM + live keyboard-event verification used instead.
-- [ ] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
+- [x] **Batch 5 — ops:** branch RLS backstop, Render start command, SMS quiet hours enforced on send.
+      **DONE Session AG** — `branch_scope` RESTRICTIVE policy now applied **dynamically to every tenant table
+      carrying a `branchId`** (extras.sql loop, mirrors `tenant_isolation`) instead of only Transaction — the
+      named 7 (Member, Visitor, Service, Group, Expense, Pledge, GivingBatch) plus any others; inert for
+      church-wide users (`app.branch_ids` is `''`), filters only branch-scoped DEPARTMENT readers.
+      Render `startCommand` now runs `db:extras` + `db:appuser` after `migrate deploy` so a fresh environment
+      comes up with RLS + roles. Quiet hours: one shared rule (`resolveSmsQuietHours`/`smsQuietHoursBlocked`,
+      default 20:00–08:00 on, matching the drip engine) enforced in the **dispatcher** (the single send path)
+      for marketing-style sources (CAMPAIGN/DRIP/ANNOUNCEMENT/EVENT/ROSTER) — transactional OTP/receipt/reply
+      never held; `sendCampaign` refuses with a plain-English reason instead of silently queueing zero;
+      Settings → SMS gets an on/off + window control (church.settings.smsQuietHours, API-gated). Gates: shared
+      141/141 · API 213/213 (incl. new dispatcher + service quiet-hours specs) · web 10/10 · all typechecks ·
+      eslint · `check:secrets` clean. Worker-side fixes (followup.ts nextRunAt off-by-one during the last quiet
+      hour; verse-of-day has no quiet-hours guard) belong to the parallel session — reported, not committed.
 - [ ] **Batch 6 — screens that do not exist:** counselling notes, `/flyers` link, honest FEATURES.
 ### Batch 7 — member posts ✅ (owner ask, 4 Nov)
 - [x] Notices tab in the companion: title, body, optional photo; *Waiting for a leader* / *Approved* / *Not

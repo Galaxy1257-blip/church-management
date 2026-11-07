@@ -19,6 +19,8 @@ services:
       npm run build -w @chms/api
     startCommand: >-
       npx prisma migrate deploy --schema schema.prisma &&
+      npm run db:extras &&
+      npm run db:appuser &&
       node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     envVars:

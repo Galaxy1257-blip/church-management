@@ -1966,3 +1966,42 @@ no before/after image captured.
 eslint clean · `check:secrets` clean. Worker excluded (parallel session owns `apps/worker`).
 
 **Next:** Batch 5 (#60 — branch RLS backstop, Render start command, SMS quiet hours on send), then Batch 6 (#59).
+
+### Session AG continued — Batch 5 done (ops: RLS backstop, Render boot, quiet hours on send)
+
+- **Branch RLS backstop:** `branch_scope` RESTRICTIVE was verified live on Transaction only. Now generated for
+  **every tenant table with a `branchId`** by a dynamic `DO $$` loop in extras.sql (same pattern as
+  `tenant_isolation`), so Member, Visitor, Service, Group, Expense, Pledge, GivingBatch — and any future
+  branch-owned table — are covered without editing this file. Verified inert for church-wide users:
+  `withTenant` always sets `app.branch_ids` to `(branchIds ?? []).join(',')`, empty for ALL-scope users, so the
+  policy's `'' = ''` arm passes; only DEPARTMENT-tier users with UserBranch rows carry a non-empty list
+  (`resolveDataScope`). Applying it to Neon is a shared-state action — pending owner confirmation.
+- **Render start command:** `startCommand` now `migrate deploy → db:extras → db:appuser → node main.js`, so a
+  fresh environment comes up with RLS enabled/forced, roles present, and the new branch policies. Local edit
+  only; deploy is not triggered.
+- **Quiet hours enforced on the API send path:** one shared rule in `@chms/shared` (`resolveSmsQuietHours`,
+  `smsQuietHoursBlocked`; default 20:00–08:00, on — the same window the drip engine uses). The dispatcher — the
+  single SMS chokepoint — now holds marketing-style sources (CAMPAIGN/DRIP/ANNOUNCEMENT/EVENT/ROSTER) during the
+  church's quiet window (SUPPRESSED/QUIET_HOURS, no reservation); transactional sources (RECEIPT/NUDGE/REPLY/
+  OTP/ADHOC) are never held. `sendCampaign` checks up front and refuses with a plain-English 400 naming the
+  window and the Settings escape hatch instead of silently queueing zero. `church.settings.smsQuietHours` is
+  exposed via `/churches/me/profile` and writable through the same route (validated 0–23), with a new Settings →
+  SMS "Quiet hours" card (on/off + start/end hours).
+- **The integration test that broke proves the guard works:** `opt-out keyword suppresses later campaign sends`
+  dispatched a CAMPAIGN and expected QUEUED; at 01:51 Accra the new rule correctly suppressed it. The test
+  exercises opt-out mechanics, not quiet hours, so it now switches the church's quiet hours off first — the
+  QUEUED assertion no longer depends on wall-clock time.
+- **New tests:** shared `sms.test.ts` +5 (defaults, stored window, out-of-range, midnight wrap, disabled);
+  `sms-dispatcher.spec.ts` +4 (holds campaign in-window + reserves nothing, queues when off, OTP never held,
+  default-window short-circuit); `sms.service.spec.ts` +1 (sendCampaign refuses before touching audience/
+  dispatcher).
+- **Worker-side findings — reported to the parallel session, not committed:** followup.ts:32 pushes the next
+  run `24 - hour + quietEnd` hours out; during the last quiet hour (e.g. 07:xx with end=08) that lands 25h away,
+  skipping a full day. verse-of-day.ts sends at 20:00 with no quiet-hours guard at all — inside the new default
+  window.
+
+**Gates:** shared 141/141 (16 files) · API 213/213 (30 files) · web 10/10 · shared/db/api/web typechecks clean ·
+eslint clean · `check:secrets` clean. Worker excluded from gates (parallel session owns `apps/worker`).
+
+**Next:** Batch 6 (#59 — counselling notes screen, `/flyers` link, honest FEATURES §15), then the owner's
+program-tracking feature, then the full-app debugging pass.

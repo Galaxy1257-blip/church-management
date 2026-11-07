@@ -7,6 +7,8 @@ import { appendAudit, Db, prisma } from '@chms/db';
 import {
   formatGhs,
   MemberStatus,
+  resolveSmsQuietHours,
+  smsQuietHoursBlocked,
   smsSegments,
 } from '@chms/shared';
 import { TenantService } from '../common/tenant';
@@ -220,6 +222,21 @@ export class SmsService {
       if (!campaign) throw new NotFoundException('campaign not found');
       if (campaign.status === 'SENDING' || campaign.status === 'DONE') {
         throw new BadRequestException('campaign already sent');
+      }
+      // Refuse honestly during quiet hours instead of queueing zero recipients
+      // and calling it sent. Transactional sends never reach this guard.
+      const church = await tx.church.findUnique({
+        where: { id: user.churchId },
+        select: { settings: true, timezone: true },
+      });
+      if (church && smsQuietHoursBlocked(church.settings, church.timezone)) {
+        const q = resolveSmsQuietHours(church.settings);
+        const start = String(q.start).padStart(2, '0');
+        const end = String(q.end).padStart(2, '0');
+        throw new BadRequestException(
+          `It is quiet hours in your church (${start}:00–${end}:00) — this message would not be delivered now. ` +
+            'Schedule it for the morning, or change quiet hours in Settings → SMS.',
+        );
       }
       const audience = (campaign.audience ?? {}) as CampaignAudience;
       const recipients = await this.resolveAudience(tx, user.churchId, audience);

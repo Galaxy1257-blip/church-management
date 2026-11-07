@@ -115,6 +115,8 @@ export default function SettingsPage() {
   const [fees, setFees] = useState<any>({ feeMode: 'CHURCH_ABSORBS', feeBps: 195, feeFlatMinor: 10, feeCapMinor: null, feeDefaultOptIn: true });
   // SMS template locales (Twi/Ga/Ewe/Fante) with English fallback.
   const [smsLoc, setSmsLoc] = useState<{ defaultLocale: string; templates: Record<string, Record<string, string>> }>({ defaultLocale: 'en', templates: {} });
+  // Quiet hours: marketing-style SMS waits for this window (default 20:00–08:00, on).
+  const [quiet, setQuiet] = useState<{ enabled: boolean; start: number; end: number }>({ enabled: true, start: 20, end: 8 });
   const [locKey, setLocKey] = useState('tw');
   // denomination terminology pack.
   const [denomKey, setDenomKey] = useState('DEFAULT');
@@ -174,6 +176,7 @@ export default function SettingsPage() {
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
       if (p.moduleDefaults) setStartModules(p.moduleDefaults);
       if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
+      if (p.smsQuietHours) setQuiet({ enabled: p.smsQuietHours.enabled !== false, start: p.smsQuietHours.start ?? 20, end: p.smsQuietHours.end ?? 8 });
       if (typeof p.moneyOffStopsGiving === 'boolean') setStopGiving(p.moneyOffStopsGiving);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
@@ -287,6 +290,25 @@ export default function SettingsPage() {
       ...smsLoc,
       templates: { ...smsLoc.templates, [locKey]: { ...(smsLoc.templates[locKey] ?? {}), [key]: text } },
     });
+  }
+
+  async function saveQuietHours(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    try {
+      const start = Number(quiet.start);
+      const end = Number(quiet.end);
+      if (!Number.isInteger(start) || start < 0 || start > 23 || !Number.isInteger(end) || end < 0 || end > 23) {
+        setError('Quiet hours must be whole hours from 0 (midnight) to 23 (11pm).');
+        return;
+      }
+      await api('/churches/me/profile', { method: 'POST', body: { smsQuietHours: { enabled: quiet.enabled, start, end } } });
+      setNotice(
+        quiet.enabled
+          ? `Quiet hours ${String(start).padStart(2, '0')}:00–${String(end).padStart(2, '0')}:00 — campaigns, notices and events wait for morning. Receipts and codes are never held.`
+          : 'Quiet hours off — marketing-style SMS sends as soon as you press send.',
+      );
+      setError('');
+    } catch (err) { setError(err instanceof Error ? err.message : 'quiet hours save failed'); }
   }
 
   async function saveDenomination(e: FormEvent): Promise<void> {
@@ -738,6 +760,48 @@ export default function SettingsPage() {
           </label>
         </div>
         <button>Save fee model</button>
+      </form>
+
+      <form className="card stack" onSubmit={saveQuietHours} hidden={tab !== 'sms'}>
+        <h2>Quiet hours</h2>
+        <p className="muted">
+          Campaigns, notices, events and roster texts wait for this window to end, so nobody gets woken up.
+          Receipts, verification codes and replies are never held.
+        </p>
+        <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={quiet.enabled} onChange={(e) => setQuiet({ ...quiet, enabled: e.target.checked })} />
+          Hold marketing-style SMS overnight
+        </label>
+        <div className="row">
+          <label>
+            Quiet hours start (hour)
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={quiet.start}
+              aria-label="Quiet hours start hour"
+              onChange={(e) => setQuiet({ ...quiet, start: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            Quiet hours end (hour)
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={quiet.end}
+              aria-label="Quiet hours end hour"
+              onChange={(e) => setQuiet({ ...quiet, end: Number(e.target.value) })}
+            />
+          </label>
+          <span className="muted" style={{ alignSelf: 'center' }}>
+            {quiet.start === quiet.end
+              ? 'Same hour = no quiet hours'
+              : `${String(quiet.start).padStart(2, '0')}:00 – ${String(quiet.end).padStart(2, '0')}:00`}
+          </span>
+        </div>
+        <button>Save quiet hours</button>
       </form>
 
       <form className="card stack" onSubmit={saveSmsLocales} hidden={tab !== 'sms'}>

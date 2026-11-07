@@ -79,7 +79,31 @@ CREATE POLICY branch_scope ON "Transaction" AS RESTRICTIVE
     COALESCE(NULLIF(current_setting('app.branch_ids', true), ''), '') = ''
     OR "branchId"::text = ANY (string_to_array(current_setting('app.branch_ids', true), ','))
   );
--- Repeat for Member, Visitor, Service, Group, Expense, Pledge, GivingBatch (all tables with "branchId").
+-- The same RESTRICTIVE policy on every other table that carries a branchId, so a
+-- branch-scoped reader cannot see another branch's rows through any tenant table.
+-- Done dynamically like tenant_isolation above, so a future table with branchId is
+-- covered without editing this file. Tables without RLS enabled are untouched.
+DO $$
+DECLARE t record;
+BEGIN
+  FOR t IN
+    SELECT c.table_name
+    FROM information_schema.columns c
+    JOIN information_schema.tables tb
+      ON tb.table_name = c.table_name AND tb.table_schema = c.table_schema AND tb.table_type = 'BASE TABLE'
+    WHERE c.table_schema = 'public' AND c.column_name = 'branchId'
+      AND EXISTS (SELECT 1 FROM information_schema.columns c2
+                  WHERE c2.table_schema = 'public' AND c2.table_name = c.table_name AND c2.column_name = 'churchId')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS branch_scope ON %I', t.table_name);
+    EXECUTE format(
+      'CREATE POLICY branch_scope ON %I AS RESTRICTIVE USING (
+        COALESCE(NULLIF(current_setting(''app.branch_ids'', true), ''), '''') = ''''
+        OR "branchId"::text = ANY (string_to_array(current_setting(''app.branch_ids'', true), '',''))
+      )',
+      t.table_name);
+  END LOOP;
+END $$;
 
 -- Counseling notes: readable only by author or explicit sharedWith (restrictive, in addition to tenant policy)
 DROP POLICY IF EXISTS counseling_access ON "CounselingNote";
