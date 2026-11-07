@@ -16,12 +16,22 @@ uploads/
 # unless they are in the repo, and a build-time `npm run bible:fetch` would make
 # every deploy depend on 66 fetches to raw.githubusercontent.com — a failed fetch
 # is a failed deploy. KJV is public domain (crown copyright expired 2016), so it
-# is safe to carry. Everything else stays local until its licence is settled
-# (BUILD_ORDER R2.1): regenerate with npm run bible:fetch.
+# is safe to carry. The Ghana local-language bundles (Twi/Ewe/Fante/Ga) and ASV
+# are now carried too (owner ask, 8 Nov — the deployed reader showed English
+# only while they stayed local). Their licence strings inside each bundle remain
+# "not verified" for the extracted ones; the audit is OPEN_ITEMS/FEATURES #49.
+# Anything else stays local until its licence is settled (BUILD_ORDER R2.1):
+# regenerate with npm run bible:fetch.
 apps/api/data/*
 !apps/api/data/bible/
 apps/api/data/bible/*
 !apps/api/data/bible/kjv.json
+!apps/api/data/bible/asv.json
+!apps/api/data/bible/ewe.json
+!apps/api/data/bible/fante.json
+!apps/api/data/bible/ga.json
+!apps/api/data/bible/twi.json
+!apps/api/data/bible/twi-asante.json
 scripts/*.exe
 # Scratch scripts that once carried a live database password — keep them local.
 # (Credentials belong in .env, which is ignored above; these files must read
