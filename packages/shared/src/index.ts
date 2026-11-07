@@ -19,3 +19,4 @@ export * from './age';
 export * from './types';
 export * from './sms-locales';
 export * from './denominations';
+export * from './programs';

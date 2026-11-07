@@ -139,6 +139,7 @@ export const MODULE_KEYS = [
   'children',
   'groups',
   'followup',
+  'programs',
   'special_offerings',
   'expenses',
   'sms',
@@ -168,6 +169,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   children: { label: 'Children', hint: 'Child records, plus check-in and pickup codes. Sunday School teachers use this.' },
   groups: { label: 'Groups & cells', hint: 'Cell groups and ministries, with the people in each' },
   followup: { label: 'Follow-up', hint: 'Automatic messages to visitors after a service' },
+  programs: {
+    label: 'Programs & milestones',
+    hint: 'Anniversary and celebration reminders — leaders see whose day is coming, and approve a push to the whole church',
+  },
   special_offerings: { label: 'Special offerings', hint: 'Harvest, building fund and other one-off appeals' },
   expenses: { label: 'Expenses', hint: 'Record spending, see the month total, send a summary as a PDF' },
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
@@ -233,6 +238,9 @@ export const NAV_AREAS: NavArea[] = [
       { href: '/counseling', label: 'Counselling notes', permissions: ['care:read'], module: 'care' },
       // Follow-up plans are for the visitor team, not a care-only teacher.
       { href: '/drip', label: 'Follow-up', permissions: ['visitors:read'], module: 'followup' },
+      // Anniversaries and celebrations: leaders see the upcoming list and
+      // approve one push to the whole church. Off until the office switches it on.
+      { href: '/programs', label: 'Programs & milestones', permissions: ['campaigns:read'], module: 'programs' },
     ],
   },
   {
@@ -359,6 +367,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/sms', permissions: ['sms:read'], label: 'SMS' },
   { prefix: '/announcements', permissions: ['campaigns:read'], label: 'News' },
   { prefix: '/reminders', permissions: ['campaigns:write'], label: 'Reminders' },
+  { prefix: '/programs', permissions: ['campaigns:read'], label: 'Programs & milestones' },
   { prefix: '/org', permissions: ['church:write', 'settings:write', 'branches:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
   { prefix: '/audit', permissions: ['audit:read'], label: 'Activity log' },

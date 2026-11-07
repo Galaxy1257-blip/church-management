@@ -40,7 +40,9 @@ export default function TermsPage() {
         </li>
         <li>
           <b>The church is responsible for its messages.</b> Texts and announcements may only be sent to people who
-          agreed to receive them. Anyone can opt out by replying STOP; the church must not re-add them.
+          agreed to receive them. Anyone can opt out by replying STOP; the church must not re-add them. Celebration
+          notices (birthdays, anniversaries) count as announcements: a leader must approve each one before the
+          congregation sees it, and anyone can ask the office not to share theirs.
         </li>
         <li>
           <b>You are responsible for your sign-in.</b> Keep your password and one-time codes private. Tell the church

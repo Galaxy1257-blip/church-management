@@ -352,6 +352,21 @@ webhook, simulated SMS/gift success). Those stay as they are until asked for.
       their own account instead". Verified live: deny-path 403 renders plain English with Care off, nav hides
       the item, `/flyers/demo` renders the corrected links. Gates: web typecheck, eslint, web 10/10,
       `check:secrets` clean.
+### Program tracking ✅ (owner ask, 7 Nov)
+- [x] `Program` table (migration 15) + `/programs` screen: a church program repeats on a member's date (birthday,
+      wedding anniversary, salvation/baptism/ordination day). Leaders set the reminder window (1 day – 1 month
+      before) per program; the **Coming up** list shows whose day is inside it, with the ordinal ("25th").
+- [x] **Send to the church** (the approval the owner asked for): one tap posts a whole-church notification
+      (`kind: PROGRAM`, `memberId: null`) to the companion bell — sent **once a year per member per program**
+      (dedupe key `program:{id}:{memberId}:{MM-DD}`; second tap says who already sent it).
+- [x] **Off by default:** new App-section switch `programs` ("Programs & milestones"), default `false`, enforced
+      on the API (`@ForModule('programs')`, covered by the module-coverage spec) and in the nav/route rules —
+      both switch-table copies (packages/shared + web `lib/access.ts`) list the key.
+- [x] Leader visibility is the `/programs` page itself (nothing is sent anywhere before approval). 12 shared
+      date-maths tests (leap-day → Feb 28 in common years, window edges, ordinals incl. 11th/12th/13th) +
+      3 API tests (approve-once, dedupe refusal, no-date refusal). Privacy + Terms updated and
+      `LEGAL_UPDATED` bumped: celebrations are announcements, approved by a leader, askable not to share.
+
 ### Batch 7 — member posts ✅ (owner ask, 4 Nov)
 - [x] Notices tab in the companion: title, body, optional photo; *Waiting for a leader* / *Approved* / *Not
       approved*. Prayer requests take a photo too.

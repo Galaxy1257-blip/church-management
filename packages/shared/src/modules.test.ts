@@ -13,6 +13,7 @@ const defaults = {
   children: false,
   groups: false,
   followup: false,
+  programs: false,
   special_offerings: false,
   expenses: false,
   sms: false,

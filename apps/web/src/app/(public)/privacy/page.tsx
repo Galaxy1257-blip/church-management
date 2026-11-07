@@ -59,6 +59,11 @@ export default function PrivacyPage() {
           any reply you send to the church&rsquo;s number.
         </li>
         <li>
+          <b>Celebrations:</b> a leader may mark a birthday or anniversary on the Programs screen to share with the
+          congregation. Nothing is shared until a leader approves it. The notice names you and the day, and may say
+          how many years it has been (for example, &ldquo;Ama&rsquo;s 30th birthday&rdquo;).
+        </li>
+        <li>
           <b>Device and session:</b> a sign-in token kept in your browser (only in local storage if you tick
           &ldquo;keep me signed in&rdquo;), push-notification subscription details if you allow notifications, and your
           chosen theme and dashboard layout. We do not use advertising cookies or third-party trackers.

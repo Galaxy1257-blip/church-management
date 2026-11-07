@@ -34,6 +34,7 @@ import { CareModule } from './ministry/care.module';
 import { EventsModule } from './ministry/events.module';
 import { AnnouncementsModule } from './ministry/announcements.module';
 import { RemindersModule } from './ministry/reminders.module';
+import { ProgramsModule } from './ministry/programs.module';
 import { FollowupAdminModule } from './ministry/followup-admin.module';
 import { PushModule } from './ministry/push.module';
 import { ChildrenModule } from './ministry/children.module';
@@ -75,6 +76,7 @@ import { QueuesModule } from './queues/queues.module';
     EventsModule,
     AnnouncementsModule,
     RemindersModule,
+    ProgramsModule,
     FollowupAdminModule,
     PushModule,
     ChildrenModule,

@@ -2032,3 +2032,31 @@ in this batch.)
 
 **Next:** the owner's program-tracking feature (#81 — anniversaries/milestones, off by default, leader-set
 reminders to leaders, member push after approval), then the full-app debugging pass.
+
+### Session AG continued — Program tracking done (owner ask: anniversaries, off by default)
+
+- **`Program` table** (migration `15_programs`) + **`/programs` screen**: a program repeats on a member's date
+  (DOB / joined / salvation / baptism / marriage / ordination — `memberProgramDate` + `nextAnniversary` in
+  `@chms/shared`, pure + 12 unit tests incl. Feb 29 → Feb 28 in common years and the 11th/12th/13th ordinals).
+  Leaders set the reminder window per program (1 day / 3 days / 1 / 2 weeks / 1 month before); the Coming up
+  list names whose day is inside it ("Ama Mensah · 9 Nov · 30th birthday · member M001").
+- **Leader-set reminders → leader approval → member push** (exactly the owner's flow): nothing leaves the
+  Programs page until a leader taps **Send to the church**, which posts one whole-church notification
+  (`kind: PROGRAM`, `memberId: null`) to the companion bell via the existing Notification rows. Once per year
+  per member per program — `dedupeKey program:{programId}:{memberId}:{MM-DD}` under the existing
+  `[churchId, dedupeKey]` unique; a second tap is refused with who already sent it.
+- **Off by default, gated on the API too:** `programs` module key (default `false`) in BOTH switch-table copies
+  (`packages/shared/src/modules.ts` and the web-local `lib/access.ts` — the documented duplication; the web
+  copy is what the shell reads). `@ForModule('programs')` on the controller (module-coverage spec enforces
+  every key has one), nav item + ROUTE_ACCESS rule (`campaigns:read`/`campaigns:write`, same as Reminders).
+- **Legal kept current (AGENTS.md):** Privacy "what we store" gains a Celebrations bullet (leader approval,
+  names + ordinal may show); Terms' messages clause says celebration notices count as announcements, need
+  approval, and anyone can ask not to share theirs. `LEGAL_UPDATED` bumped to 7 November 2026.
+- **Tests:** shared +12 (date maths), API +3 (approve-once/whole-church row, dedupe refusal, missing-date
+  refusal), modules.test defaults updated for the new key. Migration is additive (`CREATE TABLE IF NOT EXISTS`);
+  applying it to Neon stays a shared-state action pending the owner.
+
+**Gates:** shared 149/149 (17 files) · API 217/217 (31 files) · worker 15/15 · all 5 typechecks clean ·
+eslint clean · `check:secrets` clean.
+
+**Next:** push to GitHub (owner-authorized), then stop — no debugging pass per owner.

@@ -754,6 +754,21 @@ model Notification {
   @@index([churchId, scheduledFor])
 }
 
+model Program {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  name       String
+  /// Which member date the celebration repeats: DOB | JOINED | SALVATION | BAPTISM | MARRIAGE | ORDINATION.
+  dateField  String   @default("DOB")
+  /// Days before the date the leaders' list starts showing the milestone.
+  remindDays Int      @default(7)
+  active     Boolean  @default(true)
+  createdBy  String?  @db.Uuid
+  createdAt  DateTime @default(now())
+
+  @@index([churchId])
+}
+
 // ------------------------------------ services, headcount, events
 model HeadcountSegment {
   id        String      @id @default(uuid(7)) @db.Uuid
