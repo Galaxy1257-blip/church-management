@@ -162,16 +162,18 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 ## 15. Public Outreach, Flyers & Member Self-Service Portal
 
 * **Share Links (`/flyers/:slug`)**: a printable, copy-able list of the church's public links — Give online, guest
-  sign-up, member portal. Reachable from the staff app's sidebar ("Share links"). (It lists links; it does not
-  generate flyer graphics or QR images — print-ready graphics stay out of scope for now.)
+  sign-up, member portal. Linked from the staff app's sidebar footer ("Share links") and reached directly by URL.
+  Each link has a copy button for WhatsApp/status. (It lists links; it does not generate flyer graphics or QR
+  images — a phone camera turns a printed link into a QR, so print-ready graphics stay out of scope for now.)
 * **Guest sign-up (`/join/:slug`)**: the QR code on flyers and share cards points here; a first-time guest types
   the church's join code and becomes a member immediately.
 * **Member Self-Service Portal (`/portal`)**:
   * Passwordless phone OTP login.
-  * View personal giving history and download official annual tax statements (PDF, generated in-app).
-  * View assigned volunteer shifts and RSVP to church events.
-  * Submit prayer requests and see church notices. (Contact editing is not available yet — members can delete
-    their own account instead.)
+  * View personal giving history and download official annual tax statements (real PDF, generated in-app).
+  * View assigned volunteer shifts and confirm/decline them, and RSVP to church events (with a waitlist when full).
+  * Submit prayer requests and notices (optionally with a photo, and anonymous), and see church notices. (Contact
+    editing is not available yet — members can delete their own account instead; the server anonymises, it does not
+    erase the giving record.)
 
 ---
 

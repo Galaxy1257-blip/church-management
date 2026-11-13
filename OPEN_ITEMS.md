@@ -13,10 +13,10 @@ auto-deploys Render + Vercel).
 - [ ] **#60 Batch 5 — branch RLS backstop, Render start command, SMS quiet hours.**
       `audit_event` has no RLS policy; Render start command; enforce SMS quiet hours on
       send (not just the UI hint).
-- [ ] **#59 Batch 6 — counselling notes screen, `/flyers` link, honest FEATURES.**
+- [ ] **#59 Batch 6 — counselling notes screen.**
       Counselling notes exist API-only (`counselingNote` table, encrypted); either give
-      them a screen (#46) or delete the endpoint. Link the share-links page; correct
-      FEATURES §15.
+      them a screen (#46) or delete the endpoint. (The `/flyers` link and FEATURES §15
+      corrections are done — see #48.)
 - [x] **#78 — dashboard cards follow every App-section switch.** DONE. Audited all 10 widgets
       against `packages/shared/src/modules.ts`. Two gaps fixed (shared rule, not the instance):
       the "Today" card showed its card even when every quick link was switched off, and the
@@ -43,7 +43,10 @@ auto-deploys Render + Vercel).
       "Licence:" line under the reader (label + licence text per translation; both
       shown in compare mode). Verified live: KJV public-domain line, Twi honest
       "licence not verified" line.
-- [ ] #48 Link the share-links page + correct FEATURES §15
+- [x] #48 Link the share-links page + correct FEATURES §15 — DONE. Share-links (`/flyers/:slug`)
+      already linked in the sidebar footer (`app-nav.tsx:226`) and renders live with 3 copy-able links;
+      FEATURES §15 rewritten to match the source precisely (portal's confirm/decline shifts, RSVP with
+      waitlist, member-posted notices/prayer with photo + anonymous, real PDF statement, anonymise-on-delete).
 - [ ] #49 Audit the two Twi bundles; get a genuine Akuapem if needed
 
 ## C. Honest gaps (not faked — report as such)
