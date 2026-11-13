@@ -262,13 +262,16 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
 - [ ] **The daily reading has no in-app voice.** The rotation engine ships; there is no header bell, no
       reading card on the dashboard or `/portal`, and no switch of its own. Owner asked for the quotation
       plus a very short message as a notification, and (later) a phone widget.
-- [ ] **Sunday School batch** (recommended after the teacher permission decision): class attendance register
-      · guardian SMS on check-in and check-out · class skip dates for the weeks a teacher is away ·
-      allergy/health note visible to the class teacher only · the allowed guardians on the pick-up row ·
-      the class view pointing at the offline Bible bundles.
-- [ ] **`/flyers/[slug]` exists but nothing links to it**, and [FEATURES.md §15](FEATURES.md) still
-      advertises a "Social Media Flyer Generator" that draws branded graphics. It is a share-links + QR page.
-      Either link it from Settings/announcements or correct the doc.
+- [x] **The allowed guardians on the pick-up row** (#37, Session AI). Once a child is chosen, the desk now
+      prints "Who may collect <child>: <names>" from the roster the office approved (`canPickup: true`),
+      falling back to "no approved guardian on record — add one in 'Who may collect'". The person who
+      dropped the child off is not automatically the person allowed to take them home. Verified live at
+      390px with a real check-in.
+- [ ] **Sunday School batch (remaining)**: class attendance register · guardian SMS on check-in and
+      check-out · class skip dates for the weeks a teacher is away · allergy/health note visible to the
+      class teacher only · the class view pointing at the offline Bible bundles.
+- [x] **`/flyers/[slug]` linked + FEATURES §15 corrected** (#48, Session AI): the sidebar footer now has
+      "Share links", and §15 describes the page as the share-links list it actually is (no flyer graphics).
 - [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■
       in `.demo-legend` both fail AA as text. Fixing them means darkening the 20 approved palettes, which is
       a design change, not a bug fix — so they were left alone.

@@ -1,6 +1,6 @@
 # OPEN_ITEMS — ChMS unfinished work (resume here)
 
-Last updated: 2026-11-06 (Session AF). The single source of truth for every undone
+Last updated: 2026-11-13 (Session AI). The single source of truth for every undone
 prompt and unanswered question. Read this at the start of a new session before
 claiming new work. Tick a line only when the change is committed and pushed (which
 auto-deploys Render + Vercel).
@@ -32,7 +32,10 @@ auto-deploys Render + Vercel).
 - [ ] #34 Text the guardian on child check-in/out
 - [ ] #35 Let a church skip Sunday School on specific Sundays
 - [ ] #36 Show allergies to the class teacher only
-- [ ] #37 Show allowed guardians on the pick-up row
+- [x] #37 Show allowed guardians on the pick-up row — DONE. After choosing a child, the desk prints
+      "Who may collect <child>: <names>" from `/children/roster` (already filtered to `canPickup: true`),
+      with an explicit "no approved guardian on record" fallback. Verified live at 390px against a real
+      check-in (Emmanuel Appiah → Akosua Nyarko).
 - [ ] #38 Point the class view at the offline Bible bundles
 - [ ] #40 Daily reading as an in-app notification, with its own switch (also #45)
 - [ ] #45 Put the daily reading in the app with its own switch (dup of #40 — reconcile)

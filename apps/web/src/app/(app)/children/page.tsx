@@ -92,6 +92,7 @@ export default function ChildrenPage() {
 
   const chosen = roster.find((c) => c.id === childId) ?? null;
   const inside = active.find((a) => a.childId === pickupId) ?? null;
+  const mayCollect = inside ? roster.find((c) => c.id === inside.childId)?.guardians ?? [] : [];
 
   async function reloadActive(): Promise<void> {
     if (serviceId) setActive(await api<Active[]>(`/children/active?serviceId=${serviceId}`));
@@ -299,19 +300,30 @@ export default function ChildrenPage() {
               ))}
             </div>
             {inside ? (
-              <div className="row" style={{ alignItems: 'flex-end', gap: 8 }}>
-                <label style={{ flex: 1 }}>Collected by {inside.guardianName}
-                  <input
-                    placeholder="6-digit code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    inputMode="numeric"
-                  />
-                </label>
-                <button className="danger" disabled={code.length !== 6} onClick={() => void checkOut()}>
-                  Release child
-                </button>
-              </div>
+              <>
+                <div className="row" style={{ alignItems: 'flex-end', gap: 8 }}>
+                  <label style={{ flex: 1 }}>Collected by {inside.guardianName}
+                    <input
+                      placeholder="6-digit code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <button className="danger" disabled={code.length !== 6} onClick={() => void checkOut()}>
+                    Release child
+                  </button>
+                </div>
+                {/* Staff need to see who is allowed to take this child home before
+                    releasing them — the names the office approved, not the person who
+                    happened to drop them off. */}
+                <p className="muted" style={{ margin: '0.25rem 0 0', fontSize: '0.85rem' }}>
+                  Who may collect {inside.childName}:{' '}
+                  {mayCollect.length > 0
+                    ? mayCollect.map((g) => g.name).join(', ')
+                    : 'no approved guardian on record — add one in “Who may collect”'}
+                </p>
+              </>
             ) : null}
           </div>
         )}

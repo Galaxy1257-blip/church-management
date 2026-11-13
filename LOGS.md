@@ -2210,3 +2210,21 @@ permissions, plus `moduleEnabled`'s absent-flag-means-on behaviour).
 her permission set (Add a member, Send a reminder) — no dead links, no empty card.
 
 **Gates:** web typecheck clean · web 18/18 (+8 access) · eslint clean · `check:secrets` clean.
+
+### Session AI continued — #37 show the approved guardians on the pick-up row
+
+A desk that can release a child was showing only the adult who dropped them off. The pick-up row now
+prints the names the office actually approved: **"Who may collect <child>: <names>"**, read from
+`/children/roster`, whose guardians the API already filters to `canPickup: true`. When nobody is on the
+list it says so plainly: *"no approved guardian on record — add one in 'Who may collect'"*. One derived
+value (`mayCollect`) feeds the line, so the roster is not searched three times per render.
+
+**Verified live** against a real record: inserted a service for the desk, checked Emmanuel Appiah in as
+the Teacher (guardian Akosua Nyarko), then opened `/children` and picked the child. The row read
+"Who may collect Emmanuel Appiah: Akosua Nyarko" at 390px with no overflow (screenshot captured). Test
+rows were removed afterwards; the local DB is back to its previous state.
+
+**Gates:** web typecheck clean · `check:secrets` clean.
+
+**Docs:** #37 ticked in OPEN_ITEMS §B; BUILD_ORDER's Sunday School batch split so only the remaining
+items stay open, and the stale `/flyers` + FEATURES §15 line (done as #48) is now ticked too.
