@@ -267,9 +267,12 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       falling back to "no approved guardian on record — add one in 'Who may collect'". The person who
       dropped the child off is not automatically the person allowed to take them home. Verified live at
       390px with a real check-in.
+- [x] **The class view points at the offline Bible bundles** (#38, Session AI). The shared `BibleDock` is
+      mounted in the app shell, so the Bible button is on `/children`; opened live there, it listed all 8
+      bundled translations and rendered Genesis 1 from the packed KJV.
 - [ ] **Sunday School batch (remaining)**: class attendance register · guardian SMS on check-in and
       check-out · class skip dates for the weeks a teacher is away · allergy/health note visible to the
-      class teacher only · the class view pointing at the offline Bible bundles.
+      class teacher only.
 - [x] **`/flyers/[slug]` linked + FEATURES §15 corrected** (#48, Session AI): the sidebar footer now has
       "Share links", and §15 describes the page as the share-links list it actually is (no flyer graphics).
 - [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■

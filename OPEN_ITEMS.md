@@ -36,7 +36,10 @@ auto-deploys Render + Vercel).
       "Who may collect <child>: <names>" from `/children/roster` (already filtered to `canPickup: true`),
       with an explicit "no approved guardian on record" fallback. Verified live at 390px against a real
       check-in (Emmanuel Appiah → Akosua Nyarko).
-- [ ] #38 Point the class view at the offline Bible bundles
+- [x] #38 Point the class view at the offline Bible bundles — DONE (already satisfied; verified Session AI).
+      `BibleDock` is mounted in the `(app)` shell (`layout.tsx:166`), so the Bible button sits on `/children`
+      too. Verified live: opening it on the class view lists all 8 bundled translations and renders
+      Genesis 1 from the packed KJV — no navigation away from the desk.
 - [ ] #40 Daily reading as an in-app notification, with its own switch (also #45)
 - [ ] #45 Put the daily reading in the app with its own switch (dup of #40 — reconcile)
 - [x] #46 Encrypted counselling notes screen — DONE (verified Session AI). `(app)/counseling/page.tsx`

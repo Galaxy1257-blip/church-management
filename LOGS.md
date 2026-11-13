@@ -2228,3 +2228,11 @@ rows were removed afterwards; the local DB is back to its previous state.
 
 **Docs:** #37 ticked in OPEN_ITEMS §B; BUILD_ORDER's Sunday School batch split so only the remaining
 items stay open, and the stale `/flyers` + FEATURES §15 line (done as #48) is now ticked too.
+
+### Session AI — #38 class view → offline Bible bundles (verified, no code change)
+
+`BibleDock` is mounted once in the `(app)` shell (`apps/web/src/app/(app)/layout.tsx:166`), so every staff
+screen — including `/children` — already carries the Bible button. Verified live on the class view while
+signed in: the dock opened without leaving the desk, listed all 8 bundled translations (KJV, ASV, WEB,
+Ewe, Fante, Ga, two Twi) and rendered Genesis 1 from the packed KJV. No navigation or new link needed;
+ticked as satisfied rather than adding a second, redundant entry point.
