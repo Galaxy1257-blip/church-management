@@ -13,10 +13,8 @@ auto-deploys Render + Vercel).
 - [ ] **#60 Batch 5 — branch RLS backstop, Render start command, SMS quiet hours.**
       `audit_event` has no RLS policy; Render start command; enforce SMS quiet hours on
       send (not just the UI hint).
-- [ ] **#59 Batch 6 — counselling notes screen.**
-      Counselling notes exist API-only (`counselingNote` table, encrypted); either give
-      them a screen (#46) or delete the endpoint. (The `/flyers` link and FEATURES §15
-      corrections are done — see #48.)
+- [x] **#59 Batch 6 — counselling notes screen.** DONE. The screen was built (see #46);
+      the `/flyers` link and FEATURES §15 corrections are also done (see #48).
 - [x] **#78 — dashboard cards follow every App-section switch.** DONE. Audited all 10 widgets
       against `packages/shared/src/modules.ts`. Two gaps fixed (shared rule, not the instance):
       the "Today" card showed its card even when every quick link was switched off, and the
@@ -38,7 +36,10 @@ auto-deploys Render + Vercel).
 - [ ] #38 Point the class view at the offline Bible bundles
 - [ ] #40 Daily reading as an in-app notification, with its own switch (also #45)
 - [ ] #45 Put the daily reading in the app with its own switch (dup of #40 — reconcile)
-- [ ] #46 Encrypted counselling notes: screen or delete (feeds #59)
+- [x] #46 Encrypted counselling notes screen — DONE (verified Session AI). `(app)/counseling/page.tsx`
+      (161 lines) is a real screen: pick a member (or a teacher's own class), read their notes, add one,
+      share with another leader. Backed by `@Post('counseling')` / `@Get('counseling/:subjectId')`
+      (`care.module.ts:363-371`), encrypted at rest via `ministry/crypto.ts`. Follows the Care switch.
 - [x] #47 Show each Bible's licence on the reader — DONE. `/bible` shows a visible
       "Licence:" line under the reader (label + licence text per translation; both
       shown in compare mode). Verified live: KJV public-domain line, Twi honest
