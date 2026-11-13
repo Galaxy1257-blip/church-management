@@ -2152,3 +2152,38 @@ Asante drop-in once licensed; #49 Twi identity; push.
 
 **Next:** Asante drop-in once the owner's GBS/Biblica licence email is answered (no copyrighted repack
 without written permission); #49 Twi identity audit (needs external evidence). Both blocked on the owner.
+
+## 2026-11-13 — Session AI (login report investigated + cold-start wait made honest)
+
+**Report:** "only the dev and pastor logins work, others don't." Verified before touching anything — a bug
+report is a hypothesis. **Not reproducible.** Evidence gathered against the running app:
+
+- **API, all 8 demo accounts:** `POST /auth/login` → **200** for every one (both `+233…` and local
+  `055…`/`024…` forms), and `GET /auth/me` → **200** with the right role and permission set each time.
+- **Dashboard gate:** the `(app)` shell denies `/dashboard` without `church:read`; all 7 staff roles hold
+  it (only MEMBER has 0 perms, and that one is meant to land on `/portal`). So the gate is not the cause.
+- **Live UI, four divergent roles:** Secretary → full staff shell + dashboard (nav People/Reach/Org);
+  Usher → **Usher Mode** shell (Check-in/Visitors/Collection/Full app) + dashboard; Member → `/portal`
+  member companion; Teacher/Leader → full shell with Children. All four signed in and landed correctly.
+- **Deployed** (`church-management-gray.vercel.app`): Secretary also signs in and reaches the dashboard.
+
+The documented login table in `RECREATION_GUIDE.md` matches the database exactly, so the numbers people
+are given are correct.
+
+**What I did find (real, observed):** the hosted API runs on Render's free tier, which sleeps and takes
+**25–50s to wake**. On the deployed app the sign-in button showed "Working…" for ~40s before succeeding.
+A person who taps sign-in and watches it sit there concludes it is broken — which is very likely what
+happened. Fixed the misleading silence, not a login that was never broken: after 6s of waiting the form
+now says out loud "Still signing in — the server may be starting up. The first sign-in of the day can take
+up to a minute. Please wait rather than tapping again." (`apps/web/src/app/(public)/login/page.tsx`).
+
+**Honest limitation:** I could **not** exercise the 6-second hint path in the running app. localhost
+answers in well under a second, and `browser-use` runs its scripts in an isolated world so it cannot
+intercept the page's `fetch` to fake a delay. Gates prove it compiles and nothing regressed; the hint's
+appearance under a real slow response is the one thing I did not see with my own eyes.
+
+**Gates:** web typecheck clean · web 10/10 · eslint clean · `check:secrets` clean (web-only change).
+
+**Next (backlog):** #78 dashboard switch gating (fix written, needs tests + commit); #48 share-links link
++ FEATURES §15; #46 confirm counselling screen; #33–38 Sunday School cluster; #40/#45 daily reading with
+its own switch; #13 outreach starter (off by default); §D permission write-up + §E infra checks.

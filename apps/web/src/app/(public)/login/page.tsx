@@ -19,6 +19,19 @@ function LoginInner() {
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // The hosted API sleeps when nobody is using it and can take up to a minute to
+  // wake. Without this the button just says "Working…" and people give up, so
+  // after a few seconds we say out loud that the wait is normal.
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (!busy) {
+      setSlow(false);
+      return;
+    }
+    const t = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(t);
+  }, [busy]);
 
   useEffect(() => {
     if (hasSession()) router.replace('/dashboard');
@@ -166,6 +179,12 @@ function LoginInner() {
             <button type="submit" disabled={busy}>
               {busy ? 'Working…' : mode === 'password' ? 'Sign in' : otpSent ? 'Verify code' : 'Send code'}
             </button>
+            {busy && slow ? (
+              <p className="muted" style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', textAlign: 'center' }} role="status">
+                Still signing in — the server may be starting up. The first sign-in of the day can take up to a
+                minute. Please wait rather than tapping again.
+              </p>
+            ) : null}
           </form>
 
           <div className="auth-or">or</div>

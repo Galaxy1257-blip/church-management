@@ -41,6 +41,12 @@ auto-deploys Render + Vercel).
 
 ## C. Honest gaps (not faked — report as such)
 
+- [ ] **Hosted sign-in can take up to a minute.** The API runs on Render's free tier, which sleeps after
+      inactivity and needs 25–50s to wake. The sign-in form now says so after 6s ("the server may be
+      starting up… please wait") so it no longer looks broken, but the wait is real. Paid hosting or a
+      keep-warm ping removes it. (This is what the "only dev and pastor logins work" report actually was —
+      see LOGS Session AI; the logins themselves were never broken.)
+
 - [ ] Camera QR scanning is **not implemented** (QR membership cards are hash-token
       based, printed/read, not camera-scanned).
 - [ ] OS push needs **VAPID keys** before browser/device push actually delivers.
