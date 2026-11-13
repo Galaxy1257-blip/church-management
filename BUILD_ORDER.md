@@ -690,7 +690,9 @@ the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
 - [x] Terms of Use + Privacy Policy at `/terms` and `/privacy`, footer + sign-up links, `legal-meta.ts`.
 - [x] Self-service erasure `DELETE /auth/me` (anonymise, keep amounts, opt-out first, no audit before/after).
       Buttons in the member portal and staff About page. Erasure is a right, not a switch.
-- [ ] #78 Dashboard cards fully follow every App-section switch (partially done — re-audit each card).
+- [x] #78 Dashboard cards fully follow every App-section switch (Session AI: audited all 10 widgets; 8 already
+      compliant, 2 fixed — "Today" card hid when no quick link survived, and the churn card's /members link now
+      gates on `mod('people')`. Shared rule `dashboardQuickLinks()` in `apps/web/src/lib/access.ts` + `access.test.ts`.)
 
 ### Session AG additions (Help that answers + no dead clicks — owner ask, 7 Nov)
 - [x] **The public "Help" link did nothing useful** — it pointed at `/#help`, which only scrolled to the

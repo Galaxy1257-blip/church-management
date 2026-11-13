@@ -2187,3 +2187,26 @@ appearance under a real slow response is the one thing I did not see with my own
 **Next (backlog):** #78 dashboard switch gating (fix written, needs tests + commit); #48 share-links link
 + FEATURES §15; #46 confirm counselling screen; #33–38 Sunday School cluster; #40/#45 daily reading with
 its own switch; #13 outreach starter (off by default); §D permission write-up + §E infra checks.
+
+### Session AI continued — #78 dashboard cards obey every App-section switch
+
+Audited all 10 dashboard widgets against `packages/shared/src/modules.ts`. **8 already complied** (stats,
+attendance, latest-service, funds, trend, care, events, news all gate on their switch). **2 did not**, both
+fixed via one shared rule rather than per-instance patches:
+
+- The **"Today"** quick-actions card rendered whenever the role held *any* of its permissions, so a church
+  with every section off still got an empty shell. Extracted `dashboardQuickLinks()` into
+  `apps/web/src/lib/access.ts` — a link survives only when the role may use it **and** its section is on —
+  and the card now exists only when at least one link survives. Check-in keeps the door exception (the
+  usher's count continues with Services hidden).
+- The **"Members to check on"** card linked to `/members` while Members & visitors was switched off. That
+  link now gates on `mod('people')`.
+
+Coverage: **10 widgets audited, 8 compliant, 2 fixed**. Tests: new `apps/web/src/lib/access.test.ts`
+(8 cases — full set, all-off, partial-off, the check-in door exception, a role that cannot count, no
+permissions, plus `moduleEnabled`'s absent-flag-means-on behaviour).
+
+**Verified live:** the Secretary dashboard renders exactly the two links `dashboardQuickLinks` returns for
+her permission set (Add a member, Send a reminder) — no dead links, no empty card.
+
+**Gates:** web typecheck clean · web 18/18 (+8 access) · eslint clean · `check:secrets` clean.

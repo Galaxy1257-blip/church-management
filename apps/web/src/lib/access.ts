@@ -511,3 +511,24 @@ export function visibleUsherNav(granted: readonly string[], modules?: ModuleFlag
       mayOpen(granted, item),
   );
 }
+
+/**
+ * The dashboard's "Today" quick actions. A link only survives when the role may
+ * use it AND its section is switched on — the card itself is hidden when none
+ * survive, so a church that switched everything off never sees an empty shell.
+ * Check-in keeps the door exception: it stands alone when Services is hidden.
+ */
+export function dashboardQuickLinks(
+  granted: readonly string[],
+  modules?: ModuleFlags,
+): { href: string; label: string }[] {
+  const links: { href: string; label: string }[] = [];
+  if (hasPermission(granted, 'checkin:write') && (moduleEnabled(modules, 'worship') || hasPermission(granted, 'headcount:write'))) {
+    links.push({ href: '/checkin', label: 'Check someone in' });
+  }
+  if (hasPermission(granted, 'finance:read') && moduleEnabled(modules, 'money')) links.push({ href: '/finance', label: 'Record offering' });
+  if (hasPermission(granted, 'visitors:write') && moduleEnabled(modules, 'people')) links.push({ href: '/visitors', label: 'Register a visitor' });
+  if (hasPermission(granted, 'members:write') && moduleEnabled(modules, 'people')) links.push({ href: '/members', label: 'Add a member' });
+  if (hasPermission(granted, 'campaigns:write') && moduleEnabled(modules, 'reach')) links.push({ href: '/reminders', label: 'Send a reminder' });
+  return links;
+}

@@ -17,8 +17,15 @@ auto-deploys Render + Vercel).
       Counselling notes exist API-only (`counselingNote` table, encrypted); either give
       them a screen (#46) or delete the endpoint. Link the share-links page; correct
       FEATURES §15.
-- [ ] **#78 — dashboard cards follow every App-section switch.** Services links already
-      gate on `mod('worship')`; re-audit the remaining cards against each switch.
+- [x] **#78 — dashboard cards follow every App-section switch.** DONE. Audited all 10 widgets
+      against `packages/shared/src/modules.ts`. Two gaps fixed (shared rule, not the instance):
+      the "Today" card showed its card even when every quick link was switched off, and the
+      "Members to check on" card linked to /members while Members & visitors was off. Extracted
+      `dashboardQuickLinks()` into `apps/web/src/lib/access.ts` (one rule, used for both the card's
+      existence and its links) and gated the churn card's link on `mod('people')`. The other 8
+      widgets already obeyed their switches (verified against source). Coverage: 10 widgets audited,
+      8 compliant, 2 fixed. Tests: `access.test.ts` (8 cases) pin the link rules including the
+      check-in door exception.
 
 ## B. Feature backlog (owner-approved, unbuilt)
 

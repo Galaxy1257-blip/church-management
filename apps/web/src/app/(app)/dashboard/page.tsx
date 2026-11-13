@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { fmtDate, fmtDateTime, ghs } from '../../../lib/format';
-import { hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
+import { dashboardQuickLinks, hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import { doorView } from '../../../lib/door';
 import MemberDrawer from '../../../components/member-drawer';
@@ -131,6 +131,9 @@ export default function DashboardPage() {
 
   const has = (perm: string) => hasPermission(perms, perm);
   const mod = (key: ModuleKey) => moduleEnabled(modules, key);
+  // One rule for the quick actions: a link only shows when its section is on,
+  // and the whole card disappears when no link survives (#78).
+  const quickLinks = dashboardQuickLinks(perms, modules);
   const attendanceVisible = has('services:read') && (mod('worship') || has('headcount:write'));
   // /events sits behind its own switch now, not the Services one — reading
   // worship here used to offer a card the church had switched off.
@@ -146,7 +149,7 @@ export default function DashboardPage() {
   // surface something the permission set excludes.
   const allowed = new Set<WidgetKey>();
   if (statCount > 0) allowed.add('stats');
-  if (has('checkin:write') || has('finance:read') || has('visitors:write') || has('members:write')) allowed.add('today');
+  if (quickLinks.length > 0) allowed.add('today');
   if (attendanceVisible) {
     allowed.add('attendance');
     allowed.add('latest-service');
@@ -247,11 +250,9 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
-              {has('checkin:write') && (mod('worship') || has('headcount:write')) ? <Link href="/checkin">Check someone in</Link> : null}
-              {has('finance:read') && mod('money') ? <Link href="/finance">Record offering</Link> : null}
-              {has('visitors:write') && mod('people') ? <Link href="/visitors">Register a visitor</Link> : null}
-              {has('members:write') && mod('people') ? <Link href="/members">Add a member</Link> : null}
-              {has('campaigns:write') && mod('reach') ? <Link href="/reminders">Send a reminder</Link> : null}
+              {quickLinks.map((l) => (
+                <Link key={l.href} href={l.href}>{l.label}</Link>
+              ))}
             </div>
           </div>
         );
@@ -439,7 +440,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="spread">
               <h2 style={{ margin: 0 }}>Members to check on</h2>
-              <Link href="/members">Members →</Link>
+              {mod('people') ? <Link href="/members">Members →</Link> : null}
             </div>
             {data.churn.length ? (
               <div style={{ marginTop: '0.4rem' }}>
