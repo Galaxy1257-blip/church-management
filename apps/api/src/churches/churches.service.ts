@@ -10,6 +10,7 @@ import {
   normalizeGhPhone,
   denominationPreset,
   givingStopsWithBooks,
+  inAppReadingOn,
   isModuleKey,
   MODULE_DEFAULTS,
   resolveDevotional,
@@ -22,6 +23,7 @@ import {
 import { uuidv7 } from '@chms/shared';
 import { timingSafeEqualStr } from '../common/crypto';
 import { ModuleFlagsService } from '../common/module-flags';
+import { BibleService } from '../bible/bible.service';
 import { trialEndsAt } from '../billing/billing.logic';
 import { allocateMemberNo } from '../common/member-no';
 import { resolveMemberBracket } from '../members/members.service';
@@ -68,6 +70,7 @@ export class ChurchesService {
   constructor(
     @Inject('ENV') private readonly env: Env,
     private readonly moduleFlags: ModuleFlagsService,
+    private readonly bible: BibleService,
   ) {}
 
   create(input: CreateChurchInput): Promise<CreatedChurch> {
@@ -417,12 +420,32 @@ export class ChurchesService {
     });
   }
 
+  /**
+   * Today's reading for the in-app cards. The office switches two things: the
+   * Bible area (Settings → App sections) and the reading itself (Settings → SMS
+   * → Daily Bible reading). Both are checked here, so the card's only data path
+   * obeys them — the button is not the gate.
+   *
+   * The answer is `{ inApp: false, reading: null }` rather than a 403 when a
+   * switch is off, because a closed area is a choice, not an error: the
+   * dashboard and the member home quietly drop the card.
+   */
+  devotionalToday(churchId: string) {
+    return withTenant(churchId, null, async (tx) => {
+      const church = await tx.church.findUniqueOrThrow({ where: { id: churchId } });
+      if (!inAppReadingOn(church.settings)) return { inApp: false, reading: null };
+      const dev = resolveDevotional((church.settings as any)?.devotional);
+      return { inApp: true, reading: this.bible.daily(dev.translation, dev.verse || undefined) };
+    });
+  }
+
   saveDevotional(user: { churchId: string; userId: string }, patch: Partial<DevotionalSettings>, ip?: string) {
     return withTenant(user.churchId, user.userId, async (tx) => {
       const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId } });
       const prev = resolveDevotional((church.settings as any)?.devotional);
       const merged: DevotionalSettings = {
         enabled: patch.enabled ?? prev.enabled,
+        inApp: patch.inApp ?? prev.inApp,
         translation: patch.translation ?? prev.translation,
         verse: patch.verse ?? prev.verse,
       };

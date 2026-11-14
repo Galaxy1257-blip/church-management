@@ -2365,3 +2365,50 @@ schema owner; `extras.sql` re-applied.
 
 **Docs:** #33 and #36 ticked in OPEN_ITEMS §B with evidence; BUILD_ORDER's remaining Sunday School batch
 replaced with the completed items and the chip fix; STATE header updated; this entry.
+
+### Session AI continued — #40/#45 the daily reading in the app, with its own switch
+
+**What the owner asked for:** the verse-of-the-day as an in-app notification — the quotation plus a very
+short message — as well as the existing 8pm SMS. #40 and #45 were the same request filed twice, so they
+are one unit.
+
+**One rule, two surfaces.** `inAppReadingOn()` in `packages/shared/src/daily-reading.ts` answers the only
+question either card needs: is the Bible area on (Settings → App sections) **and** is the reading's own
+in-app switch on? The switch is `Church.settings.devotional.inApp`, a new free field that defaults to on —
+only a stored `false` turns the card off, so every church that changed nothing sees the reading tomorrow.
+The 8pm SMS switch (`devotional.enabled`) stays separate; either can be on alone.
+
+**The data path.** New `GET /churches/me/devotional/today` (`church:read`, `churches.controller.ts`)
+returns `{ inApp, reading: { ref, text, note, translation } }`. When either switch is off it answers
+`{ inApp: false, reading: null }` — a closed area is a choice, not an error, and a 403 would make both
+cards print a failure for a deliberate setting. `/portal/home` applies the same rule to its new `reading`
+field, so the staff dashboard and the member companion cannot disagree.
+
+**Why not gate `/bible/daily`:** that route is `@Public()` and still feeds the Settings preview and the
+reader. Gating it would have closed the preview the office uses to choose a verse. The new route is the
+card's only data path, and `devotional.today.spec.ts` pins that it carries `church:read` and is **not**
+`@ForModule`-gated (a section gate would 403 before the quiet answer could run).
+
+**Where it shows:** a "Today's reading" widget on the staff dashboard — an ordinary widget, so Edit mode
+can move/hide it and the saved layout remembers — and a card at the top of the member portal home with an
+"Open Bible →" link. A pinned verse that is not in the selected Bible returns 404; both cards then say the
+reading could not be loaded and point at Settings, instead of silently disappearing. The Settings preview
+now prints the same honest line for a bad reference (it used to hide itself).
+
+**Settings:** the Daily Bible reading card gained a second, free checkbox — "Show it in the app — dashboard
+and member home (free)" — beside "Send it by SMS at 8pm (uses your SMS credit)", with copy saying both
+follow the Bible area switch. The save notice names both states.
+
+**Verified live at 390px** (chrome-devtools mobile emulation, real logins): dashboard showed "Today's
+reading / Psalms 139:23" with verse and note; turning `inApp` off through the UI removed the card and the
+API answered `{inApp:false,reading:null}`; pinning "John 99:1" turned the widget into the honest error
+card and the Settings preview into its error line; restoring the blank verse brought the reading back; the
+member portal home showed the same passage. A note on the harness: the browser `fill` tool with "" did not
+clear the React-controlled verse input, so the bad verse was cleared through the API and re-checked.
+
+**Gates:** shared 170 (6 new cases: default on, explicit false, either switch alone, Bible-area off) · API
+230 (3 new metadata cases) · web 18 · typecheck (5 workspaces) · lint · `check:secrets` — all green.
+
+**Docs:** #40/#45 ticked in OPEN_ITEMS §B with the evidence above; BUILD_ORDER's "no in-app voice" item
+replaced with the completed one (the phone home-screen widget stays listed as the owner's later ask);
+STATE header updated; this entry.

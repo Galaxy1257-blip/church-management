@@ -30,11 +30,19 @@ interface DashboardData {
   }[];
   events: { id: string; title: string; startsAt: string; venue?: string | null }[];
   announcements: { id: string; title: string; body: string; category: string; publishAt: string; memberId?: string | null }[];
+  // null when the church switched the reading off; 'error' when it is on but
+  // the passage could not be loaded (usually a pinned verse the Bible lacks).
+  reading: TodayReading | null;
 }
+
+type TodayReading =
+  | { state: 'ok'; ref: string; text: string; note: string; translation: string }
+  | { state: 'error' };
 
 type WidgetKey =
   | 'stats'
   | 'today'
+  | 'reading'
   | 'attendance'
   | 'latest-service'
   | 'funds'
@@ -47,6 +55,7 @@ type WidgetKey =
 const WIDGETS: { key: WidgetKey; label: string }[] = [
   { key: 'stats', label: 'Key numbers' },
   { key: 'today', label: 'Quick actions' },
+  { key: 'reading', label: "Today's reading" },
   { key: 'attendance', label: 'Sunday attendance' },
   { key: 'latest-service', label: 'Latest service' },
   { key: 'funds', label: 'Offering by category' },
@@ -105,7 +114,19 @@ export default function DashboardPage() {
         setPerms(granted);
         setModules(session.modules);
         const can = (perm: string) => hasPermission(granted, perm);
-        const [wallet, door, byFund, visitors, bySunday, churn, tasks, events, announcements] = await Promise.all([
+        // The reading is free, so its only gate is the church's own switch;
+        // /churches/me/devotional/today honours it on the API path and answers
+        // `inApp: false` (a quiet no) rather than an error.
+        const reading = can('church:read')
+          ? api<{ inApp: boolean; reading: { ref: string; text: string; note: string; translation: string } | null }>(
+              '/churches/me/devotional/today',
+            )
+              .then((r): TodayReading | null =>
+                r.inApp ? (r.reading ? { state: 'ok', ...r.reading } : { state: 'error' }) : null,
+              )
+              .catch((): TodayReading => ({ state: 'error' }))
+          : Promise.resolve(null);
+        const [wallet, door, byFund, visitors, bySunday, churn, tasks, events, announcements, readingState] = await Promise.all([
           can('sms:read') ? api<NonNullable<DashboardData['wallet']>>('/sms/wallet').catch(() => null) : Promise.resolve(null),
           can('services:read') || can('checkin:write')
             ? doorView(granted, session.roles, session.modules)
@@ -117,12 +138,13 @@ export default function DashboardPage() {
           can('care:read') ? api<DashboardData['tasks']>('/tasks').catch(() => []) : Promise.resolve([]),
           can('services:write') ? api<DashboardData['events']>('/events').catch(() => []) : Promise.resolve([]),
           can('campaigns:read') ? api<DashboardData['announcements']>('/announcements').catch(() => []) : Promise.resolve([]),
+          reading,
         ]);
         const services = door?.services ?? [];
         const totals = door
           ? { totals: door.segments, netTotal: door.counted }
           : null;
-        setData({ wallet, services, totals, byFund, visitors, bySunday, churn, tasks, events, announcements });
+        setData({ wallet, services, totals, byFund, visitors, bySunday, churn, tasks, events, announcements, reading: readingState });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'failed to load');
       }
@@ -193,6 +215,10 @@ export default function DashboardPage() {
   if (error) return <div className="error">{error}</div>;
   if (!data) return <div>Loading dashboard…</div>;
 
+  // The reading follows its own church switch (plus the Bible area switch, both
+  // folded into the API's rule). `null` means the church turned it off.
+  if (data.reading) allowed.add('reading');
+
   const visibleKeys = layout.order.filter((k) => allowed.has(k) && !layout.hidden.includes(k));
 
   // An arrow (not a hoisted function) so TypeScript keeps the non-null `data`
@@ -256,6 +282,29 @@ export default function DashboardPage() {
             </div>
           </div>
         );
+
+      case 'reading': {
+        const r = data.reading;
+        return (
+          <div className="card">
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Today&apos;s reading</h2>
+              <Link href="/bible">Bible →</Link>
+            </div>
+            {r?.state === 'ok' ? (
+              <div style={{ marginTop: '0.4rem' }}>
+                <strong>{r.ref}</strong>
+                <p style={{ margin: '0.3rem 0' }}>{r.text}</p>
+                {r.note ? <p className="muted" style={{ marginBottom: 0 }}>{r.note}</p> : null}
+              </div>
+            ) : (
+              <p className="muted">
+                Today&apos;s reading could not be loaded. Check the pinned verse in Settings → SMS → Daily Bible reading.
+              </p>
+            )}
+          </div>
+        );
+      }
 
       case 'attendance':
         return (

@@ -60,6 +60,8 @@ interface HomeData {
   } | null;
   services: { id: string; name: string; startsAt: string; status: string }[];
   announcements: { id: string; title: string; body: string; publishAt: string; photoDataUrl?: string | null }[];
+  /** Today's passage, or null when the church switched the in-app reading off. */
+  reading?: { ref: string; text: string; note: string; translation: string } | null;
   /** False when the church switched the Bible area off in its settings. */
   bibleOn?: boolean;
   /** Members may send notices and prayer requests with photos. */
@@ -592,6 +594,17 @@ export default function PortalPage() {
       {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
       {tab === 'home' ? (
         <div>
+          {home?.reading ? (
+            <div className="card">
+              <div className="spread">
+                <h2>Today&apos;s reading</h2>
+                <a className="badge mute" href="/bible">Open Bible →</a>
+              </div>
+              <p style={{ margin: '0.4rem 0 0.2rem', fontWeight: 600 }}>{home.reading.ref}</p>
+              <p style={{ margin: '0 0 0.4rem' }}>{home.reading.text}</p>
+              {home.reading.note ? <p className="muted" style={{ marginBottom: 0 }}>{home.reading.note}</p> : null}
+            </div>
+          ) : null}
           <div className="card" style={{ textAlign: 'center' }}>
             <h2>Your check-in code</h2>
             {checkinQr ? (

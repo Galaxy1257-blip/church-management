@@ -4,12 +4,13 @@ import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
-import { normalizeGhPhone, resolveModules, uuidv7, localizedSmsBody } from '@chms/shared';
+import { normalizeGhPhone, resolveModules, resolveDevotional, inAppReadingOn, uuidv7, localizedSmsBody } from '@chms/shared';
 import { Public } from '../common/decorators';
 import { normalizePhotoDataUrl } from '../common/photo';
 import { openNote } from '../ministry/crypto';
 import { BibleModule } from '../bible/bible.module';
 import { BibleNotesService } from '../bible/bible-notes';
+import { BibleService } from '../bible/bible.service';
 
 const OTP_TTL = 10 * 60_000;
 
@@ -26,7 +27,7 @@ export function memberPostsOn(settings: unknown): boolean {
 
 @Injectable()
 export class PortalService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(private readonly jwt: JwtService, private readonly bible: BibleService) {}
 
   private portalSecret(): string {
     return `${process.env.JWT_SECRET}:portal`;
@@ -239,6 +240,11 @@ export class PortalService {
       }),
     }));
     const s = (church?.settings ?? {}) as any;
+    const dev = resolveDevotional(s.devotional);
+    const bibleOn = resolveModules(s).bible !== false;
+    // The daily reading card is free and has its own switch; the same rule the
+    // staff dashboard uses decides whether it is on here too.
+    const reading = church && inAppReadingOn(s) ? this.bible.daily(dev.translation, dev.verse || undefined) : null;
     return {
       member: { firstName: member.firstName, lastName: member.lastName, memberNo: member.memberNo },
       church: church
@@ -253,9 +259,10 @@ export class PortalService {
         : null,
       services,
       announcements,
+      reading,
       // The church switched the Bible panel off in Settings → App sections, so
       // the companion app must not show the button either.
-      bibleOn: resolveModules(church?.settings).bible !== false,
+      bibleOn,
       memberPostsOn: memberPostsOn(church?.settings),
       links: { give: `/give/${church?.slug ?? ''}`, bible: '/bible' },
     };

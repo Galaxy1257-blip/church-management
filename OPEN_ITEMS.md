@@ -86,8 +86,25 @@ auto-deploys Render + Vercel).
       `BibleDock` is mounted in the `(app)` shell (`layout.tsx:166`), so the Bible button sits on `/children`
       too. Verified live: opening it on the class view lists all 8 bundled translations and renders
       Genesis 1 from the packed KJV — no navigation away from the desk.
-- [ ] #40 Daily reading as an in-app notification, with its own switch (also #45)
-- [ ] #45 Put the daily reading in the app with its own switch (dup of #40 — reconcile)
+- [x] #40 / #45 Daily reading in the app, with its own switch — DONE (reconciled as one unit). The
+      reading now appears twice: a "Today's reading" card on the staff dashboard (a normal widget — it can
+      be moved, hidden and restored like the others) and a card at the top of the member portal home. One
+      shared rule decides both, `inAppReadingOn()` in `packages/shared/src/daily-reading.ts`: the Bible area
+      must be on (Settings → App sections) **and** the reading's new free switch must be on (`Church.settings
+      .devotional.inApp`, default on — only a stored `false` hides it). The data path is a new
+      `GET /churches/me/devotional/today` (`church:read`) that answers `{inApp:false, reading:null}` when
+      either switch is off, so a closed area quietly removes the card instead of erroring; `/portal/home`
+      applies the same rule to its `reading` field. A bad pinned verse answers 404 and both cards say
+      "could not be loaded — check the pinned verse in Settings" instead of vanishing silently. Settings →
+      SMS → Daily Bible reading now has the second checkbox "Show it in the app — dashboard and member
+      home (free)", independent of the 8pm SMS switch, and the preview shows the honest error for a verse
+      that is not in the selected Bible. The `@Public()` `/bible/daily` route is deliberately unchanged so
+      the Settings preview and the reader keep working. Tests: 6 new shared cases (default on, explicit
+      false, Bible-area switch, independence from the SMS switch) and 3 API metadata cases
+      (`devotional.today.spec.ts`: `church:read`, no `@ForModule`, settings unchanged). Verified live at
+      390px: dashboard card on; switch off → card gone; bad verse → honest error card; member portal card
+      on; Settings showed the preview error and the second tickbox. Gates: shared 170, API 230, web 18,
+      typecheck/lint/secrets clean.
 - [x] #46 Encrypted counselling notes screen — DONE (verified Session AI). `(app)/counseling/page.tsx`
       (161 lines) is a real screen: pick a member (or a teacher's own class), read their notes, add one,
       share with another leader. Backed by `@Post('counseling')` / `@Get('counseling/:subjectId')`

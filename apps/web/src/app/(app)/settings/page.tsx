@@ -105,9 +105,10 @@ export default function SettingsPage() {
   const [brackets, setBrackets] = useState<Bracket[]>(SIMPLE_BRACKETS);
   const [toggles, setToggles] = useState({ autoAssignHeadcount: true, autoPromote: false, capacity: 0 });
   const [gw, setGw] = useState<any>(null);
-  const [dev, setDev] = useState({ enabled: false, translation: 'kjv', verse: '' });
+  const [dev, setDev] = useState({ enabled: false, inApp: true, translation: 'kjv', verse: '' });
   const [translations, setTranslations] = useState<{ code: string; language: string; translation: string }[]>([]);
   const [todayReading, setTodayReading] = useState<{ ref: string; text: string; note: string } | null>(null);
+  const [todayReadingError, setTodayReadingError] = useState('');
   // Church customisation: name/logo/branding, contact, giving instructions, funds, fees.
   const [prof, setProf] = useState<any>({ name: '', pastorDisplayName: '', smsSenderId: '', branding: {}, contact: {}, givingInstructions: {} });
   const [funds, setFunds] = useState<any[]>([]);
@@ -167,7 +168,7 @@ export default function SettingsPage() {
         });
       }
     }).catch(() => undefined);
-    void api<{ enabled: boolean; translation: string; verse: string }>('/churches/me/devotional').then(setDev).catch(() => undefined);
+    void api<{ enabled: boolean; inApp: boolean; translation: string; verse: string }>('/churches/me/devotional').then(setDev).catch(() => undefined);
     void api<{ translations: { code: string; language: string; translation: string }[] }>('/bible').then((r) => setTranslations(r.translations)).catch(() => undefined);
     void api<{ enabled: boolean; code: string }>('/churches/me/join-code').then(setJoinCode).catch(() => undefined);
     void api<any>('/churches/me/profile').then((p) => {
@@ -187,13 +188,24 @@ export default function SettingsPage() {
   }, []);
 
   // Preview exactly what today's card and tonight's SMS will carry, so the
-  // owner sees the rotation working before the clock strikes 8pm.
+  // owner sees the rotation working before the clock strikes 8pm. A pinned
+  // reference the Bible cannot resolve used to vanish silently; it now says so.
   useEffect(() => {
     const q = new URLSearchParams({ translation: dev.translation });
     if (dev.verse.trim()) q.set('verse', dev.verse.trim());
     void api<{ ref: string; text: string; note: string }>(`/bible/daily?${q.toString()}`)
-      .then(setTodayReading)
-      .catch(() => setTodayReading(null));
+      .then((r) => {
+        setTodayReading(r);
+        setTodayReadingError('');
+      })
+      .catch(() => {
+        setTodayReading(null);
+        setTodayReadingError(
+          dev.verse.trim()
+            ? `That pinned verse is not in the selected Bible — check the spelling, for example John 3:16.`
+            : 'This Bible could not be read — try another translation.',
+        );
+      });
   }, [dev.translation, dev.verse]);
 
   async function saveProfile(e: FormEvent): Promise<void> {
@@ -342,7 +354,8 @@ export default function SettingsPage() {
     try {
       await api('/churches/me/devotional', { method: 'POST', body: dev });
       setNotice(
-        `Daily reading saved — SMS at 8pm ${dev.enabled ? 'on' : 'off'}.` +
+        `Daily reading saved — ${dev.inApp ? 'showing in the app' : 'hidden in the app'}; ` +
+          `SMS at 8pm ${dev.enabled ? 'on' : 'off'}.` +
           (dev.verse.trim() ? ` Repeating ${dev.verse.trim()} each day.` : ' Each day brings a different passage.'),
       );
     } catch (err) {
@@ -537,8 +550,13 @@ export default function SettingsPage() {
         <h2>Daily Bible reading</h2>
         <p className="muted">
           A different passage every day, read from the Bible bundled in the app — no internet needed.
-          Switch the SMS off at any time.
+          The in-app card and the 8pm SMS are separate switches, so you can have the reading without
+          paying for texts, or texts without the card. Both follow the Bible area switch in App sections.
         </p>
+        <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={dev.inApp} onChange={(e) => setDev({ ...dev, inApp: e.target.checked })} />
+          Show it in the app — dashboard and member home (free)
+        </label>
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={dev.enabled} onChange={(e) => setDev({ ...dev, enabled: e.target.checked })} />
           Send it by SMS at 8pm (uses your SMS credit)
@@ -566,6 +584,8 @@ export default function SettingsPage() {
             Today — <strong>{todayReading.ref}</strong>: &ldquo;{todayReading.text}&rdquo;
             {todayReading.note ? <><br />{todayReading.note}</> : null}
           </p>
+        ) : todayReadingError ? (
+          <p className="error" style={{ marginBottom: 0 }}>{todayReadingError}</p>
         ) : null}
         <button>Save daily reading</button>
       </form>

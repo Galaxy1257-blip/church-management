@@ -259,9 +259,16 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       made true by giving the role its own permission rather than by widening `checkin:write`: `SUNDAY_SCHOOL`
       holds `children:write`, which opens the desk for the assigned class only. The door team keeps
       `checkin:write` and does not get the pickup list.
-- [ ] **The daily reading has no in-app voice.** The rotation engine ships; there is no header bell, no
-      reading card on the dashboard or `/portal`, and no switch of its own. Owner asked for the quotation
-      plus a very short message as a notification, and (later) a phone widget.
+- [x] **The daily reading in the app, with its own switch** (#40/#45, Session AI). A "Today's reading"
+      card now sits on the staff dashboard as an ordinary widget (movable, hideable, restorable) and at the
+      top of the member portal home. One shared rule decides both — `inAppReadingOn()` in
+      `packages/shared/src/daily-reading.ts` needs the Bible area on **and** `settings.devotional.inApp`
+      on (default on; only a stored `false` hides it) — and the new `GET /churches/me/devotional/today`
+      (`church:read`) answers `{inApp:false, reading:null}` when either switch is off, so a closed card is
+      a quiet "no", never a 403. `/portal/home` applies the same rule to its `reading` field. Settings → SMS
+      → Daily Bible reading has a second, free checkbox ("Show it in the app") independent of the 8pm SMS,
+      and a pinned verse that is not in the chosen Bible now prints an honest preview error instead of
+      making the card vanish. A phone home-screen widget is still to come (owner's later ask).
 - [x] **The allowed guardians on the pick-up row** (#37, Session AI). Once a child is chosen, the desk now
       prints "Who may collect <child>: <names>" from the roster the office approved (`canPickup: true`),
       falling back to "no approved guardian on record — add one in 'Who may collect'". The person who

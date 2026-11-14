@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import { Public, RequirePermissions } from '../common/decorators';
 import { AuthedRequest } from '../common/guards';
 import type { DevotionalSettings } from '@chms/shared';
+import { BibleModule } from '../bible/bible.module';
 import { ChurchesService } from './churches.service';
 
 class AdminDto {
@@ -85,6 +86,18 @@ export class ChurchesController {
     return this.churches.devotional(req.user!.churchId);
   }
 
+  /**
+   * The in-app reading card's data path — staff dashboard and member home both
+   * land here through the settings rule. It answers `{ inApp: false }` when the
+   * church switched the reading (or the whole Bible area) off, so a closed card
+   * is a quiet "no", not an error.
+   */
+  @RequirePermissions('church:read')
+  @Get('me/devotional/today')
+  devotionalToday(@Req() req: AuthedRequest) {
+    return this.churches.devotionalToday(req.user!.churchId);
+  }
+
   @RequirePermissions('settings:write')
   @Post('me/devotional')
   saveDevotional(
@@ -114,6 +127,7 @@ export class ChurchesController {
 }
 
 @Module({
+  imports: [BibleModule],
   providers: [ChurchesService],
   controllers: [ChurchesController],
   exports: [ChurchesService],

@@ -7,6 +7,7 @@ import {
   DEFAULT_DEVOTIONAL,
   dailyReading,
   dailyReadingFor,
+  inAppReadingOn,
   resolveDevotional,
 } from './daily-reading';
 import { parseVerseRef, readVerse } from './verse';
@@ -72,6 +73,18 @@ describe('resolveDevotional', () => {
     expect(resolveDevotional({ enabled: true }).enabled).toBe(true);
   });
 
+  it('shows the in-app reading by default and only an explicit false hides it', () => {
+    expect(resolveDevotional(undefined).inApp).toBe(true);
+    expect(resolveDevotional({}).inApp).toBe(true);
+    expect(resolveDevotional({ inApp: 'no' }).inApp).toBe(true);
+    expect(resolveDevotional({ inApp: false }).inApp).toBe(false);
+  });
+
+  it('keeps the in-app switch independent of the SMS switch', () => {
+    expect(resolveDevotional({ enabled: true, inApp: false })).toMatchObject({ enabled: true, inApp: false });
+    expect(resolveDevotional({ enabled: false, inApp: true })).toMatchObject({ enabled: false, inApp: true });
+  });
+
   it('keeps a pinned verse trimmed and the translation lower-case', () => {
     const d = resolveDevotional({ verse: '  John 3:16 ', translation: 'TWI-Asante' });
     expect(d.verse).toBe('John 3:16');
@@ -80,6 +93,28 @@ describe('resolveDevotional', () => {
 
   it('ignores a verse that is only whitespace, so the rotation still runs', () => {
     expect(resolveDevotional({ verse: '   ' }).verse).toBe('');
+  });
+});
+
+// The in-app card has two switches: the Bible area (App sections) and its own
+// free one. The API gate and both web cards read this one rule.
+describe('inAppReadingOn', () => {
+  it('shows the reading for a church that has changed nothing', () => {
+    expect(inAppReadingOn(undefined)).toBe(true);
+    expect(inAppReadingOn({})).toBe(true);
+  });
+
+  it('hides it when the office switches the reading off', () => {
+    expect(inAppReadingOn({ devotional: { inApp: false } })).toBe(false);
+  });
+
+  it('hides it when the whole Bible area is switched off', () => {
+    expect(inAppReadingOn({ modules: { bible: false } })).toBe(false);
+  });
+
+  it('keeps the SMS switch out of it', () => {
+    expect(inAppReadingOn({ devotional: { enabled: false } })).toBe(true);
+    expect(inAppReadingOn({ devotional: { enabled: true, inApp: false } })).toBe(false);
   });
 });
 

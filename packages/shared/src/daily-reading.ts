@@ -6,6 +6,7 @@
 // Every reference below resolves in all seven bundled translations (validated
 // by daily-reading.test.ts against the real bundle files).
 import { localDateKey } from './datetime';
+import { resolveModules } from './modules';
 
 export interface DailyReading {
   ref: string;
@@ -119,17 +120,24 @@ export function dailyReadingFor(dateKey: string): DailyReading {
 
 /**
  * Per-church devotional settings, kept in Church.settings.devotional.
- * `enabled` is the 8pm SMS (it spends wallet units) and a blank `verse` is what
- * lets the rotation run — a saved reference pins that one instead.
+ * `enabled` is the 8pm SMS (it spends wallet units), `inApp` is the free reading
+ * card on the dashboard and the member home — its own switch, so a church can
+ * show the reading without paying for texts or pay for texts without the card.
+ * A blank `verse` is what lets the rotation run — a saved reference pins that
+ * one instead, and the SMS and both cards then quote the same passage.
  */
 export interface DevotionalSettings {
   enabled: boolean;
+  inApp: boolean;
   translation: string;
   verse: string;
 }
 
 export const DEFAULT_DEVOTIONAL: DevotionalSettings = {
   enabled: false,
+  // Free and already written, so it is on unless the church turns it off. Only
+  // a stored `false` turns it off; a missing key (every church so far) is on.
+  inApp: true,
   translation: 'kjv',
   verse: '',
 };
@@ -138,7 +146,19 @@ export function resolveDevotional(raw: unknown): DevotionalSettings {
   const d = (raw ?? {}) as Partial<DevotionalSettings>;
   return {
     enabled: d.enabled === true,
+    inApp: d.inApp !== false,
     translation: typeof d.translation === 'string' && d.translation.trim() ? d.translation.trim().toLowerCase() : DEFAULT_DEVOTIONAL.translation,
     verse: typeof d.verse === 'string' ? d.verse.trim() : '',
   };
+}
+
+/**
+ * The one rule for "does this church show the daily reading in the app".
+ * It needs both switches on: the Bible area (Settings → App sections) and the
+ * reading's own free switch (Settings → SMS → Daily Bible reading). The API
+ * gate, the dashboard card and the member home all read this, so they cannot
+ * disagree about whether the reading is on.
+ */
+export function inAppReadingOn(settings: unknown): boolean {
+  return resolveModules(settings).bible !== false && resolveDevotional((settings as any)?.devotional).inApp;
 }
