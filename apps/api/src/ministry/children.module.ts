@@ -1,10 +1,11 @@
 // Children's security check-in: dual ticket (child tag + guardian pickup
 // code). Checkout requires a guardian listed in MemberGuardian + code match.
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Injectable, Module, Post, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Injectable, Module, Post, Put, Query, Req } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
-import { IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
+import { DateTime } from 'luxon';
 import { appendAudit, Db } from '@chms/db';
-import { childPickupMessage, childPickupSmsGate, uuidv7 } from '@chms/shared';
+import { childPickupMessage, childPickupSmsGate, isSundaySchoolDateKey, resolveSundaySchoolSkips, uuidv7 } from '@chms/shared';
 import { AnyPermission, ForModule, RequirePermissions } from '../common/decorators';
 import { deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
 import { AuthedRequest, AuthUser } from '../common/guards';
@@ -146,6 +147,66 @@ export class ChildrenService {
     });
     if (outcome) this.sms.flush(outcome);
     return reply;
+  }
+
+  /**
+   * Sundays the church has marked off for Sunday School. The answer is built on
+   * the server because the date has to be church-local, not the device's. Every
+   * desk role reads it — a teacher needs to know the room is closed by plan —
+   * while changing the calendar takes the roster-keeping permission.
+   */
+  async skips(user: AuthUser) {
+    return this.tenant.run(user, async (tx) => {
+      const church = await tx.church.findUnique({
+        where: { id: user.churchId },
+        select: { timezone: true, settings: true },
+      });
+      return this.sundaySchoolState(church?.settings, church?.timezone);
+    });
+  }
+
+  async saveSkips(user: AuthUser, dates: unknown, ip?: string) {
+    if (!Array.isArray(dates) || dates.some((d) => !isSundaySchoolDateKey(d))) {
+      throw new BadRequestException('Pick real calendar days, one per Sunday.');
+    }
+    const clean = [...new Set(dates as string[])].sort().slice(0, 120);
+    return this.tenant.run(user, async (tx) => {
+      const church = await tx.church.findUnique({ where: { id: user.churchId }, select: { timezone: true, settings: true } });
+      const current = (church?.settings ?? {}) as Record<string, unknown>;
+      await tx.church.update({
+        where: { id: user.churchId },
+        data: { settings: { ...current, sundaySchoolSkips: clean } },
+      });
+      await appendAudit(tx, {
+        churchId: user.churchId,
+        actorId: user.userId,
+        action: 'children.skips',
+        entity: 'Church',
+        entityId: user.churchId,
+        after: { sundaySchoolSkips: clean },
+        ip,
+      });
+      // Answer from the settings just written — a read through the global client
+      // would still see the pre-commit row.
+      return this.sundaySchoolState({ ...current, sundaySchoolSkips: clean }, church?.timezone);
+    });
+  }
+
+  private sundaySchoolState(settings: unknown, timezone: string | null | undefined) {
+    const zone = timezone || 'Africa/Accra';
+    const now = DateTime.now().setZone(zone);
+    const local = now.isValid ? now : DateTime.now().setZone('Africa/Accra');
+    const dates = resolveSundaySchoolSkips(settings);
+    const today = local.toFormat('yyyy-MM-dd');
+    const weekday = local.weekday % 7; // 0 = Sunday, matching ServiceSchedule
+    let day = local.startOf('day');
+    if (weekday !== 0) day = day.plus({ days: 7 - weekday });
+    const upcoming = Array.from({ length: 8 }, (_, i) => {
+      const d = day.plus({ weeks: i });
+      const date = d.toFormat('yyyy-MM-dd');
+      return { date, label: d.toFormat('cccc d LLL'), skipped: dates.includes(date) };
+    });
+    return { today, isSunday: weekday === 0, skippedToday: dates.includes(today), dates, upcoming };
   }
 
   /**
@@ -329,6 +390,10 @@ class GuardianDto {
   @IsOptional() @IsString() relation?: string;
 }
 
+class SkipsDto {
+  @IsArray() @IsString({ each: true }) dates!: string[];
+}
+
 // Switched off in Settings → App sections means switched off here too.
 @ForModule('children')
 @Controller('children')
@@ -380,6 +445,22 @@ export class ChildrenController {
   @Get('active')
   active(@Req() req: AuthedRequest, @Query('serviceId') serviceId: string) {
     return this.svc.listActive(req.user!, serviceId);
+  }
+
+  /**
+   * The Sundays marked off. Readable by every desk role so the teacher sees a
+   * closed room; writable only by the office, the people who own the calendar.
+   */
+  @AnyPermission('members:write', 'checkin:write', 'children:write')
+  @Get('skips')
+  skips(@Req() req: AuthedRequest) {
+    return this.svc.skips(req.user!);
+  }
+
+  @RequirePermissions('members:write')
+  @Put('skips')
+  saveSkips(@Req() req: AuthedRequest, @Body() dto: SkipsDto) {
+    return this.svc.saveSkips(req.user!, dto.dates, req.ip);
   }
 
   @AnyPermission('members:write', 'checkin:write', 'children:write')

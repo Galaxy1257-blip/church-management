@@ -12,6 +12,7 @@ export * from './modules';
 export * from './custom-features';
 export * from './datetime';
 export * from './service-schedule';
+export * from './sunday-school';
 export * from './verse';
 export * from './daily-reading';
 export * from './bible-notes';

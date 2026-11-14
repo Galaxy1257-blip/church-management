@@ -278,8 +278,13 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       instead of assuming success. Its own switch, Settings → SMS → "Guardian texts", is enforced on the API
       path. Re-check-in now records who brought the child this time. Verified live at 390px through the UI
       for both ends; gateway is still mock, so the copy says "queued", never "delivered".
-- [ ] **Sunday School batch (remaining)**: class attendance register · class skip dates for the weeks a
-      teacher is away · allergy/health note visible to the class teacher only.
+- [x] **Days off for Sunday School** (#35, Session AI). The office toggles any of the next 8 Sundays on a
+      "Days off" card in `/children`; the list lives in `Church.settings.sundaySchoolSkips` behind
+      `GET/PUT /children/skips` and is validated in `packages/shared/src/sunday-school.ts`. On a skipped
+      Sunday the desk says "Sunday School is marked off today", hides Drop off, keeps Pick up, and offers
+      "Open the desk anyway". Verified live at 390px (save persisted across reload; banner behaviour).
+- [ ] **Sunday School batch (remaining)**: class attendance register · allergy/health note visible to the
+      class teacher only.
 - [x] **`/flyers/[slug]` linked + FEATURES §15 corrected** (#48, Session AI): the sidebar footer now has
       "Share links", and §15 describes the page as the share-links list it actually is (no flyer graphics).
 - [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■

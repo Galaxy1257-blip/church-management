@@ -2274,3 +2274,39 @@ One test file was repaired after the gate refactor (the import list was missing 
 **Docs:** #34 ticked in OPEN_ITEMS §B with evidence; BUILD_ORDER's remaining Sunday School batch no longer
 lists guardian SMS; STATE header updated; this entry.
 
+
+### Session AI continued — #35 days off for Sunday School
+
+A church that is away on a given Sunday had no way to say so; the desk opened as usual and the plan lived
+in someone's head. There is now a **"Days off"** card on `/children` for the office: the next 8 Sundays,
+one chip each, toggled on/off, then **Save days off**. The list is stored as plain date keys in
+`Church.settings.sundaySchoolSkips` and served by `GET /children/skips` (every desk role may read it — a
+teacher needs to know the room is closed by plan) and `PUT /children/skips` (needs `members:write`).
+
+The decisions worth sharing live in `packages/shared/src/sunday-school.ts`: `isSundaySchoolDateKey()`
+accepts only real `YYYY-MM-DD` calendar days (a `Date.UTC` round-trip rejects 2027-02-29 and month 13),
+`resolveSundaySchoolSkips()` drops junk, dedupes, sorts and caps the list at 120, and
+`isSundaySchoolSkipped()` answers the one question the desk asks. `sundaySchoolState()` in
+`children.module.ts` turns the stored key into what the screen needs: today's date in the church's zone,
+whether today is Sunday, whether it is skipped, and the next 8 Sundays with labels.
+
+**What a skipped Sunday looks like:** a banner — *"Sunday School is marked off today"* — and the Drop off
+card is hidden while Pick up stays usable (a child checked in the week before still needs collecting).
+**"Open the desk anyway"** restores check-in for that visit without changing the saved plan.
+
+**Permission finding:** the original comment said "only the office changes it", but the gate is
+`members:write`, which the Teacher (LEADER) also holds — so a teacher can edit the calendar too. Only the
+desk-only SUNDAY_SCHOOL role cannot. The API was right; the comment was wrong, and it now reads
+"changing the calendar takes the roster-keeping permission." No migration was needed.
+
+**Verified live at 390px** (chrome-devtools mobile emulation): the card rendered 8 Sundays; toggling one
+and saving showed *"Days off saved — the desk will say so on those Sundays."*; the chip stayed on after a
+reload; marking today skipped produced the banner, hid Drop off, kept Pick up, and "Open the desk anyway"
+brought Drop off back. No horizontal overflow. The verification dates were reset to `[]` afterwards.
+
+**Gates:** shared 160 (4 new `sunday-school.test.ts` cases) · API 220 · web 18 · typecheck (5 workspaces)
+· lint · `check:secrets` — all green.
+
+**Docs:** #35 ticked in OPEN_ITEMS §B with evidence and the permission note; BUILD_ORDER's remaining
+Sunday School batch now lists only the attendance register and the allergy note; STATE header updated;
+this entry.

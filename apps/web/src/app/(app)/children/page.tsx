@@ -39,6 +39,21 @@ interface MemberOption {
   firstName: string;
   lastName: string;
 }
+interface Skips {
+  today: string;
+  isSunday: boolean;
+  skippedToday: boolean;
+  dates: string[];
+  upcoming: { date: string; label: string; skipped: boolean }[];
+}
+
+/** A saved YYYY-MM-DD, read at midday so the display cannot slip a day. */
+function dayLabel(date: string): string {
+  const d = new Date(`${date}T12:00:00`);
+  return Number.isNaN(d.getTime())
+    ? date
+    : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+}
 
 /** The chip style for the child or guardian the desk has already chosen. */
 const picked = { background: 'var(--brand)', color: 'var(--brand-ink)', borderColor: 'var(--brand)' };
@@ -76,6 +91,11 @@ export default function ChildrenPage() {
   const [pickupId, setPickupId] = useState('');
   const [code, setCode] = useState('');
   const [ticket, setTicket] = useState<{ tagNo: string; pickupCode: string; sms?: PickupText } | null>(null);
+  // Days the church marked off for Sunday School. The server says whether today
+  // is one of them, because only it knows the church's own timezone.
+  const [skips, setSkips] = useState<Skips | null>(null);
+  const [deskOpenAnyway, setDeskOpenAnyway] = useState(false);
+  const [savingSkips, setSavingSkips] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -89,6 +109,7 @@ export default function ChildrenPage() {
       if (open) setServiceId(open.id);
     }).catch(() => undefined);
     void api<Child[]>('/children/roster').then(setRoster).catch(() => undefined);
+    void api<Skips>('/children/skips').then(setSkips).catch(() => undefined);
     void getSession().then((s) => {
       const manage = hasPermission(s.permissions, 'members:write');
       setCanManage(manage);
@@ -109,9 +130,47 @@ export default function ChildrenPage() {
   const chosen = roster.find((c) => c.id === childId) ?? null;
   const inside = active.find((a) => a.childId === pickupId) ?? null;
   const mayCollect = inside ? roster.find((c) => c.id === inside.childId)?.guardians ?? [] : [];
+  // A Sunday the church marked off starts with the drop-off closed. Pick up is
+  // never hidden: a child already inside still has to be able to go home.
+  const closedByPlan = Boolean(skips?.skippedToday) && !deskOpenAnyway;
+  const skippedLabel = skips?.skippedToday ? dayLabel(skips.today) : '';
 
   async function reloadActive(): Promise<void> {
     if (serviceId) setActive(await api<Active[]>(`/children/active?serviceId=${serviceId}`));
+  }
+
+  /** Mark a Sunday off, or back on. Nothing is saved until the office presses save. */
+  function toggleSkip(date: string): void {
+    setSkips((s) => {
+      if (!s) return s;
+      const on = !s.dates.includes(date);
+      const dates = on ? [...s.dates, date].sort() : s.dates.filter((d) => d !== date);
+      return {
+        ...s,
+        dates,
+        upcoming: s.upcoming.map((d) => (d.date === date ? { ...d, skipped: on } : d)),
+      };
+    });
+  }
+
+  async function saveSkips(): Promise<void> {
+    if (!skips) return;
+    setSavingSkips(true);
+    setError('');
+    setNotice('');
+    try {
+      const saved = await api<Skips>('/children/skips', { method: 'PUT', body: { dates: skips.dates } });
+      setSkips(saved);
+      setNotice(
+        saved.dates.length === 0
+          ? 'No Sundays are marked off — the desk expects children every Sunday.'
+          : 'Days off saved — the desk will say so on those Sundays.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not save the days off');
+    } finally {
+      setSavingSkips(false);
+    }
   }
 
   /** Say who may collect a child. Until this exists, the desk cannot check anyone in. */
@@ -213,7 +272,24 @@ export default function ChildrenPage() {
         </div>
       ) : null}
 
-      <div className="card">
+      {closedByPlan ? (
+        <div className="card" style={{ borderColor: 'var(--accent)' }}>
+          <h2>Sunday School is marked off today</h2>
+          <p className="muted">
+            {skippedLabel} is on the days-off list, so no children are expected. Pick up still works
+            for any child already inside.
+          </p>
+          <button className="secondary" onClick={() => setDeskOpenAnyway(true)}>Open the desk anyway</button>
+        </div>
+      ) : skips?.skippedToday ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            Today was marked off, but the desk has been opened. Check a child in only if they are really here.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="card" hidden={closedByPlan}>
         <h2>Drop off</h2>
         {roster.length === 0 ? (
           <p className="muted">
@@ -275,6 +351,39 @@ export default function ChildrenPage() {
           </>
         )}
       </div>
+
+      {canManage === true && skips ? (
+        <div className="card">
+          <h2>Days off</h2>
+          <p className="muted">
+            Tick a Sunday the church will not run Sunday School — school holidays, a teacher away, a fifth Sunday.
+            On that day the desk says so and starts closed; anyone can still open it if a child turns up, and
+            pick up is never blocked.
+          </p>
+          {skips.upcoming.length === 0 ? (
+            <p className="muted">No Sundays to show.</p>
+          ) : (
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {skips.upcoming.map((d) => (
+                <button
+                  key={d.date}
+                  type="button"
+                  className="small"
+                  style={d.skipped ? picked : undefined}
+                  onClick={() => toggleSkip(d.date)}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="row">
+            <button onClick={() => void saveSkips()} disabled={savingSkips}>
+              {savingSkips ? 'Saving…' : 'Save days off'}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {canManage === true ? (
         <div className="card">

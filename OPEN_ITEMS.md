@@ -45,7 +45,18 @@ auto-deploys Render + Vercel).
       no log. Honest limit: the worker gateway is still `mock`, so "queued" is the strongest claim —
       nothing was delivered to a phone, and both the Settings card and this item say so. Test data removed
       (wallet refunded to 488/12 via an append-only ADJUST ledger row).
-- [ ] #35 Let a church skip Sunday School on specific Sundays
+- [x] #35 Let a church skip Sunday School on specific Sundays — DONE. The office picks the Sundays the
+      church is away on a "Days off" card on `/children` (8 upcoming Sundays as chips, save persists to
+      `Church.settings.sundaySchoolSkips` through `PUT /children/skips`; `GET /children/skips` lets every
+      desk role read it). Days are stored as plain `YYYY-MM-DD` keys and validated in
+      `packages/shared/src/sunday-school.ts` (`isSundaySchoolDateKey` rejects impossible dates;
+      `resolveSundaySchoolSkips` dedupes and sorts). On a skipped Sunday the desk shows a banner ("Sunday
+      School is marked off today") and hides **Drop off** while leaving **Pick up** available; "Open the
+      desk anyway" restores check-in for that visit. Verified live at 390px: card renders 8 Sundays,
+      toggle + save persisted across reload, banner hid Drop off and kept Pick up, open-anyway reopened
+      it, no horizontal overflow. Permission finding: the calendar write is gated on `members:write`, which
+      LEADER (Teacher) also holds — so a teacher can edit it; only SUNDAY_SCHOOL (desk-only) cannot.
+      Corrected the code comment that claimed "only the office" changes it. No migration.
 - [ ] #36 Show allergies to the class teacher only
 - [x] #37 Show allowed guardians on the pick-up row — DONE. After choosing a child, the desk prints
       "Who may collect <child>: <names>" from `/children/roster` (already filtered to `canPickup: true`),
