@@ -4,17 +4,83 @@ import { BadRequestException, Body, Controller, ForbiddenException, Get, Injecta
 import { createHash, randomInt } from 'node:crypto';
 import { IsOptional, IsString } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
-import { uuidv7 } from '@chms/shared';
+import { childPickupMessage, childPickupSmsGate, uuidv7 } from '@chms/shared';
 import { AnyPermission, ForModule, RequirePermissions } from '../common/decorators';
 import { deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 import { ServicesModule } from '../services/services.module';
 import { ServicesService } from '../services/services.service';
+import { SmsDispatcher, type DispatchOutcome } from '../sms/sms-dispatcher';
+import { SmsModule } from '../sms/sms.module';
+
+/** What the desk is told about the guardian's text — never a promise of delivery. */
+export type PickupSms = {
+  status: 'QUEUED' | 'OFF' | 'NO_PHONE' | 'NO_CONSENT' | 'OPTED_OUT' | 'BAD_PHONE' | 'NO_BALANCE' | 'QUIET_HOURS';
+  guardian: string;
+};
 
 @Injectable()
 export class ChildrenService {
-  constructor(private readonly tenant: TenantService, private readonly services: ServicesService) {}
+  constructor(
+    private readonly tenant: TenantService,
+    private readonly services: ServicesService,
+    private readonly sms: SmsDispatcher,
+  ) {}
+
+  /**
+   * Text the guardian that a child moved. Best-effort: a missing phone, a STOP
+   * reply or an empty wallet never blocks the desk. The message is queued inside
+   * the same transaction as the check-in, so a rolled-back check-in sends nothing.
+   */
+  private async notifyGuardian(
+    tx: Db,
+    user: AuthUser,
+    input: { childName: string; guardianId: string; kind: 'IN' | 'OUT'; at: Date; idempotencyKey: string },
+  ): Promise<{ view: PickupSms; outcome: DispatchOutcome | null }> {
+    const [church, guardian] = await Promise.all([
+      tx.church.findUnique({ where: { id: user.churchId }, select: { name: true, timezone: true, settings: true } }),
+      tx.member.findFirst({
+        where: { id: input.guardianId, churchId: user.churchId },
+        select: { firstName: true, lastName: true, phoneE164: true, smsConsent: true },
+      }),
+    ]);
+    const name = guardian ? `${guardian.firstName} ${guardian.lastName}` : 'the guardian';
+    const none = (status: PickupSms['status']) => ({ view: { status, guardian: name }, outcome: null });
+    if (!church) return none('OFF');
+    const gate = childPickupSmsGate({
+      settings: church.settings,
+      phoneE164: guardian?.phoneE164,
+      consent: guardian?.smsConsent === true,
+    });
+    if (!gate.send) return none(gate.status);
+    // The dispatcher exempts transactional sources from STOP, so the guard is
+    // made here for a safety notice about someone's own child.
+    const optedOut = await tx.smsOptOut.findUnique({
+      where: { churchId_phoneE164: { churchId: user.churchId, phoneE164: gate.to } },
+    });
+    if (optedOut) return none('OPTED_OUT');
+
+    let time: string;
+    try {
+      time = new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: church.timezone,
+      }).format(input.at);
+    } catch {
+      time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' }).format(input.at);
+    }
+    const body = childPickupMessage({ childName: input.childName, churchName: church.name, kind: input.kind, time });
+    try {
+      const outcome = await this.sms.dispatch(tx, { churchId: user.churchId, toE164: gate.to, body, source: 'NUDGE', idempotencyKey: input.idempotencyKey });
+      if (outcome.status === 'QUEUED') return { view: { status: 'QUEUED', guardian: name }, outcome };
+      return { view: { status: outcome.reason, guardian: name }, outcome: null };
+    } catch {
+      return none('BAD_PHONE');
+    }
+  }
 
   /**
    * A Sunday School teacher may only move a child from the class the office gave
@@ -29,7 +95,8 @@ export class ChildrenService {
   }
 
   async checkInChild(user: AuthUser, input: { serviceId: string; childId: string; guardianId: string }, ip?: string) {
-    return this.tenant.run(user, async (tx) => {
+    const now = new Date();
+    const { reply, outcome } = await this.tenant.run(user, async (tx) => {
       await this.assertDeskChild(tx, user, input.childId);
       const child = await tx.member.findFirst({ where: { id: input.childId, churchId: user.churchId, deletedAt: null } });
       if (!child) throw new BadRequestException('that child is not in this church');
@@ -39,6 +106,7 @@ export class ChildrenService {
       if (!guardian) throw new BadRequestException('that adult is not on the pickup list for this child');
       const tagNo = `T${randomInt(100000, 999999)}`;
       const pickupCode = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      const pickupCodeHash = createHash('sha256').update(pickupCode).digest('hex');
       const row = await tx.childCheckIn.upsert({
         where: { serviceId_childId: { serviceId: input.serviceId, childId: input.childId } },
         create: {
@@ -48,23 +116,36 @@ export class ChildrenService {
           childId: input.childId,
           guardianId: input.guardianId,
           tagNo,
-          pickupCodeHash: createHash('sha256').update(pickupCode).digest('hex'),
-          checkedInAt: new Date(),
+          pickupCodeHash,
+          checkedInAt: now,
         },
         // A child released and brought back in the same service gets a fresh tag
-        // and code: the row is reused, so keeping the old hash here would print a
-        // ticket that no longer opens the door.
+        // and code, and the clock starts again — including who brought them this
+        // time. Keeping the old values would print a ticket that no longer opens
+        // the door and record the wrong drop-off adult.
         update: {
+          guardianId: input.guardianId,
           tagNo,
-          pickupCodeHash: createHash('sha256').update(pickupCode).digest('hex'),
+          pickupCodeHash,
+          checkedInAt: now,
           checkedOutAt: null,
           checkedOutBy: null,
           codeAttempts: 0,
         },
       });
       await appendAudit(tx, { churchId: user.churchId, actorId: user.userId, action: 'child.checkin', entity: 'ChildCheckIn', entityId: row.id, ip });
-      return { id: row.id, tagNo, pickupCode }; // shown/printed once
+      const notice = await this.notifyGuardian(tx, user, {
+        childName: `${child.firstName} ${child.lastName}`,
+        guardianId: input.guardianId,
+        kind: 'IN',
+        at: now,
+        // A double-tap inside the same minute is one message, not two.
+        idempotencyKey: `child-in:${row.id}:${Math.floor(now.getTime() / 60_000)}`,
+      });
+      return { reply: { id: row.id, tagNo, pickupCode, sms: notice.view }, outcome: notice.outcome }; // code shown/printed once
     });
+    if (outcome) this.sms.flush(outcome);
+    return reply;
   }
 
   /**
@@ -199,8 +280,9 @@ export class ChildrenService {
     });
   }
 
-  checkOut(user: AuthUser, childId: string, serviceId: string, code: string, ip?: string) {
-    return this.tenant.run(user, async (tx) => {
+  async checkOut(user: AuthUser, childId: string, serviceId: string, code: string, ip?: string) {
+    const now = new Date();
+    const { reply, outcome } = await this.tenant.run(user, async (tx) => {
       await this.assertDeskChild(tx, user, childId);
       const row = await tx.childCheckIn.findFirst({
         where: { churchId: user.churchId, childId, serviceId, checkedOutAt: null },
@@ -212,15 +294,26 @@ export class ChildrenService {
         await tx.childCheckIn.update({ where: { id: row.id }, data: { codeAttempts: { increment: 1 } } });
         throw new BadRequestException('that pickup code is not right');
       }
-      const guardianOk = row.guardianId === (await Promise.resolve(row.guardianId));
+      const child = await tx.member.findFirst({
+        where: { id: childId, churchId: user.churchId },
+        select: { firstName: true, lastName: true },
+      });
       await tx.childCheckIn.update({
         where: { id: row.id },
-        data: { checkedOutAt: new Date(), checkedOutBy: row.guardianId },
+        data: { checkedOutAt: now, checkedOutBy: row.guardianId },
       });
       await appendAudit(tx, { churchId: user.churchId, actorId: user.userId, action: 'child.checkout', entity: 'ChildCheckIn', entityId: row.id, ip });
-      void guardianOk;
-      return { checkedOut: true };
+      const notice = await this.notifyGuardian(tx, user, {
+        childName: child ? `${child.firstName} ${child.lastName}` : 'Your child',
+        guardianId: row.guardianId,
+        kind: 'OUT',
+        at: now,
+        idempotencyKey: `child-out:${row.id}:${Math.floor(now.getTime() / 60_000)}`,
+      });
+      return { reply: { checkedOut: true, sms: notice.view }, outcome: notice.outcome };
     });
+    if (outcome) this.sms.flush(outcome);
+    return reply;
   }
 }
 
@@ -299,7 +392,7 @@ export class ChildrenController {
 
 
 @Module({
-  imports: [ServicesModule],
+  imports: [ServicesModule, SmsModule],
   providers: [TenantService, ChildrenService],
   controllers: [ChildrenController],
 })

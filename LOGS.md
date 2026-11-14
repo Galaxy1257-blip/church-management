@@ -2236,3 +2236,41 @@ screen — including `/children` — already carries the Bible button. Verified 
 signed in: the dock opened without leaving the desk, listed all 8 bundled translations (KJV, ASV, WEB,
 Ewe, Fante, Ga, two Twi) and rendered Genesis 1 from the packed KJV. No navigation or new link needed;
 ticked as satisfied rather than adding a second, redundant entry point.
+
+### Session AI continued — #34 text the guardian on check-in and collection
+
+The desk now texts the adult who dropped a child off, once at check-in and once at collection — through
+the one `SmsDispatcher`, never around it. The two rules that needed to be shared live in
+`packages/shared/src/sms.ts`: `childPickupMessage()` (first name, church, time — **never** the pickup
+code) and `childPickupSmsGate()`, which decides OFF / NO_PHONE / NO_CONSENT / BAD_PHONE before any
+credit is spent. `notifyGuardian()` in `apps/api/src/ministry/children.module.ts` adds the SmsOptOut
+check, dispatches with source `NUDGE` (so quiet hours do not hold a safety message), and returns the
+real outcome — the ticket and the release notice print it ("A text was queued for Akosua Nyarko."),
+and each suppressed case has its own sentence (no phone, opted out, no credit, held).
+
+**Found and fixed while wiring it:** the check-in upsert kept the *first* guardian and the *first* clock,
+so a released child brought back by a different adult kept the old drop-off record and an old timestamp.
+The update path now writes `guardianId` and `checkedInAt`.
+
+**Its own switch:** `Church.settings.childPickupSms` (default on), surfaced in Settings → SMS →
+"Guardian texts", gated **on the API path** inside the gate function — the button is not the switch.
+
+**Verified live at 390px through the UI** (chrome-devtools, mobile emulation): Settings card renders with
+no overflow; checked Kofi Mensah in with Akosua Nyarko → ticket showed "A text was queued for Akosua
+Nyarko."; released with the 6-digit code → notice ended with the same line. DB matched the screen: two
+SmsLog rows ("Kofi was checked in at Demo Church at 12:00 am. Keep the ticket for pick-up." / "Kofi was
+collected from Demo Church at 12:05 am."), one segment each, to +233550449846, wallet 488→486. Switching
+the feature off returned `sms.status: "OFF"` with no log row and no credit spent.
+
+**Honest limit:** the worker's gateway is still `mock`, so nothing reached a phone — "queued" is the
+strongest true claim, and both the Settings card and the docs say so rather than implying delivery.
+
+**Cleanup:** verification rows removed (2 logs, 1 check-in, 1 temporary service); the wallet was
+refunded to 488/12 through an append-only `ADJUST` ledger row, since `SmsLedger` refuses deletes.
+
+**Gates:** shared 156 · API 220 · web 18 · typecheck (5 workspaces) · lint · `check:secrets` — all green.
+One test file was repaired after the gate refactor (the import list was missing `childPickupSmsGate`).
+
+**Docs:** #34 ticked in OPEN_ITEMS §B with evidence; BUILD_ORDER's remaining Sunday School batch no longer
+lists guardian SMS; STATE header updated; this entry.
+

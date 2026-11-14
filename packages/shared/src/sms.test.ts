@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  childPickupMessage,
+  childPickupSmsEnabled,
+  childPickupSmsGate,
   DEFAULT_SMS_QUIET_HOURS,
   isGsm7,
   maxBodyLengthForSegments,
@@ -75,5 +78,53 @@ describe('sms quiet hours', () => {
   it('never blocks when the switch is off', () => {
     const evening = new Date('2026-11-05T21:00:00Z');
     expect(smsQuietHoursBlocked({ smsQuietHours: { enabled: false } }, 'Africa/Accra', evening)).toBe(false);
+  });
+});
+
+describe('child pickup texts', () => {
+  it('are on unless the church switched them off', () => {
+    expect(childPickupSmsEnabled({})).toBe(true);
+    expect(childPickupSmsEnabled(undefined)).toBe(true);
+    expect(childPickupSmsEnabled({ childPickupSms: true })).toBe(true);
+    expect(childPickupSmsEnabled({ childPickupSms: false })).toBe(false);
+    expect(childPickupSmsEnabled({ childPickupSms: 'no' })).toBe(true);
+  });
+
+  it('names the child by first name and says what happened', () => {
+    const base = { childName: 'Emmanuel Appiah', churchName: 'Demo Church', time: '9:05 am' };
+    expect(childPickupMessage({ ...base, kind: 'IN' })).toBe(
+      'Emmanuel was checked in at Demo Church at 9:05 am. Keep the ticket for pick-up.',
+    );
+    expect(childPickupMessage({ ...base, kind: 'OUT' })).toBe(
+      'Emmanuel was collected from Demo Church at 9:05 am.',
+    );
+  });
+
+  it('stays inside one SMS segment for a normal church name', () => {
+    const body = childPickupMessage({
+      childName: 'Kwabena Nkrumah Boateng',
+      churchName: 'Grace Chapel International, Accra',
+      kind: 'IN',
+      time: '10:15 am',
+    });
+    expect(smsSegments(body)).toBe(1);
+  });
+});
+
+describe('child pickup consent gate', () => {
+  const allowed = { settings: {}, phoneE164: '0550449846', consent: true };
+
+  it('lets a consented guardian through with a normalised number', () => {
+    expect(childPickupSmsGate(allowed)).toEqual({ send: true, to: '+233550449846' });
+  });
+
+  it('obeys the church switch first', () => {
+    expect(childPickupSmsGate({ ...allowed, settings: { childPickupSms: false } })).toEqual({ send: false, status: 'OFF' });
+  });
+
+  it('refuses a missing phone, a withdrawal of consent, or an unreadable number', () => {
+    expect(childPickupSmsGate({ ...allowed, phoneE164: null })).toEqual({ send: false, status: 'NO_PHONE' });
+    expect(childPickupSmsGate({ ...allowed, consent: false })).toEqual({ send: false, status: 'NO_CONSENT' });
+    expect(childPickupSmsGate({ ...allowed, phoneE164: '12345' })).toEqual({ send: false, status: 'BAD_PHONE' });
   });
 });

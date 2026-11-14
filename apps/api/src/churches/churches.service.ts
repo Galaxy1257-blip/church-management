@@ -6,6 +6,7 @@ import { randomInt } from 'node:crypto';
 import { prisma, withTenant, withPlatform, appendAudit } from '@chms/db';
 import { seedChurchDefaults } from '@chms/db';
 import {
+  childPickupSmsEnabled,
   normalizeGhPhone,
   denominationPreset,
   givingStopsWithBooks,
@@ -192,6 +193,8 @@ export class ChurchesService {
       smsLocales: s.smsLocales ?? { defaultLocale: 'en', templates: {} },
       /** When marketing-style SMS must not go out (20:00–08:00 by default, on). */
       smsQuietHours: resolveSmsQuietHours(s),
+      /** Text the guardian when a child is checked in or out (on unless switched off). */
+      childPickupSms: childPickupSmsEnabled(s),
       // Which areas of the app are switched on for this church (Settings → Modules).
       // The same resolveModules() the API guard uses, so the shell and the guard
       // can never disagree about what is on.
@@ -243,6 +246,8 @@ export class ChurchesService {
       memberPosts?: boolean;
       /** Quiet hours for marketing-style SMS: window + on/off (default 20:00–08:00, on). */
       smsQuietHours?: Partial<SmsQuietHours>;
+      /** Text the guardian when a child is checked in or out (default on). */
+      childPickupSms?: boolean;
     },
     ip?: string,
   ) {
@@ -274,6 +279,7 @@ export class ChurchesService {
         ...(patch.memberPosts !== undefined ? { memberPosts: patch.memberPosts === true } : {}),
         ...(patch.moneyOffStopsGiving !== undefined ? { moneyOffStopsGiving: patch.moneyOffStopsGiving === true } : {}),
         ...(patch.smsQuietHours !== undefined ? { smsQuietHours: resolveSmsQuietHours({ smsQuietHours: patch.smsQuietHours }) } : {}),
+        ...(patch.childPickupSms !== undefined ? { childPickupSms: patch.childPickupSms === true } : {}),
         // Module switches merge flag-by-flag; unknown keys and non-booleans are
         // dropped so a malformed body cannot brick the shell.
         ...(patch.modules !== undefined

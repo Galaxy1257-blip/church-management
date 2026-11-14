@@ -43,6 +43,22 @@ interface MemberOption {
 /** The chip style for the child or guardian the desk has already chosen. */
 const picked = { background: 'var(--brand)', color: 'var(--brand-ink)', borderColor: 'var(--brand)' };
 
+interface PickupText { status: string; guardian: string }
+
+/** What actually happened to the guardian's text — queued is not delivered. */
+function textLine(sms: PickupText | undefined): string {
+  switch (sms?.status) {
+    case 'QUEUED': return `A text was queued for ${sms.guardian}.`;
+    case 'NO_PHONE': return `No phone number is on record for ${sms.guardian} — no text was queued.`;
+    case 'NO_CONSENT': return `${sms.guardian} has opted out of church texts — no text was queued.`;
+    case 'OPTED_OUT': return `${sms.guardian} has replied STOP — no text was queued.`;
+    case 'BAD_PHONE': return `The number on record for ${sms.guardian} could not be read — no text was queued.`;
+    case 'NO_BALANCE': return 'No SMS credit left — the text was not queued.';
+    case 'QUIET_HOURS': return 'Quiet hours are on — the text was held until morning.';
+    default: return '';
+  }
+}
+
 export default function ChildrenPage() {
   const [services, setServices] = useState<Service[] | null>(null);
   const [serviceId, setServiceId] = useState('');
@@ -59,7 +75,7 @@ export default function ChildrenPage() {
   const [guardianId, setGuardianId] = useState('');
   const [pickupId, setPickupId] = useState('');
   const [code, setCode] = useState('');
-  const [ticket, setTicket] = useState<{ tagNo: string; pickupCode: string } | null>(null);
+  const [ticket, setTicket] = useState<{ tagNo: string; pickupCode: string; sms?: PickupText } | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -118,7 +134,7 @@ export default function ChildrenPage() {
     setError('');
     setNotice('');
     try {
-      const res = await api<{ tagNo: string; pickupCode: string }>('/children/checkin', {
+      const res = await api<{ tagNo: string; pickupCode: string; sms?: PickupText }>('/children/checkin', {
         method: 'POST',
         body: { serviceId, childId: chosen.id, guardianId },
       });
@@ -137,8 +153,14 @@ export default function ChildrenPage() {
     setError('');
     setNotice('');
     try {
-      await api('/children/checkout', { method: 'POST', body: { serviceId, childId: inside.childId, code: code.trim() } });
-      setNotice(`${inside.childName} was handed over. Give the tag back and keep the code secret for next time.`);
+      const res = await api<{ sms?: PickupText }>('/children/checkout', {
+        method: 'POST',
+        body: { serviceId, childId: inside.childId, code: code.trim() },
+      });
+      setNotice(
+        `${inside.childName} was handed over. Give the tag back and keep the code secret for next time.` +
+          (textLine(res.sms) ? ` ${textLine(res.sms)}` : ''),
+      );
       setPickupId('');
       setCode('');
       await reloadActive();
@@ -187,6 +209,7 @@ export default function ChildrenPage() {
             </div>
           </div>
           <p className="muted">Show the code only at pickup. Five wrong tries locks the release.</p>
+          {textLine(ticket.sms) ? <p className="muted">{textLine(ticket.sms)}</p> : null}
         </div>
       ) : null}
 

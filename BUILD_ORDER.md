@@ -270,9 +270,16 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
 - [x] **The class view points at the offline Bible bundles** (#38, Session AI). The shared `BibleDock` is
       mounted in the app shell, so the Bible button is on `/children`; opened live there, it listed all 8
       bundled translations and rendered Genesis 1 from the packed KJV.
-- [ ] **Sunday School batch (remaining)**: class attendance register · guardian SMS on check-in and
-      check-out · class skip dates for the weeks a teacher is away · allergy/health note visible to the
-      class teacher only.
+- [x] **Guardian text on check-in and collection** (#34, Session AI). `notifyGuardian()` sends one SMS
+      per check-in and per collection to the recorded drop-off guardian via `SmsDispatcher` (source NUDGE,
+      one credit each, never held by quiet hours). Shared `childPickupMessage()` writes the child's first
+      name, the church and the time — never the pickup code; `childPickupSmsGate()` decides OFF / NO_PHONE /
+      NO_CONSENT / BAD_PHONE, and the desk reports the real outcome (queued, held, no credit, opted out)
+      instead of assuming success. Its own switch, Settings → SMS → "Guardian texts", is enforced on the API
+      path. Re-check-in now records who brought the child this time. Verified live at 390px through the UI
+      for both ends; gateway is still mock, so the copy says "queued", never "delivered".
+- [ ] **Sunday School batch (remaining)**: class attendance register · class skip dates for the weeks a
+      teacher is away · allergy/health note visible to the class teacher only.
 - [x] **`/flyers/[slug]` linked + FEATURES §15 corrected** (#48, Session AI): the sidebar footer now has
       "Share links", and §15 describes the page as the share-links list it actually is (no flyer graphics).
 - [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■

@@ -1,6 +1,6 @@
 # OPEN_ITEMS — ChMS unfinished work (resume here)
 
-Last updated: 2026-11-13 (Session AI). The single source of truth for every undone
+Last updated: 2026-11-14 (Session AI). The single source of truth for every undone
 prompt and unanswered question. Read this at the start of a new session before
 claiming new work. Tick a line only when the change is committed and pushed (which
 auto-deploys Render + Vercel).
@@ -29,7 +29,22 @@ auto-deploys Render + Vercel).
 
 - [ ] #13 Outreach brainstorm + starter module
 - [ ] #33 Class attendance register for the teacher's class
-- [ ] #34 Text the guardian on child check-in/out
+- [x] #34 Text the guardian on child check-in/out — DONE. One text per check-in and per collection,
+      sent to the adult recorded as the drop-off guardian. Shared rules in `packages/shared/src/sms.ts`:
+      `childPickupMessage()` (first name, church, time — never the pickup code) and
+      `childPickupSmsGate()` (switch off → OFF; no phone → NO_PHONE; consent false → NO_CONSENT;
+      unreadable number → BAD_PHONE). `notifyGuardian()` in `children.module.ts` adds the SmsOptOut
+      check, goes through `SmsDispatcher.dispatch` (source NUDGE, so quiet hours do not hold it) and
+      reports back QUEUED | OFF | NO_PHONE | NO_CONSENT | OPTED_OUT | BAD_PHONE | NO_BALANCE |
+      QUIET_HOURS; the ticket and the collection notice say what happened ("A text was queued for X.").
+      Switch: Settings → SMS → "Guardian texts" (`Church.settings.childPickupSms`, default on), gated on
+      the API path, not just the button. Also fixed a re-check-in bug: the upsert now records the adult
+      who brought the child this time and restarts the clock. Verified live at 390px with the UI at both
+      ends: check-in ticket "A text was queued for Akosua Nyarko." and release notice "…A text was queued
+      for Akosua Nyarko."; two SmsLog rows with the right bodies, wallet 488→486; switch off → OFF with
+      no log. Honest limit: the worker gateway is still `mock`, so "queued" is the strongest claim —
+      nothing was delivered to a phone, and both the Settings card and this item say so. Test data removed
+      (wallet refunded to 488/12 via an append-only ADJUST ledger row).
 - [ ] #35 Let a church skip Sunday School on specific Sundays
 - [ ] #36 Show allergies to the class teacher only
 - [x] #37 Show allowed guardians on the pick-up row — DONE. After choosing a child, the desk prints

@@ -117,6 +117,8 @@ export default function SettingsPage() {
   const [smsLoc, setSmsLoc] = useState<{ defaultLocale: string; templates: Record<string, Record<string, string>> }>({ defaultLocale: 'en', templates: {} });
   // Quiet hours: marketing-style SMS waits for this window (default 20:00–08:00, on).
   const [quiet, setQuiet] = useState<{ enabled: boolean; start: number; end: number }>({ enabled: true, start: 20, end: 8 });
+  // Guardian texts on child check-in/out: its own switch, on unless turned off.
+  const [pickupSms, setPickupSms] = useState(true);
   const [locKey, setLocKey] = useState('tw');
   // denomination terminology pack.
   const [denomKey, setDenomKey] = useState('DEFAULT');
@@ -177,6 +179,7 @@ export default function SettingsPage() {
       if (p.moduleDefaults) setStartModules(p.moduleDefaults);
       if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
       if (p.smsQuietHours) setQuiet({ enabled: p.smsQuietHours.enabled !== false, start: p.smsQuietHours.start ?? 20, end: p.smsQuietHours.end ?? 8 });
+      if (typeof p.childPickupSms === 'boolean') setPickupSms(p.childPickupSms);
       if (typeof p.moneyOffStopsGiving === 'boolean') setStopGiving(p.moneyOffStopsGiving);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
@@ -309,6 +312,19 @@ export default function SettingsPage() {
       );
       setError('');
     } catch (err) { setError(err instanceof Error ? err.message : 'quiet hours save failed'); }
+  }
+
+  async function savePickupSms(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    try {
+      await api('/churches/me/profile', { method: 'POST', body: { childPickupSms: pickupSms } });
+      setError('');
+      setNotice(
+        pickupSms
+          ? 'Guardian texts on — one text is queued at check-in and one at collection, using one SMS credit each.'
+          : 'Guardian texts off — the desk will not text anyone when a child is checked in or collected.',
+      );
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not save the guardian-text setting'); }
   }
 
   async function saveDenomination(e: FormEvent): Promise<void> {
@@ -802,6 +818,21 @@ export default function SettingsPage() {
           </span>
         </div>
         <button>Save quiet hours</button>
+      </form>
+
+      <form className="card stack" onSubmit={savePickupSms} hidden={tab !== 'sms'}>
+        <h2>Guardian texts</h2>
+        <p className="muted">
+          When a child is checked in or collected, the adult who dropped them off gets one short text. It says the
+          child&rsquo;s first name, the church and the time — never the pickup code. Each text uses one SMS credit and
+          is not held by quiet hours. If the SMS gateway is still in test mode, messages are recorded but not
+          delivered to a phone.
+        </p>
+        <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={pickupSms} onChange={(e) => setPickupSms(e.target.checked)} />
+          Text the guardian on check-in and collection
+        </label>
+        <button>Save guardian texts</button>
       </form>
 
       <form className="card stack" onSubmit={saveSmsLocales} hidden={tab !== 'sms'}>
