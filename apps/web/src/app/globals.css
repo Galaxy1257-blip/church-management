@@ -865,6 +865,17 @@ button.danger {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.14));
 }
 button.small { padding: 0.28rem 0.6rem; font-size: 0.85rem; }
+/* A chip the person has chosen. Buttons are already brand-filled, so the picked
+   state has to leave that colour: it tints to the theme's accent-soft and rings
+   itself in accent, which stays visible in all presets, light and dark. */
+button.chip-on {
+  background: var(--accent-soft);
+  background-image: none;
+  color: var(--ink);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  font-weight: 700;
+}
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------------------------------------------------------- layout helpers */

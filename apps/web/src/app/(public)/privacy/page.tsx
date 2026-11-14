@@ -38,11 +38,13 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>Children and guardians:</b> a child&rsquo;s name and age group, check-in and pick-up times, and the names
-          and contacts of the adults allowed to collect them. Allergies or care notes are stored only where the church
-          enters them, and are shown only to the class teacher and the children&rsquo;s desk.
+          and contacts of the adults allowed to collect them. A Sunday School health note (allergies, for example) is
+          stored only where the church enters one, and is shown only to the church office and the child&rsquo;s own
+          class teacher &mdash; not to the rest of the team.
         </li>
         <li>
-          <b>Attendance:</b> service headcounts, check-in records and group meeting attendance.
+          <b>Attendance:</b> service headcounts, check-in records, Sunday School class registers and group meeting
+          attendance.
         </li>
         <li>
           <b>Money:</b> offerings, pledges, expenses and welfare requests — amounts, dates, category, payment channel

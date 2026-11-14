@@ -475,6 +475,10 @@ model Member {
   status           MemberStatus   @default(ACTIVE)
   joinedAt         DateTime?      @db.Date
   address          String?
+  // Health note a parent gives the Sunday School (allergies, asthma, anything a
+  // teacher must know). Read back only to the office and the child's own class
+  // teacher — see members.service stripAllergy().
+  allergyNote      String?
   smsConsent       Boolean        @default(true)
   smsConsentAt     DateTime?
   preferredChannel MessageChannel @default(SMS)
@@ -866,6 +870,22 @@ model ChildCheckIn {
   checkedOutBy   String?   @db.Uuid
 
   @@unique([serviceId, childId])
+}
+
+// One mark per child per Sunday in the class the office assigned to a teacher.
+// Keyed by the church-local date rather than a Service, because a Sunday School
+// that runs with the Services section switched off still takes its register.
+model ClassRegisterMark {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  churchId String   @db.Uuid
+  dateKey  String // YYYY-MM-DD, church-local Sunday
+  childId  String   @db.Uuid
+  status   String // PRESENT|ABSENT
+  markedBy String   @db.Uuid
+  markedAt DateTime @default(now())
+
+  @@unique([churchId, dateKey, childId])
+  @@index([churchId, dateKey])
 }
 
 model Event {

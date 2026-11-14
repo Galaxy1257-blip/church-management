@@ -5,6 +5,7 @@ import {
   ageOn,
   AgeBracketCfg,
   Gender,
+  hasPermission,
   MemberStatus,
   normalizeGhPhone,
   resolveBracket,
@@ -36,8 +37,26 @@ export interface CreateMemberInput {
   smsConsent?: boolean;
   address?: string | null;
   photoDataUrl?: string | null;
+  /** Allergies / health note a parent gives the Sunday School. */
+  allergyNote?: string | null;
   /** Groups this person joins at onboarding (or afterwards). */
   groupIds?: string[];
+}
+
+/**
+ * A child's health note belongs to the office that keeps it and the class
+ * teacher's register — not to every staff role that can read the directory.
+ */
+export function seesAllergy(permissions: readonly string[]): boolean {
+  return hasPermission(permissions, 'members:write');
+}
+
+/** Remove the note from a member row for callers who may not read it. */
+function stripAllergy<T extends Record<string, unknown>>(row: T, permissions: readonly string[]): T {
+  if (seesAllergy(permissions)) return row;
+  const copy = { ...row } as Record<string, unknown>;
+  delete copy.allergyNote;
+  return copy as T;
 }
 
 /** Guard: only groups owned by this church may be attached to a member. */
@@ -104,7 +123,12 @@ export class MembersService {
           take: pageSize,
         }),
       ]);
-      return { total, page, pageSize, items };
+      return {
+        total,
+        page,
+        pageSize,
+        items: items.map((m) => stripAllergy(m as unknown as Record<string, unknown>, user.permissions)),
+      };
     });
   }
 
@@ -116,6 +140,7 @@ export class MembersService {
     return this.tenant.run(user, async (tx) => {
       const m = await tx.member.findFirst({ where: { id, churchId: user.churchId, deletedAt: null } });
       if (!m) throw new NotFoundException('member not found');
+      const safe = stripAllergy(m as unknown as Record<string, unknown>, user.permissions);
       const [bracket, groups, lastAttendance, careTasks, notices] = await Promise.all([
         m.ageBracketId ? tx.ageBracket.findFirst({ where: { id: m.ageBracketId, churchId: user.churchId } }) : null,
         tx.groupMember.findMany({ where: { memberId: id }, include: { group: true } }),
@@ -146,7 +171,7 @@ export class MembersService {
           : bracket.label
         : null;
       return {
-        ...m,
+        ...safe,
         ageSegment,
         ageBracket: bracket,
         lastCheckIn: lastAttendance?.checkedInAt ?? null,
@@ -187,6 +212,7 @@ export class MembersService {
           smsConsent: input.smsConsent ?? true,
           smsConsentAt: input.smsConsent === false ? null : new Date(),
           address: input.address?.trim() || null,
+          allergyNote: input.allergyNote?.trim() || null,
           ...(photo ? { photoDataUrl: photo } : {}),
         },
       });
@@ -203,7 +229,8 @@ export class MembersService {
         action: 'member.create',
         entity: 'Member',
         entityId: m.id,
-        after: { ...m, groupIds },
+        // The audit trail records that a health note exists, not its contents.
+        after: { ...m, allergyNote: m.allergyNote ? '[recorded]' : null, groupIds },
         ip,
       });
       return m;
@@ -241,6 +268,7 @@ export class MembersService {
           ...(input.email !== undefined ? { email: input.email || null } : {}),
           ...(input.gender !== undefined ? { gender: input.gender } : {}),
           ...(input.address !== undefined ? { address: input.address?.trim() || null } : {}),
+          ...(input.allergyNote !== undefined ? { allergyNote: input.allergyNote?.trim() || null } : {}),
           ...(photo !== undefined ? { photoDataUrl: photo } : {}),
           ...bracketPatch,
           ...(input.status !== undefined ? { status: input.status } : {}),
@@ -265,8 +293,9 @@ export class MembersService {
         action: 'member.update',
         entity: 'Member',
         entityId: id,
-        before: existing,
-        after: updated,
+        // The audit trail records that a health note exists, not its contents.
+        before: { ...existing, allergyNote: existing.allergyNote ? '[recorded]' : null },
+        after: { ...updated, allergyNote: updated.allergyNote ? '[recorded]' : null },
         ip,
       });
       return updated;
@@ -285,8 +314,8 @@ export class MembersService {
         action: 'member.delete',
         entity: 'Member',
         entityId: id,
-        before: existing,
-        after: deleted,
+        before: { ...existing, allergyNote: existing.allergyNote ? '[recorded]' : null },
+        after: { ...deleted, allergyNote: deleted.allergyNote ? '[recorded]' : null },
         ip,
       });
       return { id, deleted: true };

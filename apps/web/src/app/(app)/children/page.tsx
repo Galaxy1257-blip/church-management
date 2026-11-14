@@ -46,6 +46,21 @@ interface Skips {
   dates: string[];
   upcoming: { date: string; label: string; skipped: boolean }[];
 }
+type Mark = 'PRESENT' | 'ABSENT';
+interface RegisterChild {
+  id: string;
+  name: string;
+  allergyNote: string | null;
+  status: Mark | null;
+}
+interface Register {
+  className: string | null;
+  date: string;
+  days: string[];
+  skipped: boolean;
+  children: RegisterChild[];
+  counts: { present: number; absent: number; unmarked: number };
+}
 
 /** A saved YYYY-MM-DD, read at midday so the display cannot slip a day. */
 function dayLabel(date: string): string {
@@ -55,8 +70,8 @@ function dayLabel(date: string): string {
     : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
-/** The chip style for the child or guardian the desk has already chosen. */
-const picked = { background: 'var(--brand)', color: 'var(--brand-ink)', borderColor: 'var(--brand)' };
+/** The chosen chip speaks through the shared .chip-on style in globals.css. */
+const chip = (chosen: boolean) => (chosen ? 'small chip-on' : 'small');
 
 interface PickupText { status: string; guardian: string }
 
@@ -96,6 +111,11 @@ export default function ChildrenPage() {
   const [skips, setSkips] = useState<Skips | null>(null);
   const [deskOpenAnyway, setDeskOpenAnyway] = useState(false);
   const [savingSkips, setSavingSkips] = useState(false);
+  // The teacher's own class register. Null when this account has no class —
+  // the API answers with className null rather than someone else's room.
+  const [register, setRegister] = useState<Register | null>(null);
+  const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const [savingRegister, setSavingRegister] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -110,6 +130,7 @@ export default function ChildrenPage() {
     }).catch(() => undefined);
     void api<Child[]>('/children/roster').then(setRoster).catch(() => undefined);
     void api<Skips>('/children/skips').then(setSkips).catch(() => undefined);
+    void loadRegister();
     void getSession().then((s) => {
       const manage = hasPermission(s.permissions, 'members:write');
       setCanManage(manage);
@@ -170,6 +191,59 @@ export default function ChildrenPage() {
       setError(err instanceof Error ? err.message : 'could not save the days off');
     } finally {
       setSavingSkips(false);
+    }
+  }
+
+  /** Pull one Sunday's register and mirror the saved marks into the chips. */
+  async function loadRegister(date?: string): Promise<void> {
+    setError('');
+    try {
+      const r = await api<Register>(`/children/register${date ? `?date=${date}` : ''}`);
+      setRegister(r);
+      setMarks(
+        Object.fromEntries(
+          r.children.filter((c) => c.status).map((c) => [c.id, c.status as Mark]),
+        ),
+      );
+    } catch {
+      // A door usher has no class register; that is not an error on this screen.
+      setRegister(null);
+    }
+  }
+
+  function toggleMark(childId: string, status: Mark): void {
+    setMarks((m) => {
+      const next = { ...m };
+      if (next[childId] === status) delete next[childId];
+      else next[childId] = status;
+      return next;
+    });
+  }
+
+  async function saveRegister(): Promise<void> {
+    if (!register) return;
+    setSavingRegister(true);
+    setError('');
+    setNotice('');
+    try {
+      const saved = await api<Register>('/children/register', {
+        method: 'PUT',
+        body: {
+          date: register.date,
+          marks: Object.entries(marks).map(([childId, status]) => ({ childId, status })),
+        },
+      });
+      setRegister(saved);
+      setMarks(
+        Object.fromEntries(saved.children.filter((c) => c.status).map((c) => [c.id, c.status as Mark])),
+      );
+      setNotice(
+        `Register saved for ${dayLabel(saved.date)} — ${saved.counts.present} present, ${saved.counts.absent} away.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not save the register');
+    } finally {
+      setSavingRegister(false);
     }
   }
 
@@ -330,8 +404,7 @@ export default function ChildrenPage() {
                   {chosen.guardians.map((g) => (
                     <button
                       key={g.id}
-                      className="small"
-                      style={guardianId === g.id ? picked : undefined}
+                      className={chip(guardianId === g.id)}
                       onClick={() => setGuardianId(g.id)}
                     >
                       {g.name}
@@ -368,8 +441,7 @@ export default function ChildrenPage() {
                 <button
                   key={d.date}
                   type="button"
-                  className="small"
-                  style={d.skipped ? picked : undefined}
+                  className={chip(d.skipped)}
                   onClick={() => toggleSkip(d.date)}
                 >
                   {d.label}
@@ -426,7 +498,7 @@ export default function ChildrenPage() {
             <p className="muted" style={{ margin: 0 }}>Choose the child, then type the 6-digit code they were given.</p>
             <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
               {active.map((a) => (
-                <button key={a.id} className="small" style={pickupId === a.childId ? picked : undefined} onClick={() => setPickupId(a.childId)}>
+                <button key={a.id} className={chip(pickupId === a.childId)} onClick={() => setPickupId(a.childId)}>
                   {a.childName} ({a.tagNo})
                 </button>
               ))}
@@ -481,6 +553,89 @@ export default function ChildrenPage() {
           </table>
         )}
       </div>
+
+      {/* Only the class the office assigned gets this card; everyone else's
+          request comes back with no class name and nothing is shown. */}
+      {register?.className ? (
+        <div className="card">
+          <h2>Class register — {register.className}</h2>
+          <p className="muted">
+            Mark who came to Sunday School. Tap a name again to leave them unmarked. The office sees a count in
+            the activity log; the names stay with your class.
+          </p>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {register.days.map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={chip(d === register.date)}
+                onClick={() => void loadRegister(d)}
+              >
+                {dayLabel(d)}
+              </button>
+            ))}
+          </div>
+          {register.skipped ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              The church marked this Sunday off, so there is no register to take.
+            </p>
+          ) : register.children.length === 0 ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              No child is in this class yet. The office puts children in a class by their age group.
+            </p>
+          ) : (
+            <>
+              <p className="muted" style={{ margin: '0.4rem 0' }}>
+                {register.counts.present} present · {register.counts.absent} away · {register.counts.unmarked} not marked
+              </p>
+              <div className="stack">
+                {register.children.map((c) => (
+                  <div key={c.id} className="spread" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 140 }}>
+                      <b>{c.name}</b>
+                      {c.allergyNote ? (
+                        <div className="muted" style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>
+                          Allergy / health: {c.allergyNote}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="row" style={{ gap: 6 }}>
+                      <button
+                        type="button"
+                        className={chip(marks[c.id] === 'PRESENT')}
+                        aria-pressed={marks[c.id] === 'PRESENT'}
+                        onClick={() => toggleMark(c.id, 'PRESENT')}
+                      >
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        className={chip(marks[c.id] === 'ABSENT')}
+                        aria-pressed={marks[c.id] === 'ABSENT'}
+                        onClick={() => toggleMark(c.id, 'ABSENT')}
+                      >
+                        Away
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="row">
+                <button
+                  className="small secondary"
+                  type="button"
+                  onClick={() => setMarks(Object.fromEntries(register.children.map((c) => [c.id, 'PRESENT' as Mark])))}
+                >
+                  Everyone is here
+                </button>
+                <button onClick={() => void saveRegister()} disabled={savingRegister}>
+                  {savingRegister ? 'Saving…' : 'Save register'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

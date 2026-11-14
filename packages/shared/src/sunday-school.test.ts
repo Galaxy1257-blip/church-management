@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isSundaySchoolDateKey, isSundaySchoolSkipped, resolveSundaySchoolSkips } from './sunday-school';
+import {
+  isRegisterStatus,
+  isSundayKey,
+  isSundaySchoolDateKey,
+  isSundaySchoolSkipped,
+  resolveSundaySchoolSkips,
+  sundayRegisterWindow,
+} from './sunday-school';
 
 describe('Sunday School day-off dates', () => {
   it('starts empty for a church that never set any', () => {
@@ -29,5 +36,34 @@ describe('Sunday School day-off dates', () => {
     expect(isSundaySchoolDateKey('2026-1-4')).toBe(false);
     expect(isSundaySchoolDateKey(20260104)).toBe(false);
     expect(isSundaySchoolDateKey(null)).toBe(false);
+  });
+});
+
+describe('the class register runs on Sundays', () => {
+  it('accepts only real Sundays', () => {
+    expect(isSundayKey('2026-11-15')).toBe(true);
+    expect(isSundayKey('2026-11-14')).toBe(false);
+    expect(isSundayKey('2027-02-29')).toBe(false);
+    expect(isSundayKey('nope')).toBe(false);
+  });
+
+  it('lists the recent Sundays oldest first, ending on the latest one', () => {
+    // Friday 13 Nov 2026 -> the week ends on Sunday 8 Nov.
+    expect(sundayRegisterWindow('2026-11-13', 3)).toEqual(['2026-10-25', '2026-11-01', '2026-11-08']);
+    // A Sunday is its own latest day.
+    expect(sundayRegisterWindow('2026-11-15', 2)).toEqual(['2026-11-08', '2026-11-15']);
+  });
+
+  it('returns nothing for a key it cannot trust, and caps the span', () => {
+    expect(sundayRegisterWindow('2026-02-31')).toEqual([]);
+    expect(sundayRegisterWindow('2026-11-14', 0)).toHaveLength(1);
+    expect(sundayRegisterWindow('2026-11-14', 999)).toHaveLength(26);
+  });
+
+  it('knows the two register marks and nothing else', () => {
+    expect(isRegisterStatus('PRESENT')).toBe(true);
+    expect(isRegisterStatus('ABSENT')).toBe(true);
+    expect(isRegisterStatus('present')).toBe(false);
+    expect(isRegisterStatus(null)).toBe(false);
   });
 });

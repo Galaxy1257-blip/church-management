@@ -28,7 +28,18 @@ auto-deploys Render + Vercel).
 ## B. Feature backlog (owner-approved, unbuilt)
 
 - [ ] #13 Outreach brainstorm + starter module
-- [ ] #33 Class attendance register for the teacher's class
+- [x] #33 Class attendance register for the teacher's class — DONE. New `ClassRegisterMark` table
+      (`migrations/16_class_register/migration.sql`), keyed by a church-local `dateKey` instead of a
+      Service so a Sunday School with Services switched off still takes its register. `GET/PUT
+      /children/register` (`@AnyPermission('members:write','children:write')`) shows the last 8 Sundays;
+      PUT sends the whole class (a child left out is unmarked), rejects a child outside the caller's class,
+      refuses a Sunday the church marked off ("there is no register to take"), and appends
+      `children.register` to the audit log with date + present/away/classSize only — never the names.
+      Verified live at 390px as Demo Sunday School: 8 Sunday chips, 1 Present + 1 Away saved (PUT 200),
+      counts and marks persisted across reload; Usher got 403; an account with no class gets an empty
+      answer, and the card is hidden. Tests: shared 164, API 227 (permission metadata + refusal cases).
+      Also fixed the "office can see this register" line: office roles without a class assignment cannot,
+      so the copy now says the office sees the counts in the activity log.
 - [x] #34 Text the guardian on child check-in/out — DONE. One text per check-in and per collection,
       sent to the adult recorded as the drop-off guardian. Shared rules in `packages/shared/src/sms.ts`:
       `childPickupMessage()` (first name, church, time — never the pickup code) and
@@ -57,7 +68,16 @@ auto-deploys Render + Vercel).
       it, no horizontal overflow. Permission finding: the calendar write is gated on `members:write`, which
       LEADER (Teacher) also holds — so a teacher can edit it; only SUNDAY_SCHOOL (desk-only) cannot.
       Corrected the code comment that claimed "only the office" changes it. No migration.
-- [ ] #36 Show allergies to the class teacher only
+- [x] #36 Show allergies to the class teacher only — DONE. `Member.allergyNote` (same migration) is
+      edited in the member drawer only when the caller holds `members:write`; `seesAllergy()` +
+      `stripAllergy()` in `members.service.ts` remove the field from list and getOne for every other role,
+      and create/update audits mask it as `[recorded]` so the contents never enter the log. The class
+      register returns the note for its own children and prints it in red under the child's name. Privacy
+      page updated in the same commit (shown to the church office and the child's own class teacher, not
+      the rest of the team) and `LEGAL_UPDATED` → 14 November 2026. Verified live: Secretary saved
+      "Peanut allergy — carries an inhaler" (PATCH 200) → teacher's register showed it; Usher's drawer
+      had no Allergies & health section and the API response carried no key. Test note and marks removed
+      after verification.
 - [x] #37 Show allowed guardians on the pick-up row — DONE. After choosing a child, the desk prints
       "Who may collect <child>: <names>" from `/children/roster` (already filtered to `canPickup: true`),
       with an explicit "no approved guardian on record" fallback. Verified live at 390px against a real

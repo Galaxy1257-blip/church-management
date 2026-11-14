@@ -5,9 +5,20 @@ import { createHash, randomInt } from 'node:crypto';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { DateTime } from 'luxon';
 import { appendAudit, Db } from '@chms/db';
-import { childPickupMessage, childPickupSmsGate, isSundaySchoolDateKey, resolveSundaySchoolSkips, uuidv7 } from '@chms/shared';
+import {
+  childPickupMessage,
+  childPickupSmsGate,
+  isRegisterStatus,
+  isSundayKey,
+  isSundaySchoolDateKey,
+  isSundaySchoolSkipped,
+  resolveSundaySchoolSkips,
+  sundayRegisterWindow,
+  uuidv7,
+  type RegisterStatus,
+} from '@chms/shared';
 import { AnyPermission, ForModule, RequirePermissions } from '../common/decorators';
-import { deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
+import { ClassScope, classLabelFor, classMemberIds, classMemberWhere, deskMoveChildIds, deskRosterChildIds } from '../common/class-scope';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 import { ServicesModule } from '../services/services.module';
@@ -192,10 +203,152 @@ export class ChildrenService {
     });
   }
 
-  private sundaySchoolState(settings: unknown, timezone: string | null | undefined) {
+  /** Church-local time: only the server knows the church's own zone. */
+  private churchNow(timezone: string | null | undefined) {
     const zone = timezone || 'Africa/Accra';
     const now = DateTime.now().setZone(zone);
-    const local = now.isValid ? now : DateTime.now().setZone('Africa/Accra');
+    return now.isValid ? now : DateTime.now().setZone('Africa/Accra');
+  }
+
+  /** The class the office assigned to this user. Never guessed from a role. */
+  private assignedClass(user: AuthUser): { bracketId: string; segment: ClassScope['segment'] } | null {
+    if (!user.careClassBracketId) return null;
+    const segment = user.careClassSegment === 'MALE' || user.careClassSegment === 'FEMALE' ? user.careClassSegment : 'ALL';
+    return { bracketId: user.careClassBracketId, segment };
+  }
+
+  /**
+   * The Sundays a register can be taken on — the eight most recent, oldest
+   * first, ending on today when today is Sunday.
+   */
+  private registerDays(timezone: string | null | undefined): string[] {
+    const todayKey = this.churchNow(timezone).toFormat('yyyy-MM-dd');
+    return sundayRegisterWindow(todayKey, 8);
+  }
+
+  /**
+   * One Sunday for the assigned class: each child, their mark and any health
+   * note. The note is included here and nowhere else a teacher can read, so it
+   * reaches the person looking after the child and no other staff role.
+   */
+  private async registerView(
+    tx: Db,
+    user: AuthUser,
+    scope: { bracketId: string; segment: ClassScope['segment'] },
+    dateKey: string,
+    settings: unknown,
+  ) {
+    const [className, children, marks] = await Promise.all([
+      classLabelFor(tx, user.churchId, scope),
+      tx.member.findMany({
+        where: classMemberWhere(user, scope),
+        select: { id: true, firstName: true, lastName: true, allergyNote: true },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+      }),
+      tx.classRegisterMark.findMany({ where: { churchId: user.churchId, dateKey } }),
+    ]);
+    const byChild = new Map(marks.map((m) => [m.childId, m.status]));
+    const rows = children.map((c) => ({
+      id: c.id,
+      name: `${c.firstName} ${c.lastName}`,
+      allergyNote: c.allergyNote?.trim() || null,
+      status: (byChild.get(c.id) as RegisterStatus | undefined) ?? null,
+    }));
+    const counts = {
+      present: rows.filter((r) => r.status === 'PRESENT').length,
+      absent: rows.filter((r) => r.status === 'ABSENT').length,
+      unmarked: rows.filter((r) => r.status === null).length,
+    };
+    return {
+      className,
+      date: dateKey,
+      skipped: isSundaySchoolSkipped(settings, dateKey),
+      children: rows,
+      counts,
+    };
+  }
+
+  /**
+   * The class register. It is keyed to the class the office assigned, not to
+   * every child — a teacher takes their own room's register. An unassigned
+   * account gets an empty answer rather than somebody else's class.
+   */
+  async register(user: AuthUser, dateParam?: string) {
+    return this.tenant.run(user, async (tx) => {
+      const church = await tx.church.findUnique({
+        where: { id: user.churchId },
+        select: { timezone: true, settings: true },
+      });
+      const days = this.registerDays(church?.timezone);
+      const scope = this.assignedClass(user);
+      const latest = days[days.length - 1] ?? this.churchNow(church?.timezone).toFormat('yyyy-MM-dd');
+      if (!scope) {
+        return { className: null, date: latest, days, skipped: false, children: [], counts: { present: 0, absent: 0, unmarked: 0 } };
+      }
+      const date = dateParam ?? latest;
+      if (!isSundayKey(date)) throw new BadRequestException('The class register runs on Sundays. Pick a Sunday.');
+      return { ...(await this.registerView(tx, user, scope, date, church?.settings)), days };
+    });
+  }
+
+  /**
+   * Save one Sunday. The payload is the whole class: a child left out is
+   * unmarked, so clearing a mark works. A skipped Sunday has no register.
+   */
+  async saveRegister(user: AuthUser, input: { date?: unknown; marks?: unknown }, ip?: string) {
+    const scope = this.assignedClass(user);
+    if (!scope) throw new ForbiddenException('No Sunday School class is assigned to you yet — ask your office to set one.');
+    if (!isSundayKey(input.date)) throw new BadRequestException('The class register runs on Sundays. Pick a Sunday.');
+    if (!Array.isArray(input.marks)) throw new BadRequestException('Send one mark per child.');
+    const marks = new Map<string, RegisterStatus>();
+    for (const raw of input.marks) {
+      const mark = raw as { childId?: unknown; status?: unknown };
+      if (typeof mark.childId !== 'string' || !isRegisterStatus(mark.status)) {
+        throw new BadRequestException('Each mark needs a child and Present or Away.');
+      }
+      marks.set(mark.childId, mark.status);
+    }
+    const date = input.date;
+
+    return this.tenant.run(user, async (tx) => {
+      const church = await tx.church.findUnique({
+        where: { id: user.churchId },
+        select: { timezone: true, settings: true },
+      });
+      if (isSundaySchoolSkipped(church?.settings, date)) {
+        throw new BadRequestException('Sunday School is marked off that day — there is no register to take.');
+      }
+      const classIds = await classMemberIds(tx, user, scope);
+      const kept = [...marks.keys()];
+      if (kept.some((id) => !classIds.includes(id))) throw new ForbiddenException('That child is not in your class.');
+      if (classIds.length) {
+        await tx.classRegisterMark.deleteMany({
+          where: { churchId: user.churchId, dateKey: date, childId: { in: classIds, notIn: kept } },
+        });
+      }
+      for (const [childId, status] of marks) {
+        await tx.classRegisterMark.upsert({
+          where: { churchId_dateKey_childId: { churchId: user.churchId, dateKey: date, childId } },
+          create: { id: uuidv7(), churchId: user.churchId, dateKey: date, childId, status, markedBy: user.userId },
+          update: { status, markedBy: user.userId, markedAt: new Date() },
+        });
+      }
+      const present = [...marks.values()].filter((s) => s === 'PRESENT').length;
+      await appendAudit(tx, {
+        churchId: user.churchId,
+        actorId: user.userId,
+        action: 'children.register',
+        entity: 'ClassRegisterMark',
+        entityId: date,
+        after: { date, present, absent: marks.size - present, classSize: classIds.length },
+        ip,
+      });
+      return { ...(await this.registerView(tx, user, scope, date, church?.settings)), days: this.registerDays(church?.timezone) };
+    });
+  }
+
+  private sundaySchoolState(settings: unknown, timezone: string | null | undefined) {
+    const local = this.churchNow(timezone);
     const dates = resolveSundaySchoolSkips(settings);
     const today = local.toFormat('yyyy-MM-dd');
     const weekday = local.weekday % 7; // 0 = Sunday, matching ServiceSchedule
@@ -394,6 +547,11 @@ class SkipsDto {
   @IsArray() @IsString({ each: true }) dates!: string[];
 }
 
+class RegisterDto {
+  @IsString() date!: string;
+  @IsArray() marks!: unknown[];
+}
+
 // Switched off in Settings → App sections means switched off here too.
 @ForModule('children')
 @Controller('children')
@@ -461,6 +619,23 @@ export class ChildrenController {
   @Put('skips')
   saveSkips(@Req() req: AuthedRequest, @Body() dto: SkipsDto) {
     return this.svc.saveSkips(req.user!, dto.dates, req.ip);
+  }
+
+  /**
+   * The class register. Open to the office and the class teacher; the service
+   * narrows everyone to the class the office assigned, and refuses an account
+   * with no class outright rather than showing the whole church.
+   */
+  @AnyPermission('members:write', 'children:write')
+  @Get('register')
+  register(@Req() req: AuthedRequest, @Query('date') date?: string) {
+    return this.svc.register(req.user!, date);
+  }
+
+  @AnyPermission('members:write', 'children:write')
+  @Put('register')
+  saveRegister(@Req() req: AuthedRequest, @Body() dto: RegisterDto) {
+    return this.svc.saveRegister(req.user!, dto, req.ip);
   }
 
   @AnyPermission('members:write', 'checkin:write', 'children:write')

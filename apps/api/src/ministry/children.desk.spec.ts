@@ -69,4 +69,50 @@ describe('who the desk says it is open to', () => {
       expect(perms === undefined || perms.length === 0).toBe(true);
     }
   });
+
+  it('opens the class register to the office and the class teacher only', () => {
+    for (const name of ['register', 'saveRegister'] as const) {
+      expect(Reflect.getMetadata(ANY_PERMISSIONS_KEY, ChildrenController.prototype[name])).toEqual([
+        'members:write',
+        'children:write',
+      ]);
+    }
+  });
+});
+
+// The register is the teacher's own room. These checks run before any database
+// work, so a fake tenant is enough and a mistake cannot reach production data.
+describe('the class register refuses what it cannot scope', () => {
+  const svc = () => new ChildrenService({} as never, {} as never, {} as never);
+  const teacher = {
+    userId: 'u1',
+    churchId: 'c1',
+    roles: ['SUNDAY_SCHOOL'],
+    permissions: ['children:write'],
+    careClassBracketId: 'b1',
+    careClassSegment: 'ALL',
+  } as AuthUser;
+  const unassigned = { ...teacher, careClassBracketId: null } as AuthUser;
+
+  it('refuses an account with no class instead of guessing one', async () => {
+    await expect(svc().saveRegister(unassigned, { date: '2026-11-15', marks: [] })).rejects.toThrow(
+      'No Sunday School class is assigned to you yet',
+    );
+  });
+
+  it('accepts Sundays only', async () => {
+    await expect(svc().saveRegister(teacher, { date: '2026-11-14', marks: [] })).rejects.toThrow(
+      'runs on Sundays',
+    );
+    await expect(svc().saveRegister(teacher, { date: 'nope', marks: [] })).rejects.toThrow('runs on Sundays');
+  });
+
+  it('will not take a made-up mark', async () => {
+    await expect(
+      svc().saveRegister(teacher, { date: '2026-11-15', marks: [{ childId: 'x', status: 'MAYBE' }] }),
+    ).rejects.toThrow('Present or Away');
+    await expect(svc().saveRegister(teacher, { date: '2026-11-15', marks: 'all' })).rejects.toThrow(
+      'one mark per child',
+    );
+  });
 });

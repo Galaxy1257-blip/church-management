@@ -3,7 +3,7 @@
 import { BadRequestException, Body, Controller, Get, Injectable, Module, Param, Post, Query, Req } from '@nestjs/common';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { appendAudit, Db } from '@chms/db';
-import { classMemberIds, classMemberWhere, classScopeFor } from '../common/class-scope';
+import { classLabelFor, classMemberIds, classMemberWhere, classScopeFor } from '../common/class-scope';
 import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
@@ -218,20 +218,14 @@ export class CareService {
     const bracketId = scope?.bracketId ?? null;
     if (!scope || !bracketId) return Promise.resolve({ className: null as string | null, members: [] });
     return this.tenant.run(user, async (tx) => {
-      const bracket = await tx.ageBracket.findFirst({ where: { id: bracketId, churchId: user.churchId } });
-      const members = await tx.member.findMany({
-        where: classMemberWhere(user, { ...scope, bracketId }),
-        select: { id: true, firstName: true, lastName: true },
-        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-      });
-      const fallback = scope.segment === 'MALE' ? 'Boys' : scope.segment === 'FEMALE' ? 'Girls' : 'My class';
-      const className = bracket
-        ? scope.segment === 'MALE'
-          ? bracket.maleLabel ?? `${bracket.label} (Boys)`
-          : scope.segment === 'FEMALE'
-            ? bracket.femaleLabel ?? `${bracket.label} (Girls)`
-            : bracket.label
-        : fallback;
+      const [className, members] = await Promise.all([
+        classLabelFor(tx, user.churchId, { ...scope, bracketId }),
+        tx.member.findMany({
+          where: classMemberWhere(user, { ...scope, bracketId }),
+          select: { id: true, firstName: true, lastName: true },
+          orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        }),
+      ]);
       return { className, members };
     });
   }

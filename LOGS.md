@@ -2310,3 +2310,58 @@ brought Drop off back. No horizontal overflow. The verification dates were reset
 **Docs:** #35 ticked in OPEN_ITEMS §B with evidence and the permission note; BUILD_ORDER's remaining
 Sunday School batch now lists only the attendance register and the allergy note; STATE header updated;
 this entry.
+
+### Session AI continued — #33 class attendance register + #36 allergy note
+
+The Sunday School batch is now complete. Two features, one migration, one deploy-blocking bug found and
+fixed along the way.
+
+**#33 — the class register.** A teacher had the drop-off/pick-up desk but no way to record who actually
+came to class. There is now a **Class register** card on `/children` for anyone with an assigned class:
+the last 8 Sundays as chips, every child in that class with **Present / Away**, a counts line, and
+**Save register**. It is backed by a new `ClassRegisterMark` table (migration `16_class_register`) keyed
+by `churchId + dateKey + childId`, where `dateKey` is the church-local Sunday date rather than a Service —
+a Sunday School that runs with Services switched off still takes its register. `GET/PUT
+/children/register` is gated on `members:write` or `children:write`; PUT sends the whole class, so a child
+left out of the payload is cleared, a child outside the caller's class is refused, a Sunday the church
+marked off is refused with plain words, and each save appends `children.register` with date and counts
+only (no child names). Shared rules live in `packages/shared/src/sunday-school.ts`: `isSundayKey()` (a
+real date that is also a Sunday) and `sundayRegisterWindow(todayKey, 8)` (oldest-first, capped at 26).
+
+**#36 — the allergy note.** `Member.allergyNote` is written from the Allergies & health section of the
+member drawer, which only appears for `members:write`. Everyone else receives list/getOne rows with the
+field removed: `seesAllergy()` / `stripAllergy()` in `members.service.ts`, and create/update audit rows
+mask the value as `[recorded]` so the contents never enter the log. The class register returns the note
+for its own children and prints it in red under the name — the one place a teacher needs it. The privacy
+page was updated in the same commit (office and the child's own class teacher, not the rest of the team)
+and `LEGAL_UPDATED` moved to 14 November 2026.
+
+**Deploy-blocker found:** `extras.sql` generated the branch-scope policy with single-escaped quotes, so
+`db:extras` failed at/near `"app"` on the first branched table (`QrCode`). Doubling the quotes in the
+format string fixed it; extras then applied to every table. Left unfixed, Render's start path
+(`migrate deploy` + extras) would have aborted on deploy.
+
+**Verified live at 390px** (chrome-devtools mobile emulation, real logins):
+- Demo Sunday School (+233240000110): 8 Sunday chips, 6 children, marked 1 Present + 1 Away, PUT 200,
+  counts and marks persisted across reload. Usher got 403. An account with no class gets an empty answer
+  and sees no card.
+- Secretary: drawer shows Allergies & health, saved "Peanut allergy — carries an inhaler" (PATCH 200).
+- Teacher: the same register row now shows "Allergy / health: Peanut allergy — carries an inhaler" in red.
+- Usher: drawer headings are Contact / Location / Groups / Following up / Joined only; no section, and
+  the member API response carried no `allergyNote` key.
+- Test marks (2) and the test note (1) were deleted afterwards.
+
+**UI fix found while verifying:** the shared `picked` chip style used the same brand fill and text colour
+as a default button, so a chosen Sunday or Present/Away looked unchosen. Replaced with one shared
+`.chip-on` rule in `globals.css` (accent-soft fill, accent ring, bold) applied to all six chip uses on
+`/children`; the selected state is now visible at 390px. Also corrected the register hint, which claimed
+"the office can see this register too" — office roles without a class assignment cannot; it now says the
+office sees the counts in the activity log.
+
+**Gates:** shared 164 (4 new cases: Sunday-only keys, window order/cap, status guard) · API 227 (permission
+metadata + refusal cases in `children.desk.spec.ts`, `members.allergy.spec.ts`) · web 18 · typecheck
+(5 workspaces) · lint · `check:secrets` — all green. Migration `16_class_register` applied locally as the
+schema owner; `extras.sql` re-applied.
+
+**Docs:** #33 and #36 ticked in OPEN_ITEMS §B with evidence; BUILD_ORDER's remaining Sunday School batch
+replaced with the completed items and the chip fix; STATE header updated; this entry.

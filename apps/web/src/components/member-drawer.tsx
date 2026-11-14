@@ -32,6 +32,8 @@ interface MemberDetail {
   ageSegment: string | null;
   photoDataUrl: string | null;
   smsConsent: boolean;
+  /** Present only for the office that may keep it — absent for every other role. */
+  allergyNote?: string | null;
   lastCheckIn: string | null;
   groups: MemberGroup[];
   careTasks: { id: string; type: string; status: string; dueAt: string; note: string | null }[];
@@ -47,6 +49,9 @@ export default function MemberDrawer({
 }) {
   const [member, setMember] = useState<MemberDetail | null>(null);
   const [error, setError] = useState('');
+  const [health, setHealth] = useState('');
+  const [savingHealth, setSavingHealth] = useState(false);
+  const [healthSaved, setHealthSaved] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, true);
 
@@ -54,8 +59,13 @@ export default function MemberDrawer({
     let live = true;
     setMember(null);
     setError('');
+    setHealthSaved(false);
     api<MemberDetail>(`/members/${memberId}`)
-      .then((m) => live && setMember(m))
+      .then((m) => {
+        if (!live) return;
+        setMember(m);
+        setHealth(m.allergyNote ?? '');
+      })
       .catch((e) => live && setError(e instanceof Error ? e.message : 'could not load this member'));
     return () => {
       live = false;
@@ -74,6 +84,22 @@ export default function MemberDrawer({
       document.body.style.overflow = previous;
     };
   }, [onClose]);
+
+  async function saveHealth(): Promise<void> {
+    if (!member) return;
+    setSavingHealth(true);
+    setError('');
+    try {
+      const note = health.trim() || null;
+      await api(`/members/${member.id}`, { method: 'PATCH', body: { allergyNote: note } });
+      setMember({ ...member, allergyNote: note });
+      setHealthSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not save the health note');
+    } finally {
+      setSavingHealth(false);
+    }
+  }
 
   return (
     <>
@@ -134,6 +160,33 @@ export default function MemberDrawer({
                 <h3>Location</h3>
                 <p>{member.address?.trim() || <span className="muted">No address on file yet.</span>}</p>
               </div>
+
+              {member.allergyNote !== undefined ? (
+                <div className="drawer-section">
+                  <h3>Allergies &amp; health</h3>
+                  <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+                    Seen by the office and by {member.firstName}&rsquo;s class teacher — not by the rest of the team.
+                  </p>
+                  <textarea
+                    rows={2}
+                    style={{ width: '100%' }}
+                    value={health}
+                    onChange={(e) => { setHealth(e.target.value); setHealthSaved(false); }}
+                    placeholder="e.g. Peanut allergy — carries an inhaler"
+                  />
+                  <div className="row" style={{ alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className="small"
+                      onClick={() => void saveHealth()}
+                      disabled={savingHealth || health.trim() === (member.allergyNote ?? '')}
+                    >
+                      {savingHealth ? 'Saving…' : 'Save health note'}
+                    </button>
+                    {healthSaved ? <span className="muted" style={{ fontSize: '0.8rem' }}>Saved.</span> : null}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="drawer-section">
                 <h3>Groups</h3>

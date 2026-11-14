@@ -29,6 +29,7 @@ class MemberDto implements CreateMemberInput {
   @IsOptional() @IsString() joinedAt?: string;
   @IsOptional() @IsBoolean() smsConsent?: boolean;
   @IsOptional() @IsString() address?: string;
+  @IsOptional() @IsString() allergyNote?: string;
   @IsOptional() @IsString() photoDataUrl?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) groupIds?: string[];
 }
@@ -44,6 +45,7 @@ class MemberUpdateDto {
   @IsOptional() @IsIn(['ACTIVE', 'INACTIVE', 'TRANSFERRED', 'DECEASED']) status?: MemberStatus;
   @IsOptional() @IsBoolean() smsConsent?: boolean;
   @IsOptional() @IsString() address?: string;
+  @IsOptional() @IsString() allergyNote?: string;
   @IsOptional() @IsString() photoDataUrl?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) groupIds?: string[];
 }

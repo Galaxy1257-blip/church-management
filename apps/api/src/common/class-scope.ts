@@ -38,6 +38,20 @@ export function classMemberWhere(
   };
 }
 
+/** The class's name as the church configured it (age bracket, plus Boys/Girls when split). */
+export async function classLabelFor(
+  tx: Db,
+  churchId: string,
+  scope: { bracketId: string; segment: ClassScope['segment'] },
+): Promise<string> {
+  const bracket = await tx.ageBracket.findFirst({ where: { id: scope.bracketId, churchId } });
+  const fallback = scope.segment === 'MALE' ? 'Boys' : scope.segment === 'FEMALE' ? 'Girls' : 'My class';
+  if (!bracket) return fallback;
+  if (scope.segment === 'MALE') return bracket.maleLabel ?? `${bracket.label} (Boys)`;
+  if (scope.segment === 'FEMALE') return bracket.femaleLabel ?? `${bracket.label} (Girls)`;
+  return bracket.label;
+}
+
 /** The members in this teacher's class. Empty when the office has not assigned one. */
 export async function classMemberIds(tx: Db, user: AuthUser, scope: ClassScope): Promise<string[]> {
   if (!scope.bracketId) return [];

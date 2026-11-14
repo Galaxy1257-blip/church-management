@@ -96,9 +96,11 @@ BEGIN
                   WHERE c2.table_schema = 'public' AND c2.table_name = c.table_name AND c2.column_name = 'churchId')
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS branch_scope ON %I', t.table_name);
+    -- Every quote inside this format string is doubled twice: once for the SQL
+    -- literal and once so the generated statement keeps its own quotes.
     EXECUTE format(
       'CREATE POLICY branch_scope ON %I AS RESTRICTIVE USING (
-        COALESCE(NULLIF(current_setting(''app.branch_ids'', true), ''), '''') = ''''
+        COALESCE(NULLIF(current_setting(''app.branch_ids'', true), ''''), '''') = ''''
         OR "branchId"::text = ANY (string_to_array(current_setting(''app.branch_ids'', true), '',''))
       )',
       t.table_name);

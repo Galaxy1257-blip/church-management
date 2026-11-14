@@ -283,8 +283,24 @@ clicking every one) and is now ticked. The one genuine gap is split out at the b
       `GET/PUT /children/skips` and is validated in `packages/shared/src/sunday-school.ts`. On a skipped
       Sunday the desk says "Sunday School is marked off today", hides Drop off, keeps Pick up, and offers
       "Open the desk anyway". Verified live at 390px (save persisted across reload; banner behaviour).
-- [ ] **Sunday School batch (remaining)**: class attendance register · allergy/health note visible to the
-      class teacher only.
+- [x] **Class attendance register** (#33, Session AI). A new `ClassRegisterMark` table (migration
+      `16_class_register`) keyed by church-local `dateKey`, so the register works with Services off.
+      `GET/PUT /children/register` (members:write or children:write) covers the last 8 Sundays; save sends
+      the whole class, so leaving a child out clears the mark, only children in the caller's class are
+      accepted, a skipped Sunday refuses, and each save appends `children.register` with date + counts only
+      (no child names). Verified live at 390px as Demo Sunday School: 8 chips, 1 present + 1 away saved,
+      counts persisted across reload; Usher 403; no class → empty answer.
+- [x] **Allergy/health note for the class teacher** (#36, Session AI). `Member.allergyNote` (migration
+      `16_class_register`) is written from the member drawer (members:write) and read back in the class
+      register in red under the child's name; every other role gets list/getOne without the field
+      (`seesAllergy`), and audits record `[recorded]` rather than the contents. Privacy page updated;
+      `LEGAL_UPDATED` → 14 Nov 2026. Verified live: Secretary saved "Peanut allergy — carries an inhaler"
+      → teacher register showed it; Usher's drawer had no Allergies & health section and the API response
+      carried no key.
+- [x] **Chosen-chip visibility** (Session AI, found while verifying #33): the `picked` chip style equalled
+      the default brand button (same fill and text colour), so a chosen Sunday or Present/Away looked
+      unchosen. Replaced with one shared `.chip-on` rule (accent-soft fill, accent ring, bold) across all
+      six chip uses on `/children`; verified at 390px in the register.
 - [x] **`/flyers/[slug]` linked + FEATURES §15 corrected** (#48, Session AI): the sidebar footer now has
       "Share links", and §15 describes the page as the share-links list it actually is (no flyer graphics).
 - [ ] **Palette decision owed by the owner:** `--terracotta` as *hover* text (2.99–4.48:1) and the gold ■
