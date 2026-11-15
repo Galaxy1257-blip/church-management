@@ -42,6 +42,10 @@ describe('paystackSecret', () => {
   });
   it('falls back to dev-secret in mock mode only', () => {
     expect(paystackSecret({ PAYSTACK_MODE: 'mock', PAYSTACK_SECRET_KEY: '' })).toBe('dev-secret');
-    expect(paystackSecret({ PAYSTACK_MODE: 'live', PAYSTACK_SECRET_KEY: '' })).toBe('');
+  });
+  it('throws in live mode when key is missing (prevents accidental mock-in-prod)', () => {
+    expect(() => paystackSecret({ PAYSTACK_MODE: 'live', PAYSTACK_SECRET_KEY: '' })).toThrow(
+      /PAYSTACK_SECRET_KEY is required in live mode/,
+    );
   });
 });

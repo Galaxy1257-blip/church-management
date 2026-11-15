@@ -1,6 +1,7 @@
 // Member self-service portal: OTP login bound to a Member record (no staff
 // account needed), my-giving history, giving statement (JSON/print-ready).
 import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { RateLimit } from '../common/rate-limit';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
@@ -510,6 +511,10 @@ export class PortalController {
   constructor(private readonly svc: PortalService, private readonly notes: BibleNotesService) {}
 
   @Public()
+  @RateLimit([
+    { key: 'otp:request:ip', limit: 10, windowMs: 60 * 60_000 },
+    { key: 'otp:request:phone', limit: 5, windowMs: 60 * 60_000, byPhone: true },
+  ])
   @Post('otp/request')
   @HttpCode(202)
   async requestOtp(@Body() body: { churchSlug: string; phoneE164: string }) {
@@ -518,6 +523,7 @@ export class PortalController {
   }
 
   @Public()
+  @RateLimit({ key: 'otp:verify:ip', limit: 20, windowMs: 60 * 60_000 })
   @Post('otp/verify')
   @HttpCode(200)
   verifyOtp(@Body() body: { churchSlug: string; phoneE164: string; code: string }) {

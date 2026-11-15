@@ -25,6 +25,7 @@ describe('dashboardQuickLinks', () => {
     branches: true,
     outreach: true,
     audit: true,
+    organization: true,
   };
 
   const allOff: ModuleFlags = { ...allOn, ...(Object.fromEntries(
@@ -108,5 +109,6 @@ function allOnFixture(): ModuleFlags {
     branches: true,
     outreach: true,
     audit: true,
+    organization: true,
   };
 }

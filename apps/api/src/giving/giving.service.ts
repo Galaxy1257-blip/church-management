@@ -392,11 +392,18 @@ export function verifyPaystackSignature(
 /**
  * Secret used to verify Paystack signatures. In mock mode an empty key falls
  * back to a fixed dev secret so the local loop (dev simulation -> webhook)
- * works without real sandbox credentials. Live mode requires a real key
- * (PaymentProvider construction already enforces that).
+ * works without real sandbox credentials. Live mode requires a real key —
+ * throws if PAYSTACK_MODE=live but PAYSTACK_SECRET_KEY is empty (prevents
+ * accidentally running mock logic in production).
  */
 export function paystackSecret(env: { PAYSTACK_MODE: string; PAYSTACK_SECRET_KEY: string }): string {
   if (env.PAYSTACK_SECRET_KEY) return env.PAYSTACK_SECRET_KEY;
   if (env.PAYSTACK_MODE === 'mock') return 'dev-secret';
+  if (env.PAYSTACK_MODE === 'live') {
+    throw new Error(
+      'PAYSTACK_SECRET_KEY is required in live mode. ' +
+        'Set it in the chms-api service environment (Render dashboard).',
+    );
+  }
   return '';
 }
