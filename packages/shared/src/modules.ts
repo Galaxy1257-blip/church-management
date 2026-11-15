@@ -27,6 +27,7 @@ export const MODULE_KEYS = [
   'sms',
   'departments',
   'branches',
+  'organization',
   'outreach',
   'audit',
 ] as const;
@@ -64,6 +65,7 @@ export const MODULE_DEFAULTS: ModuleFlags = {
   sms: false,
   departments: false,
   branches: false,
+  organization: true,
   outreach: false,
   audit: false,
 };
@@ -99,6 +101,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
+  organization: {
+    label: 'Organisation',
+    hint: 'The area for departments, branches and the activity log. Switch this off to hide them all at once — each one can still be switched off on its own (your ticks are kept, just hidden).',
+  },
   outreach: {
     label: 'Outreach',
     hint: 'Community outreach and evangelism outings, and the people you met there',
@@ -111,6 +117,78 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
 
 export function isModuleKey(value: unknown): value is ModuleKey {
   return typeof value === 'string' && (MODULE_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * A group = a master switch + the sub-section switches it governs. The master is a
+ * real switch (stored like any other); its only effect is on its children. A child
+ * is effectively on only when its own switch AND its group's master are on, so the
+ * office can hide a whole group at once without losing the per-child switches.
+ * Master keys are group toggles, not pages — they never carry a @ForModule() of
+ * their own (module-coverage.spec.ts skips them for that reason).
+ */
+export interface ModuleGroup {
+  /** The master switch for this group (always a ModuleKey, stored in settings.modules). */
+  key: ModuleKey;
+  label: string;
+  /** What the master row says in Settings. */
+  hint: string;
+  /** The sub-sections this master hides when it is switched off. */
+  children: ModuleKey[];
+}
+
+export const MODULE_GROUPS: ModuleGroup[] = [
+  {
+    key: 'people',
+    label: 'People',
+    hint: 'Members & visitors, plus the sub-sections below. Switch off to hide them all at once.',
+    children: ['care', 'children', 'groups'],
+  },
+  {
+    key: 'worship',
+    label: 'Services',
+    hint: 'The service list and Sunday attendance, plus the sub-sections below. Switch off to hide them all at once.',
+    children: ['roster', 'events'],
+  },
+  {
+    key: 'money',
+    label: 'Offerings',
+    hint: 'Sunday giving and the money reports, plus the sub-sections below. Switch off to hide them all at once.',
+    children: ['special_offerings', 'expenses'],
+  },
+  {
+    key: 'reach',
+    label: 'News & follow-up',
+    hint: 'Announcements, plus the sub-sections below. Switch off to hide them all at once.',
+    children: ['followup', 'programs', 'sms', 'outreach'],
+  },
+  {
+    key: 'organization',
+    label: 'Organisation',
+    hint: 'Departments, branches and the activity log. Switch off to hide them all at once — each can still be switched off on its own (your ticks are kept, just hidden).',
+    children: ['departments', 'branches', 'audit'],
+  },
+];
+
+/** The group this key belongs to (as a master or as a child), or undefined. */
+export function moduleGroupFor(key: ModuleKey): ModuleGroup | undefined {
+  return MODULE_GROUPS.find((g) => g.key === key || g.children.includes(key));
+}
+
+/**
+ * The effective switches after master gating: a child is only on when its group's
+ * master is also on. Masters are never children, so a master's own value is kept
+ * and its children are forced off while it is off. The stored values are never
+ * changed — this is a derived view for nav / API / dashboard gating.
+ */
+export function effectiveModules(flags: ModuleFlags): ModuleFlags {
+  const out = { ...flags };
+  for (const group of MODULE_GROUPS) {
+    if (!out[group.key]) {
+      for (const child of group.children) out[child] = false;
+    }
+  }
+  return out;
 }
 
 /**

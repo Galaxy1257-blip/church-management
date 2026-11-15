@@ -145,6 +145,7 @@ export const MODULE_KEYS = [
   'sms',
   'departments',
   'branches',
+  'organization',
   'outreach',
   'audit',
 ] as const;
@@ -179,6 +180,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
+  organization: {
+    label: 'Organisation',
+    hint: 'The area for departments, branches and the activity log. Switch this off to hide them all at once — each one can still be switched off on its own.',
+  },
   outreach: {
     label: 'Outreach',
     hint: 'Community outreach and evangelism outings, and the people you met there',
@@ -188,6 +193,45 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
     hint: 'Who changed what, and when. Switching this off hides the page — the app keeps recording either way.',
   },
 };
+
+/**
+ * Group master switches. A master is a real switch (stored like any other); its only
+ * effect is on its children. A child is effectively on only when its own switch AND
+ * its group's master are on, so the office can hide a whole group at once without
+ * losing the per-child switches. Mirrors packages/shared/src/modules.ts.
+ */
+export interface ModuleGroup {
+  key: ModuleKey;
+  label: string;
+  hint: string;
+  children: ModuleKey[];
+}
+
+export const MODULE_GROUPS: ModuleGroup[] = [
+  { key: 'people', label: 'People', hint: 'Members & visitors, plus the sub-sections below. Switch off to hide them all at once.', children: ['care', 'children', 'groups'] },
+  { key: 'worship', label: 'Services', hint: 'The service list and Sunday attendance, plus the sub-sections below. Switch off to hide them all at once.', children: ['roster', 'events'] },
+  { key: 'money', label: 'Offerings', hint: 'Sunday giving and the money reports, plus the sub-sections below. Switch off to hide them all at once.', children: ['special_offerings', 'expenses'] },
+  { key: 'reach', label: 'News & follow-up', hint: 'Announcements, plus the sub-sections below. Switch off to hide them all at once.', children: ['followup', 'programs', 'sms', 'outreach'] },
+  { key: 'organization', label: 'Organisation', hint: 'Departments, branches and the activity log. Switch off to hide them all at once — each can still be switched off on its own.', children: ['departments', 'branches', 'audit'] },
+];
+
+/** The group this key belongs to (as a master or as a child), or undefined. */
+export function moduleGroupFor(key: ModuleKey): ModuleGroup | undefined {
+  return MODULE_GROUPS.find((g) => g.key === key || g.children.includes(key));
+}
+
+/**
+ * Effective switches after master gating (a child is off while its group's master is
+ * off). /auth/me already sends the effective set, so this only matters when a caller
+ * hands in raw flags; applying it to the effective set is idempotent.
+ */
+export function effectiveModules(flags: ModuleFlags): ModuleFlags {
+  const out = { ...flags };
+  for (const group of MODULE_GROUPS) {
+    if (!out[group.key]) for (const child of group.children) out[child] = false;
+  }
+  return out;
+}
 
 /**
  * The roles that work the door. They stand there on Sunday whatever the office

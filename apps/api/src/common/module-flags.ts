@@ -5,7 +5,7 @@
 // is still reachable by typing the URL and the setting is decoration.
 import { Global, Injectable, Module } from '@nestjs/common';
 import { platformPrisma, withTenant } from '@chms/db';
-import { givingStopsWithBooks, resolveModules, type ModuleFlags } from '@chms/shared';
+import { givingStopsWithBooks, effectiveModules, resolveModules, type ModuleFlags } from '@chms/shared';
 
 /**
  * How long a cached flag set stays valid. Ticking a switch in Settings
@@ -67,7 +67,9 @@ export class ModuleFlagsService {
       const church = await tx.church.findUnique({ where: { id: churchId }, select: { settings: true } });
       return {
         at: Date.now(),
-        flags: resolveModules(church?.settings),
+        // Effective flags: a child is only on while its group's master is on, so
+        // ModuleGuard 403s a sub-section the office hid by turning its group off.
+        flags: effectiveModules(resolveModules(church?.settings)),
         stopsGiving: givingStopsWithBooks(church?.settings),
       };
     });

@@ -128,6 +128,7 @@ export default function OrgPage() {
           </tbody></table>
         </div>
         ) : null}
+        {moduleEnabled(modules, 'departments') ? (
         <div className="card">
           <h2>Households</h2>
           <form className="row" onSubmit={addHousehold}>
@@ -141,6 +142,7 @@ export default function OrgPage() {
             ))}
           </tbody></table>
         </div>
+        ) : null}
       </div>
     </div>
   );

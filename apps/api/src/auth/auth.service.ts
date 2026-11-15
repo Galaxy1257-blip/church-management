@@ -16,6 +16,7 @@ import {
   permissionsForRoles,
   resolveCustomFeatures,
   resolveDataScope,
+  effectiveModules,
   resolveModules,
   RoleKey,
   localizedSmsBody,
@@ -533,7 +534,9 @@ export class AuthService {
     return {
       ...user,
       church: { name: church.name, slug: church.slug, branding },
-      modules: resolveModules(settings),
+      // Effective switches: a sub-section is only "on" while its group's master
+      // is on, so the shell hides children the office hid by switching the group off.
+      modules: effectiveModules(resolveModules(settings)),
       extras: resolveCustomFeatures(settings),
       // The shell shows the lock screen from this without a second request.
       billing: {

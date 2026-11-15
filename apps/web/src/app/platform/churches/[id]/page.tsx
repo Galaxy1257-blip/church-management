@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { MODULE_KEYS, MODULE_LABELS } from '../../../../lib/access';
+import { MODULE_GROUPS, MODULE_KEYS, MODULE_LABELS } from '../../../../lib/access';
 import { STATE_COPY, monthLabel, type BillingState } from '../../../../lib/billing';
 import { fmtDate, fmtDateTime, ghs, toPesewas } from '../../../../lib/format';
 import Notice from '../../../../components/notice';
@@ -366,31 +366,73 @@ function ModulesCard({
     return next;
   });
 
+  const masterKeys = MODULE_GROUPS.map((g) => g.key);
+  const childKeys = MODULE_GROUPS.flatMap((g) => g.children);
+  const standaloneKeys = MODULE_KEYS.filter((k) => !masterKeys.includes(k) && !childKeys.includes(k));
+
   return (
     <div className="card">
       <h2 style={{ marginTop: 0 }}>App sections</h2>
       <p className="muted">
         Tick the sections this church runs. Nothing is deleted; members can switch them back on themselves. Care is only
-        shown to ushers and Sunday School teachers.
+        shown to ushers and Sunday School teachers. Switch a group off to hide everything under it at once.
       </p>
-      <div className="grid cols-3">
-        {MODULE_KEYS.map((key) => (
-          <label key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={modules[key] !== false}
-              onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
-              style={{ marginTop: 3 }}
-            />
-            <span>
-              <strong>{MODULE_LABELS[key].label}</strong>
-              <span className="muted" style={{ display: 'block', fontSize: '0.78rem' }}>
-                {MODULE_LABELS[key].hint}
+      {MODULE_GROUPS.map((group) => {
+        const masterOff = modules[group.key] === false;
+        return (
+          <div key={group.key} className="stack" style={{ marginTop: 6 }}>
+            <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={modules[group.key] !== false}
+                onChange={(e) => setModules({ ...modules, [group.key]: e.target.checked })}
+                style={{ marginTop: 3 }}
+              />
+              <span>
+                <strong>{MODULE_LABELS[group.key].label}</strong>
+                <span className="muted" style={{ display: 'block', fontSize: '0.78rem' }}>
+                  {group.hint}
+                </span>
               </span>
+            </label>
+            <div className="stack" style={{ marginLeft: 24 }}>
+              {group.children.map((child) => (
+                <label key={child} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={modules[child] !== false}
+                    disabled={masterOff}
+                    onChange={(e) => setModules({ ...modules, [child]: e.target.checked })}
+                    style={{ marginTop: 3 }}
+                  />
+                  <span>
+                    <strong>{MODULE_LABELS[child].label}</strong>
+                    <span className="muted" style={{ display: 'block', fontSize: '0.78rem' }}>
+                      {MODULE_LABELS[child].hint}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {standaloneKeys.map((key) => (
+        <label key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 }}>
+          <input
+            type="checkbox"
+            checked={modules[key] !== false}
+            onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            <strong>{MODULE_LABELS[key].label}</strong>
+            <span className="muted" style={{ display: 'block', fontSize: '0.78rem' }}>
+              {MODULE_LABELS[key].hint}
             </span>
-          </label>
-        ))}
-      </div>
+          </span>
+        </label>
+      ))}
       <div className="row" style={{ marginTop: '0.7rem' }}>
         <button disabled={busy} onClick={() => void onSave(modules, 'App sections saved.')}>
           Save app sections

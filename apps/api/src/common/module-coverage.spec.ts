@@ -4,9 +4,14 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MODULE_KEYS, type ModuleKey } from '@chms/shared';
+import { MODULE_GROUPS, MODULE_KEYS, type ModuleKey } from '@chms/shared';
 
 const SRC = join(__dirname, '..');
+
+// Master switches are group toggles (they hide their children, but have no page of
+// their own), so they never carry a @ForModule(). Only the leaves must be claimed.
+const MASTER_KEYS = new Set(MODULE_GROUPS.map((g) => g.key));
+const COVERED_KEYS = MODULE_KEYS.filter((key) => !MASTER_KEYS.has(key));
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -31,7 +36,7 @@ for (const file of sources(SRC)) {
 }
 
 describe('App-section switches gate the API', () => {
-  it.each(MODULE_KEYS.map((key) => [key, tagged.get(key) ?? []]) as [ModuleKey, string[]][])(
+  it.each(COVERED_KEYS.map((key) => [key, tagged.get(key) ?? []]) as [ModuleKey, string[]][])(
     '%s is enforced by at least one controller',
     (key, files) => {
       expect(files.length, `no @ForModule('${key}') anywhere in apps/api/src`).toBeGreaterThan(0);

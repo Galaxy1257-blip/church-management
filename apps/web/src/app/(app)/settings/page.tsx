@@ -6,7 +6,7 @@ import { api } from '../../../lib/api';
 import { translationLabel } from '../../../lib/bible';
 import BillingPanel from '../../../components/billing-panel';
 import { clearSession } from '../../../lib/session';
-import { MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
+import { MODULE_GROUPS, MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
 import Notice from '../../../components/notice';
 import { subscribeThisDevice } from '../../../lib/push';
 import {
@@ -150,11 +150,13 @@ export default function SettingsPage() {
   // Members can add themselves with this one church code.
   const [joinCode, setJoinCode] = useState<{ enabled: boolean; code: string }>({ enabled: false, code: '' });
   const [startModules, setStartModules] = useState<Record<string, boolean>>({});
-  // Listed as "every church" versus "opt-in", the way the office thinks about it.
-  const coreKeys = MODULE_KEYS.filter((key) => startModules[key]);
-  const extraKeys = MODULE_KEYS.filter((key) => !startModules[key]);
   const usedCount = MODULE_KEYS.filter((key) => modules[key]).length;
   const unusedCount = MODULE_KEYS.length - usedCount;
+  // Group master switches and the modules that stand outside any group (bible).
+  const groupMasterKeys = MODULE_GROUPS.map((g) => g.key);
+  const groupChildKeys = MODULE_GROUPS.flatMap((g) => g.children);
+  const standaloneKeys = MODULE_KEYS.filter((k) => !groupMasterKeys.includes(k) && !groupChildKeys.includes(k));
+  const isCoreKey = (key: string) => !!startModules[key];
 
   useEffect(() => {
     try {
@@ -1024,42 +1026,78 @@ export default function SettingsPage() {
               You are using <b>{usedCount}</b> of {MODULE_KEYS.length}. The other {unusedCount} are listed below, waiting
               for the day your church runs them.
             </p>
-            {[
-              {
-                title: 'Part of every week',
-                keys: coreKeys,
-                blurb: 'These are on for a new church. Untick one only if your church truly does not use it.',
-              },
-              {
-                title: 'Add when your church runs it',
-                keys: extraKeys,
-                blurb: 'These start off, so a new church sees a short menu. Tick the ones you actually run.',
-              },
-            ].map((group) =>
-              group.keys.length === 0 ? null : (
-                <div key={group.title} className="stack">
-                  <h3 style={{ margin: 0 }}>{group.title}</h3>
-                  <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
-                    {group.blurb}
-                  </p>
-                  {group.keys.map((key) => (
-                    <label key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!modules[key]}
-                        onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
-                      />
-                      <span>
-                        <strong>{MODULE_LABELS[key].label}</strong>
-                        <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
-                          {MODULE_LABELS[key].hint}
-                        </span>
+            {MODULE_GROUPS.map((group) => {
+              const masterOff = !modules[group.key];
+              return (
+                <div key={group.key} className="stack" style={{ marginTop: 6 }}>
+                  <label style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!modules[group.key]}
+                      onChange={(e) => setModules({ ...modules, [group.key]: e.target.checked })}
+                    />
+                    <span>
+                      <strong>{MODULE_LABELS[group.key].label}</strong>{' '}
+                      {isCoreKey(group.key) ? (
+                        <span className="badge ok">On for a new church</span>
+                      ) : (
+                        <span className="badge mute">Add when you run it</span>
+                      )}
+                      <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                        {group.hint}
                       </span>
-                    </label>
-                  ))}
+                    </span>
+                  </label>
+                  <div className="stack" style={{ marginLeft: 28, marginTop: 2 }}>
+                    {group.children.map((child) => (
+                      <label key={child} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!modules[child]}
+                          disabled={masterOff}
+                          onChange={(e) => setModules({ ...modules, [child]: e.target.checked })}
+                        />
+                        <span>
+                          <strong>{MODULE_LABELS[child].label}</strong>{' '}
+                          {isCoreKey(child) ? (
+                            <span className="badge ok">On for a new church</span>
+                          ) : (
+                            <span className="badge mute">Add when you run it</span>
+                          )}
+                          <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                            {MODULE_LABELS[child].hint}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              ),
-            )}
+              );
+            })}
+            {standaloneKeys.length ? (
+              <div className="stack" style={{ marginTop: 6 }}>
+                {standaloneKeys.map((key) => (
+                  <label key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!modules[key]}
+                      onChange={(e) => setModules({ ...modules, [key]: e.target.checked })}
+                    />
+                    <span>
+                      <strong>{MODULE_LABELS[key].label}</strong>{' '}
+                      {isCoreKey(key) ? (
+                        <span className="badge ok">On for a new church</span>
+                      ) : (
+                        <span className="badge mute">Add when you run it</span>
+                      )}
+                      <span className="muted" style={{ display: 'block', fontSize: '0.85rem' }}>
+                        {MODULE_LABELS[key].hint}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
             {/* Asked only while Offerings is off, and the API acts on the answer. */}
             {modules.money ? null : (
               <div className="card">
