@@ -8,6 +8,7 @@ import { normalizePhotoDataUrl } from '../common/photo';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 import { reminderRows } from './reminders.module';
+import { PushModule, PushService } from './push.module';
 
 class AnnouncementDto {
   @IsString() @MinLength(1) title!: string;
@@ -164,7 +165,7 @@ export class AnnouncementsService {
 @ForModule('reach')
 @Controller('announcements')
 export class AnnouncementsController {
-  constructor(private readonly svc: AnnouncementsService) {}
+  constructor(private readonly svc: AnnouncementsService, private readonly push: PushService) {}
 
   @RequirePermissions('campaigns:read')
   @Get()
@@ -181,8 +182,22 @@ export class AnnouncementsController {
 
   @RequirePermissions('campaigns:write')
   @Post()
-  create(@Req() req: AuthedRequest, @Body() dto: AnnouncementDto) {
-    return this.svc.create(req.user!, dto, req.ip);
+  async create(@Req() req: AuthedRequest, @Body() dto: AnnouncementDto) {
+    const a = await this.svc.create(req.user!, dto, req.ip);
+    // The "Push" channel now really rings phones when the church has VAPID keys
+    // and has not switched phone notifications off (see PushService.notifyChurch).
+    // A push failure must never fail the announcement, which is already saved.
+    if ((dto.channels ?? []).includes('PUSH')) {
+      await this.push
+        .notifyChurch(req.user!, {
+          title: dto.title,
+          body: dto.body,
+          url: '/portal',
+          tag: `announcement:${a.id}`,
+        })
+        .catch(() => undefined);
+    }
+    return a;
   }
 
   @RequirePermissions('campaigns:write')
@@ -193,6 +208,7 @@ export class AnnouncementsController {
 }
 
 @Module({
+  imports: [PushModule],
   providers: [TenantService, AnnouncementsService],
   controllers: [AnnouncementsController],
 })

@@ -144,7 +144,14 @@ auto-deploys Render + Vercel).
 
 - [ ] Camera QR scanning is **not implemented** (QR membership cards are hash-token
       based, printed/read, not camera-scanned).
-- [ ] OS push needs **VAPID keys** before browser/device push actually delivers.
+- [x] **Phone (web) push is built; it now needs the owner's VAPID keys to deliver.** Service worker + VAPID
+      signing on the API, a church-level switch (`settings.pushEnabled`, default on, enforced in the send path),
+      staff and member subscribe (migration 18 adds `PushSubscription.memberId`), and the announcement **Push**
+      channel all live. **Owner step:** set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` on Render and
+      `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same public key) on Vercel, then press Settings → SMS setup → *Send a test*.
+      Until then the API answers `configured:false` (a quiet no) and the app says so honestly. Verified locally to
+      that point (subscribe/list/test/delete + the `configured:false` no-op); real delivery to a device was **not**
+      exercised (needs keys + a real phone).
 - [ ] SMS gateway is **mock** (messages recorded, never delivered) — until live keys.
 - [ ] Paystack is **mock** (`dev.controller.ts` mock webhook) — until live keys.
 - [ ] `/headcount/totals` is still **worship-gated**.

@@ -97,8 +97,9 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>Our processors:</b> the companies that host and move the data for us — the database host ({PROCESSORS.database}),
-          the API host ({PROCESSORS.api}), the web host ({PROCESSORS.web}), the payment provider ({PROCESSORS.payments}) and
-          {PROCESSORS.sms}. They process data only to provide their service to us.
+          the API host ({PROCESSORS.api}), the web host ({PROCESSORS.web}), the payment provider ({PROCESSORS.payments}),
+          {PROCESSORS.sms}, and {PROCESSORS.push} (only when someone turns on phone notifications). They process data only
+          to provide their service to us.
         </li>
         <li>
           <b>By law:</b> we may disclose records where a court or a law lawfully requires it, and we will tell the church

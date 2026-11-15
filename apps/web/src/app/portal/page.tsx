@@ -10,6 +10,7 @@ import { cardPayload } from '../../lib/card';
 import QRCode from 'qrcode';
 import BibleDock from '../../components/bible-dock';
 import Notice from '../../components/notice';
+import { pushState, subscribeThisDevice, unsubscribeThisDevice, type PushState } from '../../lib/push';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -206,8 +207,62 @@ export default function PortalPage() {
   const [error, setError] = useState('');
   const [confirmErase, setConfirmErase] = useState(false);
   const [erasing, setErasing] = useState(false);
+  const [push, setPush] = useState<PushState>('available');
+  const [pushBusy, setPushBusy] = useState(false);
 
   const auth = () => ({ Authorization: `Bearer ${token}` });
+
+  // Where this device stands with phone notifications (unsupported, not set up,
+  // blocked, already on, or can be turned on). Checked once the person is in.
+  useEffect(() => {
+    if (!token) return;
+    void pushState().then(setPush).catch(() => setPush('unsupported'));
+  }, [token]);
+
+  async function enablePush(): Promise<void> {
+    setPushBusy(true);
+    setError('');
+    try {
+      const sub = await subscribeThisDevice();
+      const res = await fetch(`${API}/portal/push/subscribe`, {
+        method: 'POST',
+        headers: { ...auth(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub),
+      });
+      if (!res.ok) throw new Error('The church could not save this phone. Try again later.');
+      const body = (await res.json().catch(() => ({}))) as { vapidConfigured?: boolean };
+      setPush('subscribed');
+      setNotice(
+        body.vapidConfigured
+          ? 'Phone notifications are on for this device.'
+          : 'This device is saved, but the church has not finished setting notifications up yet.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not turn on notifications.');
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function disablePush(): Promise<void> {
+    setPushBusy(true);
+    try {
+      const endpoint = await unsubscribeThisDevice();
+      if (endpoint) {
+        await fetch(`${API}/portal/push/subscribe`, {
+          method: 'DELETE',
+          headers: { ...auth(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        });
+      }
+      setPush('available');
+      setNotice('Phone notifications are off for this device.');
+    } catch {
+      setError('Could not turn off notifications. Try again.');
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   // The person's own erasure right (Privacy Policy §5). Two taps so a stray
   // click cannot delete a life's record; the server anonymises, it does not
@@ -586,6 +641,29 @@ export default function PortalPage() {
               <div className="muted">{r.body}</div>
             </div>
           ))}
+          <div style={{ marginTop: 10 }}>
+            <b>Phone notifications</b>
+            <p className="muted" style={{ margin: '2px 0 6px', fontSize: '.85rem' }}>
+              {push === 'subscribed'
+                ? 'On for this device — you will be told when the church posts news.'
+                : push === 'denied'
+                  ? 'Blocked. Allow notifications for this site in your browser settings, then try again.'
+                  : push === 'unconfigured'
+                    ? 'The church has not finished setting these up yet.'
+                    : push === 'unsupported'
+                      ? 'This browser cannot show phone notifications.'
+                      : 'Turn on to be told when the church posts news, even when this page is closed.'}
+            </p>
+            {push === 'subscribed' ? (
+              <button className="small secondary" disabled={pushBusy} onClick={() => void disablePush()}>
+                {pushBusy ? 'Working…' : 'Turn off'}
+              </button>
+            ) : push === 'available' ? (
+              <button className="small" disabled={pushBusy} onClick={() => void enablePush()}>
+                {pushBusy ? 'Working…' : 'Turn on'}
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}

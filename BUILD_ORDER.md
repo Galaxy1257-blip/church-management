@@ -768,6 +768,25 @@ the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
 - [x] Tests: shared 177 (7 new outreach cases), API 234 (4 new permission/metadata cases), web 18; typecheck
       (5 workspaces), lint, `check:secrets` clean. Migration 17 applied to the local Postgres as the owner.
 
+## R11. Web push delivery ✅ (15 Nov 2026 — needs the owner's VAPID keys to go live)
+- [x] **The "Push (needs VAPID)" option in announcements now really rings phones.** Service worker gained
+      `push` + `notificationclick` handlers (offline cache untouched); `apps/web/src/lib/push.ts` subscribes a
+      device with the VAPID public key. Members subscribe from the portal notification pane; staff from
+      Settings → SMS setup. `POST /push/subscribe` (staff, `members:read`), `POST/DELETE /portal/push/subscribe`
+      (member token), `GET /push/status`, `POST /push/test` (`settings:write`).
+- [x] **The sender** (`apps/api/src/ministry/push.module.ts`, `web-push`): `notifyChurch` reads the church's
+      `settings.pushEnabled` (default on) and every subscription, signs with VAPID, sends, and prunes dead
+      devices on 404/410. No keys → `configured:false` (quiet no, never an error); switch off → `enabled:false`.
+      Announcement create calls it when the notice carries the PUSH channel; a push failure never fails the save.
+- [x] **Schema:** migration 18 makes `PushSubscription.userId` nullable and adds `memberId`, so a portal member
+      can subscribe (RLS already forced on the table by `churchId`).
+- [x] **Legal:** the privacy page already named "push-notification subscription details"; added the push service
+      as a processor (`PROCESSORS.push`) and bumped `LEGAL_UPDATED` → 15 Nov 2026 (both legal pages read it).
+- [x] Tests: `push.spec.ts` (5 — no-keys no-op, switch-off, sends to each, prunes 410, route permissions).
+      Verified live: boot check passes, `GET /push/status` → `configured:false`, subscribe/test/delete OK, Settings
+      card renders at 390px with the honest "no keys yet" copy. **Owner step to deliver:** set the three VAPID env
+      vars on Render + `NEXT_PUBLIC_VAPID_PUBLIC_KEY` on Vercel (`npx web-push generate-vapid-keys`).
+
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed
 tokens) · households/guardians ✅ · children dual-ticket ✅ · visitor slips + GH phone norm ✅ · drip

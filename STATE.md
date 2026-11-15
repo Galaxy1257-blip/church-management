@@ -1,5 +1,20 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-15 (Session AJ — **#13 Outreach starter module DONE**): a standalone opt-in module for the
+Last updated: 2026-11-15 (Session AJ — **web push / phone notifications built**): the two missing halves of push
+are in. Browser side: `public/sw.js` gained push + notificationclick handlers (offline cache untouched) and
+`apps/web/src/lib/push.ts` subscribes a device with the VAPID public key — members from the portal notification
+pane, staff from Settings → SMS setup (church-level switch `settings.pushEnabled`, default on). Server side:
+`apps/api/src/ministry/push.module.ts` uses `web-push`; `notifyChurch` reads `settings.pushEnabled` + every
+subscription, signs with VAPID, sends, and prunes dead devices on 404/410 — no keys = `configured:false` (quiet
+no, not an error), switch off = `enabled:false`, only real successes count as sent. Announcing with the PUSH
+channel calls it (a push failure never fails the save). Migration 18 adds `PushSubscription.memberId` (userId
+nullable) so members can subscribe; routes `POST/DELETE /push/subscribe` (staff, members:read),
+`POST/DELETE /portal/push/subscribe` (member token), `GET /push/status`, `POST /push/test` (settings:write).
+Privacy page adds the push service as a processor and `LEGAL_UPDATED` → 15 Nov 2026. Gates: shared 177, API 240
+(5 new push cases), web 18, typecheck/lint/secrets clean; migration 18 applied locally. **Owner step to deliver:**
+`npx web-push generate-vapid-keys` → set `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` on Render and
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` on Vercel, then Settings → SMS setup → *Send a test*. Real delivery not exercised
+(needs keys + a real phone).
+Also in Session AJ — **#13 Outreach starter module DONE**: a standalone opt-in module for the
 record of community outreach and evangelism outings and the people met there. Off by default, with its own
 Settings → App sections switch `outreach` (both switch-table copies — packages/shared + web `lib/access.ts` —
 list the key) enforced on the API (`@ForModule('outreach')`, so a typed URL cannot read a switched-off section).

@@ -8,6 +8,7 @@ import BillingPanel from '../../../components/billing-panel';
 import { clearSession } from '../../../lib/session';
 import { MODULE_KEYS, MODULE_LABELS } from '../../../lib/access';
 import Notice from '../../../components/notice';
+import { subscribeThisDevice } from '../../../lib/push';
 import {
   BUILTIN_SMS_TEMPLATES,
   DENOMINATION_PRESETS,
@@ -120,6 +121,11 @@ export default function SettingsPage() {
   const [quiet, setQuiet] = useState<{ enabled: boolean; start: number; end: number }>({ enabled: true, start: 20, end: 8 });
   // Guardian texts on child check-in/out: its own switch, on unless turned off.
   const [pickupSms, setPickupSms] = useState(true);
+  // Phone notifications (web push): on unless turned off; delivery needs server keys.
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushResult, setPushResult] = useState('');
   const [locKey, setLocKey] = useState('tw');
   // denomination terminology pack.
   const [denomKey, setDenomKey] = useState('DEFAULT');
@@ -181,6 +187,8 @@ export default function SettingsPage() {
       if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
       if (p.smsQuietHours) setQuiet({ enabled: p.smsQuietHours.enabled !== false, start: p.smsQuietHours.start ?? 20, end: p.smsQuietHours.end ?? 8 });
       if (typeof p.childPickupSms === 'boolean') setPickupSms(p.childPickupSms);
+      if (typeof p.pushEnabled === 'boolean') setPushEnabled(p.pushEnabled);
+      if (typeof p.pushConfigured === 'boolean') setPushConfigured(p.pushConfigured);
       if (typeof p.moneyOffStopsGiving === 'boolean') setStopGiving(p.moneyOffStopsGiving);
     }).catch(() => undefined);
     void api<any[]>('/giving/funds/all').then(setFunds).catch(() => undefined);
@@ -337,6 +345,38 @@ export default function SettingsPage() {
           : 'Guardian texts off — the desk will not text anyone when a child is checked in or collected.',
       );
     } catch (err) { setError(err instanceof Error ? err.message : 'could not save the guardian-text setting'); }
+  }
+
+  async function savePush(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    try {
+      await api('/churches/me/profile', { method: 'POST', body: { pushEnabled } });
+      setError('');
+      setNotice(
+        pushEnabled
+          ? 'Phone notifications on — a leader can now ring members\u2019 phones when they choose “Push” on a notice.'
+          : 'Phone notifications off — notices stay in the app and are not sent to phones.',
+      );
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not save the phone-notification setting'); }
+  }
+
+  /** Subscribe this office device, then ask the server to send one test push. */
+  async function sendTestPush(): Promise<void> {
+    setPushBusy(true);
+    setPushResult('');
+    try {
+      const sub = await subscribeThisDevice();
+      await api('/push/subscribe', { method: 'POST', body: sub });
+      const r = await api<{ configured: boolean; enabled: boolean; sent: number; pruned: number }>('/push/test', { method: 'POST' });
+      if (!r.configured) setPushResult('The server has no notification keys yet, so nothing was delivered.');
+      else if (!r.enabled) setPushResult('Phone notifications are switched off above, so nothing was sent.');
+      else if (r.sent === 0) setPushResult('No phones are subscribed yet — this device was just added, try once more.');
+      else setPushResult(`Sent to ${r.sent} phone${r.sent === 1 ? '' : 's'}.${r.pruned ? ` Removed ${r.pruned} dead.` : ''}`);
+    } catch (err) {
+      setPushResult(err instanceof Error ? err.message : 'Could not send a test.');
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   async function saveDenomination(e: FormEvent): Promise<void> {
@@ -853,6 +893,25 @@ export default function SettingsPage() {
           Text the guardian on check-in and collection
         </label>
         <button>Save guardian texts</button>
+      </form>
+
+      <form className="card stack" onSubmit={savePush} hidden={tab !== 'sms'}>
+        <h2>Phone notifications</h2>
+        <p className="muted">
+          When a leader posts a notice and ticks <b>Push</b>, members who turned notifications on get it on their
+          phone, even with the app closed. Free to send. {pushConfigured
+            ? 'This server has notification keys, so delivery works.'
+            : 'This server has no notification keys yet, so nothing can be delivered until the keys are added.'}
+        </p>
+        <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={pushEnabled} onChange={(e) => setPushEnabled(e.target.checked)} />
+          Let leaders ring phones with a notice
+        </label>
+        <button disabled={pushBusy}>Save phone notifications</button>
+        <button type="button" className="secondary" disabled={pushBusy || !pushConfigured} onClick={() => void sendTestPush()}>
+          {pushBusy ? 'Working…' : 'Send a test to this device'}
+        </button>
+        {pushResult ? <p className="muted" style={{ margin: 0 }}>{pushResult}</p> : null}
       </form>
 
       <form className="card stack" onSubmit={saveSmsLocales} hidden={tab !== 'sms'}>

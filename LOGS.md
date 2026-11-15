@@ -2491,3 +2491,37 @@ unticked here — ticked with the cross-reference and the honest "no screenshots
 `#60 Batch 5` was labelled fully open but branch RLS, the Render start command and quiet-hours-on-send are
 done; narrowed it to the one genuine gap, re-verified locally: **`audit_event` still has `relrowsecurity =
 false`** (Member/Expense are true/forced), so the audit-RLS part stays open.
+
+## 2026-11-15 — Session AJ (cont.): web push delivery built (owner: "finish it")
+
+**What was missing:** the push subscription table and `POST /push/subscribe` existed, but the web app never asked
+the browser to subscribe and nothing sent — so the announcements "Push (needs VAPID)" option did nothing.
+
+**Built the two missing halves.** (1) Browser side: `apps/web/public/sw.js` gained `push` + `notificationclick`
+handlers (the offline cache handler is untouched); `apps/web/src/lib/push.ts` registers the SW, asks permission,
+subscribes with the VAPID public key, and returns the token. The member portal's notification pane has a "Phone
+notifications" on/off control; Settings → SMS setup has a church-level switch + "Send a test to this device".
+(2) Server side: `apps/api/src/ministry/push.module.ts` now uses `web-push` (`notifyChurch`) — reads the church's
+`settings.pushEnabled` (default on) and every subscription, signs with VAPID, sends, and **prunes dead devices on
+404/410**. No keys = `configured:false` (a quiet no, not an error); switch off = `enabled:false`; only real
+successes count as `sent`. Announcing with the PUSH channel calls it, and a push failure never fails the save.
+Member subscriptions: migration 18 makes `PushSubscription.userId` nullable and adds `memberId`; members subscribe
+via `POST/DELETE /portal/push/subscribe` (member token), staff via `POST/DELETE /push/subscribe` (`members:read`);
+`GET /push/status`, `POST /push/test` (`settings:write`).
+
+**Legal:** the privacy page already listed "push-notification subscription details"; added the push delivery
+service as a processor (`PROCESSORS.push`) and bumped `LEGAL_UPDATED` → 15 Nov 2026 (both legal pages read it, so
+terms shows the new date too).
+
+**Gates:** shared 177 · API **240** (5 new push cases: no-keys no-op, switch-off, sends-to-each, prunes 410, route
+permissions) · web 18 · typecheck all 5 workspaces · eslint · `check:secrets` clean. Migration 18 applied locally
+as the owner; RLS already forced on `PushSubscription` (it has `churchId`).
+
+**Verified live** (local): boot check *"every HTTP route declares its access policy"*; `GET /push/status` →
+`configured:false`; subscribe 201, test 201 `{configured:false,enabled:true,sent:0}` (the honest quiet no), delete
+200; `profile.pushEnabled:true`, `pushConfigured:false`; the fake test row was removed (0 subscriptions left). The
+Settings card renders at 390px with the "no notification keys yet" copy and a disabled test button.
+
+**Said plainly:** real delivery to a device was **not** exercised — that needs the owner's VAPID keys and a real
+phone. Owner step: `npx web-push generate-vapid-keys`, then set `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`
+on Render and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (the same public key) on Vercel, redeploy, then Settings → *Send a test*.

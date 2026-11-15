@@ -198,6 +198,10 @@ export class ChurchesService {
       smsQuietHours: resolveSmsQuietHours(s),
       /** Text the guardian when a child is checked in or out (on unless switched off). */
       childPickupSms: childPickupSmsEnabled(s),
+      /** Ring phones with a web push when a leader broadcasts (on unless switched off). */
+      pushEnabled: s.pushEnabled !== false,
+      /** True when the server has VAPID keys — without them push cannot be delivered. */
+      pushConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT),
       // Which areas of the app are switched on for this church (Settings → Modules).
       // The same resolveModules() the API guard uses, so the shell and the guard
       // can never disagree about what is on.
@@ -251,6 +255,8 @@ export class ChurchesService {
       smsQuietHours?: Partial<SmsQuietHours>;
       /** Text the guardian when a child is checked in or out (default on). */
       childPickupSms?: boolean;
+      /** Ring phones with a web push when a leader broadcasts (default on). */
+      pushEnabled?: boolean;
     },
     ip?: string,
   ) {
@@ -283,6 +289,9 @@ export class ChurchesService {
         ...(patch.moneyOffStopsGiving !== undefined ? { moneyOffStopsGiving: patch.moneyOffStopsGiving === true } : {}),
         ...(patch.smsQuietHours !== undefined ? { smsQuietHours: resolveSmsQuietHours({ smsQuietHours: patch.smsQuietHours }) } : {}),
         ...(patch.childPickupSms !== undefined ? { childPickupSms: patch.childPickupSms === true } : {}),
+        // Phone notifications (web push). Default on; only a stored `false` stops
+        // delivery. The send path reads this, so switching it off really stops push.
+        ...(patch.pushEnabled !== undefined ? { pushEnabled: patch.pushEnabled === true } : {}),
         // Module switches merge flag-by-flag; unknown keys and non-booleans are
         // dropped so a malformed body cannot brick the shell.
         ...(patch.modules !== undefined

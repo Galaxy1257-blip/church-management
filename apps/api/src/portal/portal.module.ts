@@ -1,6 +1,6 @@
 // Member self-service portal: OTP login bound to a Member record (no staff
 // account needed), my-giving history, giving statement (JSON/print-ready).
-import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
@@ -377,6 +377,31 @@ export class PortalService {
     });
   }
 
+  /** A member turns on phone notifications for this device. */
+  async subscribePush(token: string, input: { endpoint?: string; p256dh?: string; auth?: string }) {
+    const { member, churchId } = await this.portalUser(token);
+    const endpoint = String(input?.endpoint ?? '').trim();
+    const p256dh = String(input?.p256dh ?? '');
+    const auth = String(input?.auth ?? '');
+    if (!endpoint || !p256dh || !auth) throw new BadRequestException("Could not read this phone's notification details.");
+    await withTenant(churchId, null, (tx) =>
+      tx.pushSubscription.upsert({
+        where: { endpoint },
+        create: { churchId, memberId: member.id, userId: null, endpoint, p256dh, auth },
+        update: { churchId, memberId: member.id, userId: null, p256dh, auth },
+      }),
+    );
+    return { subscribed: true, vapidConfigured: !!process.env.VAPID_PUBLIC_KEY };
+  }
+
+  async unsubscribePush(token: string, endpoint: string) {
+    const { churchId } = await this.portalUser(token);
+    await withTenant(churchId, null, (tx) =>
+      tx.pushSubscription.deleteMany({ where: { endpoint: String(endpoint ?? ''), churchId } }),
+    );
+    return { removed: true };
+  }
+
   /** Welfare requests the leaders handed to this member to help with. */
   async assignedWelfare(token: string) {
     const { member, churchId } = await this.portalUser(token);
@@ -568,6 +593,20 @@ export class PortalController {
   @HttpCode(200)
   readNotifications(@Req() req: any, @Body() body: { ids?: string[] }) {
     return this.svc.readNotifications(bearer(req), Array.isArray(body?.ids) ? body.ids : undefined);
+  }
+
+  @Public()
+  @Post('push/subscribe')
+  @HttpCode(200)
+  pushSubscribe(@Req() req: any, @Body() body: { endpoint?: string; p256dh?: string; auth?: string }) {
+    return this.svc.subscribePush(bearer(req), body ?? {});
+  }
+
+  @Public()
+  @Delete('push/subscribe')
+  @HttpCode(200)
+  pushUnsubscribe(@Req() req: any, @Body('endpoint') endpoint: string) {
+    return this.svc.unsubscribePush(bearer(req), endpoint);
   }
 
   @Public()

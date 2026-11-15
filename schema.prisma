@@ -1348,11 +1348,16 @@ model Announcement {
 model PushSubscription {
   id        String   @id @default(uuid(7)) @db.Uuid
   churchId  String   @db.Uuid
-  userId    String   @db.Uuid
+  /// A staff account that subscribed, or null when a member subscribed from the portal.
+  userId    String?  @db.Uuid
+  /// A portal member that subscribed, or null when a staff account did.
+  memberId  String?  @db.Uuid
   endpoint  String   @unique
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+
+  @@index([churchId, memberId])
 }
 
 // One person's verse notes in the Bible panel. authorId is a staff User id or a
