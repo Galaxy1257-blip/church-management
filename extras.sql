@@ -51,6 +51,14 @@ BEGIN
       'CREATE POLICY tenant_isolation ON %I USING ("churchId"::text = (SELECT current_setting(''app.church_id'', true)))',
       t.table_name);
   END LOOP;
+  -- audit_event uses snake_case church_id (not churchId) — add it explicitly
+  IF to_regclass('public.audit_event') IS NOT NULL THEN
+    ALTER TABLE audit_event ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE audit_event FORCE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS tenant_isolation ON audit_event;
+    CREATE POLICY tenant_isolation ON audit_event
+      USING (church_id::text = (SELECT current_setting('app.church_id', true)));
+  END IF;
 END $$;
 -- Note: "churchId" is uuid on most tables and text on a few (SmsOptOut, AlertState, ChurchKey);
 -- comparing as text works for both. Tables with a NULLable churchId (InboundSms, ReconciliationRun)
@@ -144,6 +152,17 @@ CREATE INDEX IF NOT EXISTS idx_progress_due ON "FollowUpProgress" ("nextRunAt") 
 -- Fuzzy duplicate matching during member import
 CREATE INDEX IF NOT EXISTS idx_member_name_trgm ON "Member"
   USING gin ((lower("firstName" || ' ' || "lastName")) gin_trgm_ops);
+
+-- Directory paging: newest-first list inside one church without sorting the
+-- whole tenant on every page.
+CREATE INDEX IF NOT EXISTS idx_member_church_created ON "Member" ("churchId", "deletedAt", "createdAt" DESC);
+
+-- Directory search uses ILIKE '%q%', which a btree index cannot serve. Trigram
+-- GIN indexes do, so a 100k-member church searches without a seq scan.
+CREATE INDEX IF NOT EXISTS idx_member_first_name_trgm ON "Member" USING gin ("firstName" gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_member_last_name_trgm ON "Member" USING gin ("lastName" gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_member_no_trgm ON "Member" USING gin ("memberNo" gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_member_phone_trgm ON "Member" USING gin ("phoneE164" gin_trgm_ops);
 
 -- Foreign keys not expressed in Prisma (soft FKs): add the ones you want enforced, for example
 -- ALTER TABLE "Transaction" ADD CONSTRAINT tx_branch_fk FOREIGN KEY ("branchId") REFERENCES "Branch"(id);

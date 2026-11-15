@@ -811,6 +811,7 @@ tbody tr:hover td { background: var(--accent-soft); }
 
 /* ---------------------------------------------------------- forms */
 form.stack, .stack { display: flex; flex-direction: column; gap: 0.65rem; }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
 label {
   display: flex;
   flex-direction: column;
