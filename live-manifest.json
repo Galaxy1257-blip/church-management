@@ -108,6 +108,14 @@
       "livesIn": "github.com → repo → Settings → Secrets and variables → Actions",
       "breaksWithout": "the cron cannot wake the jobs service",
       "secret": true
+    },
+    {
+      "service": "chms-api",
+      "key": "VAPID_PRIVATE_KEY",
+      "livesIn": "Render dashboard only. The public half is committed in render.yaml (chms-api VAPID_PUBLIC_KEY and chms-web NEXT_PUBLIC_VAPID_PUBLIC_KEY); rotation notes sit in the owner's desktop key file, never in git.",
+      "breaksWithout": "phone notifications cannot be delivered — the app stays healthy and reports configured:false, it just goes quiet",
+      "secret": true,
+      "note": "One pair. Moving or rotating means taking the private half with the public one, and pasting the same pair into the new host in the same pass."
     }
   ],
 
