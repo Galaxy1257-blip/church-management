@@ -7,12 +7,16 @@ auto-deploys Render + Vercel).
 
 ## A. Approved roadmap batches still open
 
-- [ ] **#58 Batch 4 — phone + keyboard accessibility sweep.** Re-run Phases 1–3 checks
-      at desktop AND 390px across all screens; fix focus/tap/keyboard issues; report a
-      count ("0 failures over N screens in both themes").
-- [ ] **#60 Batch 5 — branch RLS backstop, Render start command, SMS quiet hours.**
-      `audit_event` has no RLS policy; Render start command; enforce SMS quiet hours on
-      send (not just the UI hint).
+- [x] **#58 Batch 4 — phone + keyboard accessibility sweep.** DONE (Session AG — see BUILD_ORDER
+      "Batch 4"): skip-to-content links, the 24px touch-target floor, 46 aria-labels (0 unlabeled
+      controls on re-audit), one shared `useDialogFocus` hook across all 4 dialogs, verified live at
+      390px. Only remaining gap, said plainly: the screenshots were unavailable (hidden browser surface),
+      so that pass rests on DOM + live keyboard-event checks, not images.
+- [ ] **#60 Batch 5 — mostly done; one part still open.** Branch RLS backstop, the Render start command
+      (`db:extras` + `db:appuser` after `migrate deploy`) and SMS quiet-hours-on-send are all **DONE**
+      (Session AG — BUILD_ORDER "Batch 5"). **Still open: `audit_event` has no RLS** — re-verified locally
+      15 Nov 2026 (`relrowsecurity = false`); the audit module filters by `church_id` in SQL instead. Add a
+      tenant-isolation policy for `audit_event` if a church's log should be RLS-guarded at the database too.
 - [x] **#59 Batch 6 — counselling notes screen.** DONE. The screen was built (see #46);
       the `/flyers` link and FEATURES §15 corrections are also done (see #48).
 - [x] **#78 — dashboard cards follow every App-section switch.** DONE. Audited all 10 widgets

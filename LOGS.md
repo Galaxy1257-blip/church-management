@@ -2485,3 +2485,9 @@ it is recorded as such, not ticked. A deploy of `2652a09` runs `prisma migrate d
 start command; check the deploy log.
 
 Docs only — no code change in this entry.
+
+**Also reconciled §A drift (§58/#60).** `#58 Batch 4` (accessibility) was already done in Session AG but sat
+unticked here — ticked with the cross-reference and the honest "no screenshots, DOM+keyboard evidence" caveat.
+`#60 Batch 5` was labelled fully open but branch RLS, the Render start command and quiet-hours-on-send are
+done; narrowed it to the one genuine gap, re-verified locally: **`audit_event` still has `relrowsecurity =
+false`** (Member/Expense are true/forced), so the audit-RLS part stays open.
