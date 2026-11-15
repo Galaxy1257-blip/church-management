@@ -749,6 +749,25 @@ the built-in writer in `apps/web/src/lib/pdf.ts` does all of it.
       overflow, widest button 244px (fits 390px). Typecheck + eslint + `check:secrets` clean. Screenshots not
       available (in-app browser surface hidden) — DOM verification used instead.
 
+## R10. Owner round 5 — Outreach starter module ✅ (owner backlog #13, 15 Nov 2026)
+- [x] **Outreach, off until a church ticks it on.** The record of community outreach and evangelism outings and
+      the people met there. New opt-in App-section switch `outreach` (default off) enforced on the API
+      (`@ForModule('outreach')`, covered by the module-coverage spec) and in the nav/route rules — both
+      switch-table copies (packages/shared + web `lib/access.ts`) list the key.
+- [x] **Schema + API.** `OutreachActivity` (dateKey, kind, place, leader, people reached, notes) and
+      `OutreachContact` (first/last name, normalised phone, note) in migration 17, RLS-forced. Validation in
+      `packages/shared/src/outreach.ts` (kinds + labels, calendar-date key, count clamp 0..100000, place).
+      `GET /outreach`, `POST /outreach`, `POST /outreach/:id/contacts` (`apps/api/src/outreach/outreach.module.ts`)
+      — read/write each carry their own permission, both append to the audit log.
+- [x] **Permissions.** `outreach:read` ("see outreach") and `outreach:write` ("change outreach") granted to
+      LEADER, ELDER, FOLLOWUP_TEAM (read+write) and SECRETARY (read only).
+- [x] **Web.** `/outreach` page under the Reach area (`outreach:read` in nav + route rules): a record-an-outing
+      form (date defaulted to today, kind chips, place, leader, people reached, notes) shown only to
+      `outreach:write` holders, and the outing list with reached/met badges; expanding one lets a writer add
+      the people met. Settings → App sections renders the "Outreach" switch automatically.
+- [x] Tests: shared 177 (7 new outreach cases), API 234 (4 new permission/metadata cases), web 18; typecheck
+      (5 workspaces), lint, `check:secrets` clean. Migration 17 applied to the local Postgres as the owner.
+
 ## Explicitly NOT recommended now (rebuild risk — already covered)
 Offline headcount+haptic ✅ · overcapacity 85/95 ✅ · projection screen ✅ · QR membership cards ✅ (hashed
 tokens) · households/guardians ✅ · children dual-ticket ✅ · visitor slips + GH phone norm ✅ · drip

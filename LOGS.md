@@ -2412,3 +2412,58 @@ clear the React-controlled verse input, so the bad verse was cleared through the
 **Docs:** #40/#45 ticked in OPEN_ITEMS §B with the evidence above; BUILD_ORDER's "no in-app voice" item
 replaced with the completed one (the phone home-screen widget stays listed as the owner's later ask);
 STATE header updated; this entry.
+
+## 2026-11-15 — Session AJ (Outreach starter module, #13)
+
+**Built:** a standalone opt-in module for the record of community outreach and evangelism outings, and the
+people met there. Off by default, with its own Settings switch that gates the API too, not just the button.
+
+**Shared rules** in `packages/shared/src/outreach.ts` (mirrored in the web page because the web bundle cannot
+import the workspace package): `OUTREACH_KINDS` (`EVANGELISM` / `VISIT` / `COMMUNITY` / `OTHER`) with
+plain-English `OUTREACH_KIND_LABELS`, `isOutreachKind`, `isCalendarDateKey` (a real `YYYY-MM-DD`, same rule
+the Sunday School calendar generalised), `outreachClampCount` (integer 0..100000, null for blank/whitespace)
+and `outreachPlace` (non-empty trimmed string). `outreach` added to `MODULE_KEYS` (default `false`) and to
+`PERMISSIONS` as `outreach:read` ("see outreach") and `outreach:write` ("change outreach"), granted to
+LEADER, ELDER and FOLLOWUP_TEAM (read+write) and SECRETARY (read only).
+
+**Schema + migration 17** (`OutreachActivity` + `OutreachContact`): activity carries `dateKey` (church-local),
+`kind`, `place`, `leaderName`, `peopleReached`, `notes`; a contact joins one activity with first/last name,
+an E.164 phone (normalised) and a note. Applied to the local Postgres as the owner; RLS forced on both
+tables (they spell `churchId`), `app_user` privileges set via default privileges + create-roles.
+
+**API** (`apps/api/src/outreach/outreach.module.ts`): `GET /outreach` (`outreach:read`) lists activities newest
+first with a `contactCount` per activity (groupBy); `POST /outreach` (`outreach:write`) validates the place,
+clamps the count, computes the church-local `dateKey` from the church timezone, and appends
+`outreach.create`; `POST /outreach/:id/contacts` (`outreach:write`) normalises the phone, finds the activity
+in the caller's church only, and appends `outreach.contact`. The controller is `@ForModule('outreach')`, so a
+typed URL cannot read a section the church turned off.
+
+**Web** (`apps/web/src/app/(app)/outreach/page.tsx`): an "Outreach" page under the Reach area (`outreach:read`
+in the nav and route rules) with a "Record an outing" form (date defaulted to today, kind chips, place, leader,
+people reached, notes) shown only to `outreach:write` holders, and the list of outings with reached/met badges;
+expanding an outing lets a writer add the people met. The Settings → App sections tab renders the new
+"Outreach" switch automatically from `MODULE_LABELS` in `lib/access.ts`, and the API honours it.
+
+**Tests:** shared 177 (7 new outreach cases: kinds, date validation, count clamp incl. whitespace, place),
+API 234 (4 new: the two required permissions pinned, `section(OutreachController) === 'outreach'`,
+`permissionLabel` for both new jobs). Web 18. typecheck (5 workspaces) · lint · `check:secrets` — all green.
+
+**Verified live at 390×844** (real login, demo church with the switch turned on): `/outreach` renders the record
+form (date defaulted to 15/11/2026, kind chips), and the "Outreach" item appears under REACH in the nav. The
+API path proven end to end — `GET` 200, `POST` 201 (dateKey 2026-11-15, count 42, place) and a contact POST 201
+with the phone normalised to `+233551234567`, `contactCount` 1. Through the UI: recorded "Nima Community Centre,
+25 reached, Elder Yaw" → form cleared and the row appeared; expanded it, added Adjoa Boateng → badge went to
+"1 met". Both gates proven: with the switch off (post the 30s flag TTL) `GET` and `POST` answer **403 "Outreach
+is switched off for this church. Turn it on in Settings → App sections."**; the Usher (no `outreach:read`) gets
+**403 "Your role is not allowed to see outreach."** Settings → App sections shows the new "Outreach" switch
+(checked) with its hint. No horizontal overflow (document width 390). Demo church restored to its exact prior
+state (`settings.modules.outreach` removed → default off) and the two test activities + two contacts deleted.
+
+**A UI bug found and fixed while verifying:** the outing rows were `<button className="plain spread">`, but no
+`.plain` class exists, so each row kept the filled brand-button ink — a dark-green card with dim subtitle text
+(the "button used as a card" defect earlier batches hit). Rewritten as a plain `<div>` header with the badges
+and a real `small secondary` "Add someone they met" toggle; contrast and layout are clean at 390px.
+
+**Docs:** #13 ticked in OPEN_ITEMS §B with this evidence; BUILD_ORDER gained a completed outreach line under
+the owner round-5 backlog; STATE header updated; this entry. (Outreach is off for the demo church by default,
+as a starter module should be — a church turns it on in Settings.)

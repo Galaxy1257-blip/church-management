@@ -145,6 +145,7 @@ export const MODULE_KEYS = [
   'sms',
   'departments',
   'branches',
+  'outreach',
   'audit',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -178,6 +179,10 @@ export const MODULE_LABELS: Record<ModuleKey, { label: string; hint: string }> =
   sms: { label: 'SMS campaigns', hint: 'Paid texts sent to many numbers at once' },
   departments: { label: 'Departments', hint: 'Church departments and their leaders' },
   branches: { label: 'Branches', hint: 'Branches and money sent to HQ' },
+  outreach: {
+    label: 'Outreach',
+    hint: 'Community outreach and evangelism outings, and the people you met there',
+  },
   audit: {
     label: 'Activity log',
     hint: 'Who changed what, and when. Switching this off hides the page — the app keeps recording either way.',
@@ -278,6 +283,9 @@ export const NAV_AREAS: NavArea[] = [
       { href: '/sms', label: 'SMS', permissions: ['sms:read'], module: 'sms' },
       { href: '/announcements', label: 'News', permissions: ['campaigns:read'] },
       { href: '/reminders', label: 'Reminders', permissions: ['campaigns:write'] },
+      // Community outreach and evangelism outings, and the people met there.
+      // Off until the office switches it on. The API enforces outreach:read/outreach:write.
+      { href: '/outreach', label: 'Outreach', permissions: ['outreach:read'], module: 'outreach' },
     ],
   },
   {
@@ -371,6 +379,7 @@ export const ROUTE_ACCESS: AccessRule[] = [
   { prefix: '/org', permissions: ['church:write', 'settings:write', 'branches:write'], label: 'Departments' },
   { prefix: '/branches', permissions: ['church:write', 'settings:write', 'finance:read'], label: 'Branches' },
   { prefix: '/audit', permissions: ['audit:read'], label: 'Activity log' },
+  { prefix: '/outreach', permissions: ['outreach:read'], label: 'Outreach' },
   { prefix: '/settings', permissions: ['settings:write'], label: 'Settings' },
   // Custom features the office delivered for this church (settings.customFeatures).
   { prefix: '/extras', permissions: ['church:read'], label: 'Extras' },

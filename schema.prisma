@@ -888,6 +888,45 @@ model ClassRegisterMark {
   @@index([churchId, dateKey])
 }
 
+/// One outreach outing: street evangelism, a home or hospital visit, a school
+/// programme or community service. `dateKey` is the church-local day, so the
+/// record reads the same whatever timezone the server runs in.
+model OutreachActivity {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  churchId      String   @db.Uuid
+  dateKey       String   // YYYY-MM-DD in the church's timezone
+  kind          String   @default("EVANGELISM") // EVANGELISM|VISIT|COMMUNITY|OTHER
+  place         String
+  leaderName    String?
+  peopleReached Int      @default(0)
+  notes         String?
+  createdBy     String   @db.Uuid
+  createdAt     DateTime @default(now())
+
+  contacts OutreachContact[]
+
+  @@index([churchId, dateKey])
+}
+
+/// Someone met on an outing who may become a visitor. The phone is the link
+/// back to the register; converting them to a visitor is the follow-up team's
+/// job and uses the visitors feature, not this record.
+model OutreachContact {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  churchId   String   @db.Uuid
+  activityId String   @db.Uuid
+  firstName  String
+  lastName   String?
+  phoneE164  String?
+  note       String?
+  createdBy  String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  activity OutreachActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([churchId, activityId])
+}
+
 model Event {
   id           String    @id @default(uuid(7)) @db.Uuid
   churchId     String    @db.Uuid

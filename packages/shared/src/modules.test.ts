@@ -19,6 +19,7 @@ const defaults = {
   sms: false,
   departments: false,
   branches: false,
+  outreach: false,
   audit: false,
 };
 

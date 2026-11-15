@@ -1,6 +1,6 @@
 # OPEN_ITEMS — ChMS unfinished work (resume here)
 
-Last updated: 2026-11-14 (Session AI). The single source of truth for every undone
+Last updated: 2026-11-15 (Session AJ). The single source of truth for every undone
 prompt and unanswered question. Read this at the start of a new session before
 claiming new work. Tick a line only when the change is committed and pushed (which
 auto-deploys Render + Vercel).
@@ -27,7 +27,18 @@ auto-deploys Render + Vercel).
 
 ## B. Feature backlog (owner-approved, unbuilt)
 
-- [ ] #13 Outreach brainstorm + starter module
+- [x] #13 Outreach brainstorm + starter module — DONE (Session AJ). A standalone opt-in module: the record of
+      community outreach and evangelism outings and the people met there. `OutreachActivity` + `OutreachContact`
+      (migration 17, RLS-forced), validation in `packages/shared/src/outreach.ts` (kinds, calendar-date key,
+      count clamp, place), API in `apps/api/src/outreach/outreach.module.ts` (`GET /outreach`,
+      `POST /outreach`, `POST /outreach/:id/contacts`; `@ForModule('outreach')` gates the section off on the
+      API path), and a web page under the Reach area (`apps/web/src/app/(app)/outreach/page.tsx`) that renders
+      a record-an-outing form (date defaulted to today, kind chips, place, leader, people reached, notes) only
+      to `outreach:write` holders and lists outings with reached/met badges. New permissions `outreach:read`
+      ("see outreach") and `outreach:write` ("change outreach") granted to LEADER, ELDER, FOLLOWUP_TEAM
+      (read+write) and SECRETARY (read only). Off by default — a church turns it on in Settings → App sections,
+      and the switch gates the API too. Tests: shared 177 (7 new), API 234 (4 new), web 18; typecheck/lint/
+      secrets clean.
 - [x] #33 Class attendance register for the teacher's class — DONE. New `ClassRegisterMark` table
       (`migrations/16_class_register/migration.sql`), keyed by a church-local `dateKey` instead of a
       Service so a Sunday School with Services switched off still takes its register. `GET/PUT

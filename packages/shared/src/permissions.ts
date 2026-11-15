@@ -55,6 +55,11 @@ export const PERMISSIONS = [
   // elders, finance and the pastor handle it; ushers and teachers do not.
   'welfare:read',
   'welfare:write',
+  // Outreach outings and the people met there: a visitor-relations job, not a
+  // member edit. Reading the log and adding to it are separate permissions so a
+  // church can hand the clipboard to a worker without opening the register.
+  'outreach:read',
+  'outreach:write',
   // A door worker records the cash they counted; see finance.recordCollection.
   'collection:write',
 ] as const;
@@ -123,6 +128,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'care:moderate',
     'welfare:read',
     'welfare:write',
+    // The visitor team records what they met on an outing.
+    'outreach:read',
+    'outreach:write',
   ],
   LEADER: [
     ...READ_ONLY,
@@ -141,6 +149,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'giving:read',
     'campaigns:read',
     'reports:read',
+    // Leaders organise outings and log who they met.
+    'outreach:read',
+    'outreach:write',
   ],
   MEMBER: [],
   // R4.7 Ghana church roles: Elder (pastoral care + services) and
@@ -155,6 +166,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'care:moderate',
     'welfare:read',
     'welfare:write',
+    'outreach:read',
+    'outreach:write',
     'sms:read',
     'sms:send',
     'campaigns:read',
@@ -171,6 +184,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[] | typeof SUPER_ADMIN
     'campaigns:read',
     'campaigns:write',
     'reports:read',
+    // The secretary keeps the records of what the church reached out to.
+    'outreach:read',
   ],
   // Sunday School teachers run two things: the care queue for the class the
   // office assigned and the children's check-in desk for that same class. The
@@ -280,6 +295,7 @@ const JOB_AREAS: Record<string, string> = {
   settings: 'settings',
   care: 'care requests',
   welfare: 'welfare help',
+  outreach: 'outreach',
   collection: 'the offering count',
 };
 

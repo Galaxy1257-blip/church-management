@@ -23,6 +23,7 @@ describe('dashboardQuickLinks', () => {
     sms: true,
     departments: true,
     branches: true,
+    outreach: true,
     audit: true,
   };
 
@@ -105,6 +106,7 @@ function allOnFixture(): ModuleFlags {
     sms: true,
     departments: true,
     branches: true,
+    outreach: true,
     audit: true,
   };
 }

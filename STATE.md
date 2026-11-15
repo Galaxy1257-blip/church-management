@@ -1,5 +1,21 @@
 # STATE — Master session context (read this FIRST in a new session)
-Last updated: 2026-11-14 (Session AI — **#40/#45 daily reading in the app DONE**: a "Today's reading"
+Last updated: 2026-11-15 (Session AJ — **#13 Outreach starter module DONE**): a standalone opt-in module for the
+record of community outreach and evangelism outings and the people met there. Off by default, with its own
+Settings → App sections switch `outreach` (both switch-table copies — packages/shared + web `lib/access.ts` —
+list the key) enforced on the API (`@ForModule('outreach')`, so a typed URL cannot read a switched-off section).
+`OutreachActivity` + `OutreachContact` in migration 17, RLS-forced; validation in
+`packages/shared/src/outreach.ts` (kinds + plain-English labels, calendar-date key, count clamp 0..100000, place).
+API `apps/api/src/outreach/outreach.module.ts`: `GET /outreach` (`outreach:read`, newest first with contactCount),
+`POST /outreach` (`outreach:write`, computes church-local dateKey from timezone, appends `outreach.create`),
+`POST /outreach/:id/contacts` (`outreach:write`, normalises phone, church-scoped, appends `outreach.contact`).
+New permissions `outreach:read` ("see outreach") and `outreach:write` ("change outreach") granted to LEADER, ELDER,
+FOLLOWUP_TEAM (read+write) and SECRETARY (read only). Web `/outreach` page under the Reach area: a record-an-outing
+form (date defaulted to today, kind chips, place, leader, people reached, notes) shown only to `outreach:write`
+holders, plus the outing list with reached/met badges and an expand-to-add-contacts form. Verified: shared 177
+(7 new outreach cases), API 234 (4 new permission/metadata cases), web 18, typecheck (5 workspaces), lint,
+`check:secrets` clean; migration 17 applied to local Postgres as owner. Docs: OPEN_ITEMS #13 ticked (Last updated →
+15 Nov), BUILD_ORDER R10 added, LOGS Session AJ entry, STATE header now.
+Prior Session AI — **#40/#45 daily reading in the app DONE**: a "Today's reading"
 widget on the staff dashboard and a card on the member portal home, both following one shared rule —
 `inAppReadingOn()` in `packages/shared/src/daily-reading.ts` needs the Bible area on (Settings → App
 sections) **and** the reading's new free switch `settings.devotional.inApp` on (default on; only a stored
