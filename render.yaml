@@ -51,6 +51,17 @@ services:
       # ── URLs ─────────────────────────────────────────────────────────────────
       - key: WEB_URL
         sync: false
+      # ── Phone notifications (web push) ──────────────────────────────────────
+      # The public key is not a secret: it is served to every browser and is the
+      # applicationServerKey a device subscribes with. The PRIVATE key is a
+      # secret and is set once in the Render dashboard (sync: false) — it must
+      # never be committed. VAPID_SUBJECT is a mailto: the push service accepts.
+      - key: VAPID_PUBLIC_KEY
+        value: BHyepPMAuMfhAKv8Pv0Lm_7dSuALwco7g_KlHkwp-4AOce4XCJPGjOb3HX4g-4iVDyJXYbNKfCPXwbB65LvuuFI
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:app.omnilabs.dev@gmail.com
       # ── Platform ─────────────────────────────────────────────────────────────
       - key: PLATFORM_SIGNUP_KEY
         generateValue: true
@@ -104,6 +115,11 @@ services:
       # without it — see apps/web/next.config.mjs).
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      # Same public key as the API. Inlined into the client bundle at BUILD time
+      # (it is the key a device subscribes with), so it must be present before
+      # the build runs. Public, not a secret.
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        value: BHyepPMAuMfhAKv8Pv0Lm_7dSuALwco7g_KlHkwp-4AOce4XCJPGjOb3HX4g-4iVDyJXYbNKfCPXwbB65LvuuFI
 
   # ── Scheduled jobs (the worker, on the free plan) ────────────────────────────
   # `type: worker` + `plan: free` is refused by Render, which is why this
