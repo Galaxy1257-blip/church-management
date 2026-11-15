@@ -11,10 +11,15 @@ API `apps/api/src/outreach/outreach.module.ts`: `GET /outreach` (`outreach:read`
 New permissions `outreach:read` ("see outreach") and `outreach:write` ("change outreach") granted to LEADER, ELDER,
 FOLLOWUP_TEAM (read+write) and SECRETARY (read only). Web `/outreach` page under the Reach area: a record-an-outing
 form (date defaulted to today, kind chips, place, leader, people reached, notes) shown only to `outreach:write`
-holders, plus the outing list with reached/met badges and an expand-to-add-contacts form. Verified: shared 177
-(7 new outreach cases), API 234 (4 new permission/metadata cases), web 18, typecheck (5 workspaces), lint,
-`check:secrets` clean; migration 17 applied to local Postgres as owner. Docs: OPEN_ITEMS #13 ticked (Last updated →
-15 Nov), BUILD_ORDER R10 added, LOGS Session AJ entry, STATE header now.
+holders, plus the outing list with reached/met badges and an expand-to-add-contacts form. Verified live at
+390px (create + add contact persist, badges update, nav shows Outreach, Settings switch checked) and the two
+gates (switch-off → 403 section wording; Usher without `outreach:read` → 403 role wording); fixed a
+button-as-card contrast bug found while verifying; demo church restored to default (off) and test rows deleted.
+Gates: shared 177, API 234, web 18, typecheck (5 workspaces), lint, `check:secrets` clean; migration 17 applied
+to local Postgres as owner. **Also #92:** wrote the §D per-role permission audit (10 roles, 7 recommendations)
+from `ROLE_PERMISSIONS`, and checked §E (local DB 19/19 up to date; Neon not verifiable — MCP disconnected).
+Docs: OPEN_ITEMS #13 + §D/§E updated (Last updated → 15 Nov), BUILD_ORDER R10 added, LOGS Session AJ entries,
+STATE header now.
 Prior Session AI — **#40/#45 daily reading in the app DONE**: a "Today's reading"
 widget on the staff dashboard and a card on the member portal home, both following one shared rule —
 `inAppReadingOn()` in `packages/shared/src/daily-reading.ts` needs the Bible area on (Settings → App

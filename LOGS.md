@@ -2467,3 +2467,21 @@ and a real `small secondary` "Add someone they met" toggle; contrast and layout 
 **Docs:** #13 ticked in OPEN_ITEMS §B with this evidence; BUILD_ORDER gained a completed outreach line under
 the owner round-5 backlog; STATE header updated; this entry. (Outreach is off for the demo church by default,
 as a starter module should be — a church turns it on in Settings.)
+
+## 2026-11-15 — Session AJ (cont.): §D per-user permission audit + §E infra check (docs only)
+
+**#92 §D — permission audit DONE (read-only).** Wrote the per-role matrix from the single source of truth,
+`ROLE_PERMISSIONS` in `packages/shared/src/permissions.ts` (effective perms are derived from it per request,
+so a two-role user gets the union). All 10 roles documented in plain English (what they can do / cannot), plus
+7 decisions for the owner: pastor holds `users:write`+`settings:write`; `audit:read` reaches only Finance +
+pastor/office (consider Secretary); Secretary records outreach read-only; FOLLOWUP_TEAM and ELDER decide
+welfare payments (confirm); USHER can publish prayer requests (`care:moderate`); LEADER≠teacher (the true
+least-privilege teacher is `SUNDAY_SCHOOL`); outreach already least-privilege. Written into OPEN_ITEMS §D.
+
+**#92 §E — infra checked where possible.** `npx prisma migrate status` = *"Database schema is up to date!"*,
+19 migrations found (through `17_outreach`) on local Postgres. The Neon half (whether 12–17 applied there,
+and the earlier mojibake check) could **not** be verified this session — the Neon MCP was disconnected — so
+it is recorded as such, not ticked. A deploy of `2652a09` runs `prisma migrate deploy` on Render per the
+start command; check the deploy log.
+
+Docs only — no code change in this entry.

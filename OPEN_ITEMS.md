@@ -148,23 +148,58 @@ auto-deploys Render + Vercel).
 - [ ] No permanent **FOLLOWUP_TEAM** demo login exists.
 - [ ] Roster/pledge assign forms take a **raw Member UUID** (no name picker).
 
-## D. Standing owner asks still partly owed
+## D. Per-user permission audit + recommendations (DONE — Session AJ, 15 Nov 2026)
 
-- [ ] "Audit each user and their permissions and actions allowed, suggest
-      recommendations" — demo logins were delivered; the per-user permission matrix +
-      plain-English recommendations still need a written pass.
+Owner ask: *"audit each user and their permissions and actions allowed, suggest recommendations."*
+Done from source — the single table `ROLE_PERMISSIONS` in `packages/shared/src/permissions.ts`.
+Effective permissions are derived from that table on every request (`auth.service` maps the user's
+role keys through it), so **editing the table changes everyone at once**; a user with two roles gets
+the union. The demo logins map 1:1 to a role, so the matrix below is what each demo account can do.
+Plain-English labels come from `JOB_AREAS` / `JOB_VERBS` / `JOB_PHRASES` (the same words a 403 prints).
+
+| Role (demo login) | Tier / scope | What they can do (in the office's words) |
+| --- | --- | --- |
+| SUPER_ADMIN (Dev Admin) | PLATFORM · all churches | Everything (`*`) — the platform office only |
+| PASTOR (Pastor) | CHURCH · whole church | Every church module (all permissions): members, staff, money, SMS, settings, audit, care, outreach… |
+| FINANCE_ADMIN (Finance) | DEPARTMENT | See members + staff; record/approve offerings; submit/approve expenses; send/buy texts; campaigns; reports; read the audit log; read/decide welfare |
+| USHER (Usher) | DEPARTMENT | See members; record the attendance; take the door register; count the offering; read/add visitor cards; work the care queue and approve prayer requests |
+| FOLLOWUP_TEAM (no demo login) | DEPARTMENT | See members; read/add visitors; send texts; care queue + prayer wall; read/decide welfare; read/write outreach |
+| LEADER (Teacher demo) | DEPARTMENT | See/add/edit/import members; update age groups; move members between branches; record attendance; door register; count offering; visitors; see offerings; see campaigns; reports; read/write outreach |
+| ELDER (Elder) | DEPARTMENT | See members; read/add visitors; care queue + prayer wall; read/decide welfare; read/write outreach; send texts; see campaigns |
+| SECRETARY (Secretary) | DEPARTMENT | See/add/edit/import members; update age groups; move members between branches; edit services; see visitors; read/write campaigns; reports; **read** outreach |
+| SUNDAY_SCHOOL (Teacher) | DEPARTMENT · own class | See services; view/record care for the assigned class; run the children's desk for that class. No member directory, no money, no welfare, no prayer-wall approval |
+| MEMBER (Akosua) | SELF | Nothing in the staff app — the member portal only (own giving, own data, delete own account) |
+
+**Recommendations (each is the owner's decision — no code assumed):**
+1. **The pastor is a full church admin**, including `users:write` (create/disable staff logins) and
+   `settings:write` (flip module switches). If the pastor should not be able to lock out another leader
+   or hide a whole section, move `users:write` to the office only.
+2. **`audit:read` reaches only Finance + the pastor/office.** The **Secretary** keeps the church's records
+   but cannot open the activity log; consider granting `audit:read` to SECRETARY.
+3. **The Secretary records outreach read-only** (keeps the clipboard's records, does not log outings).
+   If they should also add outings, grant `outreach:write`.
+4. **FOLLOWUP_TEAM and ELDER hold `welfare:write`** — they decide welfare *payments*, which is money.
+   Confirm that is intended; otherwise welfare approval could stay with finance + pastor.
+5. **USHER holds `care:moderate`** — can publish a prayer request to the public wall. Confirm that policy.
+6. **LEADER is a leadership role, not a teacher.** It holds broad `members:write`. The demo *Teacher*
+   login is a LEADER, so in the demo it can edit members; the least-privilege teacher is the separate
+   `SUNDAY_SCHOOL` role. Do not map a real Sunday School teacher to LEADER.
+7. **Outreach is already least-privilege** (LEADER/ELDER/FOLLOWUP read+write, SECRETARY read only, no one
+   else) — the model this batch was built against.
 
 ## E. Data / infra to-dos
 
-- [ ] **Migrations 12 + 13** (`member_posts`, `notifications`) are applied to local
-      Postgres only — NOT yet applied to Neon. Apply via `prepare_database_migration`
-      before any Neon schema write. **Also 14 (`program_collections`) and 15
-      (`programs`)**: the Render start command now runs `prisma migrate deploy`, so
-      check the deploy log first — a push to main may have applied 12–15 already;
-      only apply manually if not.
+- [x] **Local Postgres is fully migrated** — `npx prisma migrate status` reports *"Database schema is up to
+      date!"*, 19 migrations found (through `17_outreach`), verified 15 Nov 2026. Migrations 12–17
+      (`member_posts`, `notifications`, `program_collections`, `programs`, `class_register`, `outreach`) are
+      all applied locally.
+- [ ] **Neon**: the Render start command runs `prisma migrate deploy`, so a deploy applies 12–17 to Neon.
+      **Not verified this session** — the Neon MCP was disconnected, so I could not query Neon directly.
+      Check the Render deploy log (or Neon) after the deploy of `2652a09`; only run
+      `prepare_database_migration` by hand if the log shows it did not apply.
 - [ ] Check Neon for seeded **mojibake** in expense/announcement text (the demo seed
       `scripts/tmp-demo-data2.js` had double-encoded em-dashes, now fixed at source; the
-      DB rows seeded earlier may still hold them).
+      DB rows seeded earlier may still hold them). **Not verified this session** — same Neon access gap.
 
 ## F. Hosting will move (Neon / Vercel / Render are temporary)
 
