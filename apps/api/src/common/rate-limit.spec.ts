@@ -1,7 +1,10 @@
+import 'reflect-metadata';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ExecutionContext, HttpException } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
-import { RateLimit, RateLimitGuard, resetRateLimits, take } from './rate-limit';
+import { RateLimit, RATE_LIMIT_KEY, RateLimitGuard, resetRateLimits, take } from './rate-limit';
+import { PortalController } from '../portal/portal.module';
 import { timingSafeEqualStr } from './crypto';
 
 describe('take (fixed-window buckets)', () => {
@@ -86,6 +89,25 @@ describe('RateLimitGuard', () => {
     expect(guard.canActivate(context(handler, request('+233240000002')))).toBe(true);
     // Third request from the same IP, even with a brand-new phone number.
     expect(() => guard.canActivate(context(handler, request('+233240000003')))).toThrow(HttpException);
+  });
+});
+
+describe('portal OTP wiring', () => {
+  it('runs RateLimitGuard on the portal controller (metadata alone does nothing)', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, PortalController) as unknown[];
+    expect(guards).toContain(RateLimitGuard);
+  });
+
+  it('declares buckets on both OTP handlers', () => {
+    const requestBuckets = Reflect.getMetadata(RATE_LIMIT_KEY, PortalController.prototype.requestOtp) as
+      | { key: string; byPhone?: boolean }[]
+      | undefined;
+    const verifyBuckets = Reflect.getMetadata(RATE_LIMIT_KEY, PortalController.prototype.verifyOtp) as
+      | { key: string }[]
+      | undefined;
+    expect(requestBuckets?.map((b) => b.key)).toContain('otp:request:ip');
+    expect(requestBuckets?.some((b) => b.byPhone)).toBe(true);
+    expect(verifyBuckets?.map((b) => b.key)).toContain('otp:verify:ip');
   });
 });
 

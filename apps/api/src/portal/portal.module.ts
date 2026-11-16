@@ -1,7 +1,7 @@
 // Member self-service portal: OTP login bound to a Member record (no staff
 // account needed), my-giving history, giving statement (JSON/print-ready).
-import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { RateLimit } from '../common/rate-limit';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Injectable, Module, Param, Patch, Post, Query, Req, UnauthorizedException, BadRequestException, UseGuards } from '@nestjs/common';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { prisma, withTenant } from '@chms/db';
@@ -507,6 +507,7 @@ function bearer(req: any): string {
 }
 
 @Controller('portal')
+@UseGuards(RateLimitGuard)
 export class PortalController {
   constructor(private readonly svc: PortalService, private readonly notes: BibleNotesService) {}
 

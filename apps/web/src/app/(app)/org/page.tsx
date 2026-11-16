@@ -36,12 +36,12 @@ export default function OrgPage() {
   // someone who can transfer but cannot create rather than left there to fail.
   const [canAddBranch, setCanAddBranch] = useState(false);
 
-  async function load(showBranches: boolean): Promise<void> {
+  async function load(showBranches: boolean, showHouseholds: boolean): Promise<void> {
     try {
       const [b, t, h] = await Promise.all([
         showBranches ? api<Branch[]>('/branches') : Promise.resolve<Branch[]>([]),
         showBranches ? api<Transfer[]>('/branches/transfers?status=PENDING') : Promise.resolve<Transfer[]>([]),
-        api<Household[]>('/households'),
+        showHouseholds ? api<Household[]>('/households') : Promise.resolve<Household[]>([]),
       ]);
       setBranches(b); setPending(t); setHouseholds(h);
       if (!transfer.toBranchId && b[0]) setTransfer((p) => ({ ...p, toBranchId: b[0].id }));
@@ -54,19 +54,19 @@ export default function OrgPage() {
       const mods = session?.modules;
       setModules(mods);
       setCanAddBranch(hasPermission(session?.permissions ?? [], 'settings:write'));
-      await load(moduleEnabled(mods, 'branches'));
+      await load(moduleEnabled(mods, 'branches'), moduleEnabled(mods, 'departments'));
     })();
   }, []);
 
   async function addBranch(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/branches', { method: 'POST', body: branchForm }); setBranchForm({ name: '', code: '' }); setNotice('Branch added'); await load(true); }
+    try { await api('/branches', { method: 'POST', body: branchForm }); setBranchForm({ name: '', code: '' }); setNotice('Branch added'); await load(true, moduleEnabled(modules, 'departments')); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
   async function requestTransfer(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/branches/transfers', { method: 'POST', body: transfer }); setNotice('Transfer requested — awaits approval by another leader'); await load(true); }
+    try { await api('/branches/transfers', { method: 'POST', body: transfer }); setNotice('Transfer requested — awaits approval by another leader'); await load(true, moduleEnabled(modules, 'departments')); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
@@ -74,13 +74,13 @@ export default function OrgPage() {
     try {
       await api(`/branches/transfers/${id}/approve`, { method: 'POST', body: { approve } });
       setNotice(approve ? 'Transfer approved — the member has moved branch' : 'Transfer declined — the member stays where they are');
-      await load(moduleEnabled(modules, 'branches'));
+      await load(moduleEnabled(modules, 'branches'), moduleEnabled(modules, 'departments'));
     } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
   async function addHousehold(e: FormEvent): Promise<void> {
     e.preventDefault();
-    try { await api('/households', { method: 'POST', body: { name: hhForm.name, headMemberId: hhForm.headMemberId || undefined } }); setHhForm({ name: '', headMemberId: '' }); setNotice('Household created'); await load(moduleEnabled(modules, 'branches')); }
+    try { await api('/households', { method: 'POST', body: { name: hhForm.name, headMemberId: hhForm.headMemberId || undefined } }); setHhForm({ name: '', headMemberId: '' }); setNotice('Household created'); await load(moduleEnabled(modules, 'branches'), moduleEnabled(modules, 'departments')); }
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
