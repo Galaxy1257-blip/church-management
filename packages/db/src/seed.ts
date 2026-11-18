@@ -15,7 +15,16 @@ async function main(): Promise<void> {
   if (!church) {
     console.log(`Church "${slug}" not found — creating it with dev admin 0240000000 / admin1234`);
     const created = await withPlatform(async (tx) => {
-      const c = await tx.church.create({ data: { name: slug === 'demo' ? 'Demo Church' : slug, slug } });
+      // Never leave a seeded church grandfathered by accident. The demo tenant is
+      // explicitly exempt (it must never lock in dev or a demo); any real slug gets
+      // the same 14-day trial the sign-up path assigns. Keep 14 in sync with
+      // TRIAL_DAYS in apps/api/src/billing/billing.logic.ts.
+      const c = await tx.church.create({
+        data:
+          slug === 'demo'
+            ? { name: 'Demo Church', slug, billingExempt: true }
+            : { name: slug, slug, trialEndsAt: new Date(Date.now() + 14 * 86_400_000) },
+      });
       const hash = await bcrypt.hash('admin1234', 10);
       const u = await tx.user.create({
         data: { churchId: c.id, name: 'Dev Admin', phoneE164: '+233240000000', passwordHash: hash },
