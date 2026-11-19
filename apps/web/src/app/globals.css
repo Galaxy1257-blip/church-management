@@ -674,6 +674,52 @@ input[type='reset'] {
 }
 .side-action:hover { color: var(--terracotta); filter: none; }
 
+/* Sidebar link icons + desktop collapse to an icon rail. */
+.side-link .nav-ic {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--muted);
+}
+.side-link.active .nav-ic { color: inherit; }
+.side-head { position: relative; }
+.side-collapse { display: none; }
+@media (min-width: 901px) {
+  .side-collapse {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    right: 0.6rem;
+    top: 0.8rem;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .side-collapse svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .side-nav.collapsed { width: var(--rail-w); }
+  .side-nav.collapsed .side-head { align-items: center; padding: 0.9rem 0.35rem 0.7rem; }
+  .side-nav.collapsed .church,
+  .side-nav.collapsed .side-search,
+  .side-nav.collapsed .side-label,
+  .side-nav.collapsed .side-text,
+  .side-nav.collapsed .side-empty,
+  .side-nav.collapsed .side-foot { display: none; }
+  .side-nav.collapsed .side-groups { padding: 0.4rem 0.4rem 0.8rem; }
+  .side-nav.collapsed .side-link { justify-content: center; padding: 0.55rem 0.2rem; gap: 0; }
+  .side-nav.collapsed .side-collapse { position: static; margin-top: 0.45rem; }
+  .side-nav.collapsed .side-collapse svg { transform: rotate(180deg); }
+}
+
 /* Usher mode: a labelled rail — one tap per page, no dropdowns. */
 .app-shell.usher-shell .side-nav { width: var(--rail-w); background: var(--brand); border-right: 0; }
 .app-shell.usher-shell .side-head {
@@ -688,10 +734,10 @@ input[type='reset'] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.28rem;
-  padding: 0.6rem 0.2rem;
+  gap: 0.32rem;
+  padding: 0.72rem 0.2rem;
   border-radius: 10px;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 600;
   text-align: center;
   color: rgba(255, 253, 248, 0.78);
@@ -702,7 +748,7 @@ input[type='reset'] {
   color: var(--brand-ink);
   box-shadow: inset 2px 0 0 var(--accent);
 }
-.rail-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.rail-item svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .app-shell.usher-shell .side-foot { border-top-color: rgba(255, 253, 248, 0.16); padding: 0.6rem 0.3rem 0.8rem; align-items: center; }
 .app-shell.usher-shell .side-role { display: none; }
 .app-shell.usher-shell .side-action { color: var(--brand-ink); font-size: 0.72rem; text-align: center; padding: 0.35rem 0.15rem; }

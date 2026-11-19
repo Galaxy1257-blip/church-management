@@ -4,7 +4,7 @@
 // component never decides who may see what — it only renders and searches.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   SCOPE_LABEL,
   describeRoles,
@@ -36,6 +36,8 @@ export default function AppNav({
 }) {
   const pathname = usePathname() ?? '';
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Desktop: collapse the sidebar to an icon rail. Phones always use the drawer.
+  const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLElement>(null);
@@ -48,6 +50,31 @@ export default function AppNav({
     setDrawerOpen(false);
     setQuery('');
   }, [pathname]);
+
+  // Restore the desktop collapse preference, and keep --side-w in step so the
+  // content margin follows. Narrow screens ignore it (the drawer takes over).
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem('chms.sideCollapsed') === '1');
+    } catch {
+      /* private mode — default expanded */
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const wide = window.matchMedia('(min-width: 901px)');
+    const apply = () => {
+      document.documentElement.style.setProperty('--side-w', collapsed && wide.matches ? '80px' : '240px');
+    };
+    apply();
+    wide.addEventListener('change', apply);
+    try {
+      localStorage.setItem('chms.sideCollapsed', collapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    return () => wide.removeEventListener('change', apply);
+  }, [collapsed]);
 
   // Drawer: Escape closes, and the page behind it does not scroll.
   useEffect(() => {
@@ -118,13 +145,32 @@ export default function AppNav({
         </Link>
       </div>
 
-      <aside ref={menuRef} tabIndex={-1} id="app-menu" className={`side-nav${drawerOpen ? ' open' : ''}`} aria-label="Main menu">
+      <aside
+        ref={menuRef}
+        tabIndex={-1}
+        id="app-menu"
+        className={`side-nav${drawerOpen ? ' open' : ''}${collapsed && !usherMode ? ' collapsed' : ''}`}
+        aria-label="Main menu"
+      >
         <div className="side-head">
           <Link href={home} className="brand" title={me.church.name}>
             {logo ? <img src={logo} alt="" style={{ height: 22 }} /> : null}
-            ChMS
+            <span className="side-text">ChMS</span>
           </Link>
           <span className="church">{me.church.name}</span>
+          {!usherMode ? (
+            <button
+              type="button"
+              className="side-collapse"
+              aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((v) => !v)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+          ) : null}
           <button
             type="button"
             className="side-close"
@@ -167,10 +213,12 @@ export default function AppNav({
               {hasPermission(me.permissions, 'church:read') ? (
                 <Link
                   href="/dashboard"
+                  title="Dashboard"
                   className={`side-link${isActive('/dashboard') ? ' active' : ''}`}
                   aria-current={isActive('/dashboard') ? 'page' : undefined}
                 >
-                  Dashboard
+                  <NavIcon href="/dashboard" />
+                  <span className="side-text">Dashboard</span>
                 </Link>
               ) : null}
 
@@ -181,10 +229,12 @@ export default function AppNav({
                     <Link
                       key={item.href}
                       href={item.href}
+                      title={item.label}
                       className={`side-link${isActive(item.href) ? ' active' : ''}`}
                       aria-current={isActive(item.href) ? 'page' : undefined}
                     >
-                      {item.label}
+                      <NavIcon href={item.href} />
+                      <span className="side-text">{item.label}</span>
                     </Link>
                   ))}
                 </div>
@@ -201,10 +251,12 @@ export default function AppNav({
               {hasPermission(me.permissions, 'settings:write') ? (
                 <Link
                   href="/settings"
+                  title="Settings"
                   className={`side-link side-settings${isActive('/settings') ? ' active' : ''}`}
                   aria-current={isActive('/settings') ? 'page' : undefined}
                 >
-                  Settings
+                  <NavIcon href="/settings" />
+                  <span className="side-text">Settings</span>
                 </Link>
               ) : null}
             </nav>
@@ -296,6 +348,158 @@ function RailIcon({ href }: { href: string }) {
   return (
     <svg {...common}>
       <circle cx="10" cy="10" r="6" />
+    </svg>
+  );
+}
+
+/** Outlined icon per destination (Lucide-style, one stroke weight). */
+function NavIcon({ href }: { href: string }) {
+  const seg = href.replace(/^\//, '').split('/')[0];
+  const icons: Record<string, ReactNode> = {
+    dashboard: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1.6" />
+        <rect x="14" y="3" width="7" height="7" rx="1.6" />
+        <rect x="14" y="14" width="7" height="7" rx="1.6" />
+        <rect x="3" y="14" width="7" height="7" rx="1.6" />
+      </>
+    ),
+    members: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </>
+    ),
+    visitors: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M19 8v6M22 11h-6" />
+      </>
+    ),
+    'join-card': (
+      <>
+        <circle cx="8" cy="15" r="4" />
+        <path d="M11 12l9-9M17 6l3 3M15 8l3 3" />
+      </>
+    ),
+    groups: (
+      <>
+        <circle cx="9" cy="8" r="3.2" />
+        <circle cx="17" cy="9" r="2.4" />
+        <path d="M3.5 19c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
+        <path d="M15.5 19c0-2 1.4-3.4 3.4-3.4S22 16.9 22 19" />
+      </>
+    ),
+    children: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 10h.01M15 10h.01" />
+        <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8" />
+      </>
+    ),
+    checkin: (
+      <>
+        <rect x="8" y="2" width="8" height="4" rx="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <path d="M9 14l2 2 4-4" />
+      </>
+    ),
+    services: (
+      <>
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M3 9h18M8 2v4M16 2v4" />
+        <path d="M9 15l2 2 4-4" />
+      </>
+    ),
+    roster: (
+      <>
+        <path d="M8 6h13M8 12h13M8 18h13" />
+        <path d="M3 6h.01M3 12h.01M3 18h.01" />
+      </>
+    ),
+    events: (
+      <>
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M3 9h18M8 2v4M16 2v4" />
+      </>
+    ),
+    finance: (
+      <>
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="2.5" />
+        <path d="M6 12h.01M18 12h.01" />
+      </>
+    ),
+    expenses: (
+      <>
+        <path d="M6 2h12a1 1 0 0 1 1 1v19l-2.5-1.5L14 22l-2-1.5L10 22l-2.5-1.5L5 22V3a1 1 0 0 1 1-1z" />
+        <path d="M9 7h6M9 11h6M9 15h4" />
+      </>
+    ),
+    announcements: (
+      <>
+        <path d="M3 11l18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </>
+    ),
+    reminders: (
+      <>
+        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M10.3 21a2 2 0 0 0 3.4 0" />
+      </>
+    ),
+    outreach: (
+      <>
+        <path d="M4 22V4" />
+        <path d="M4 4h12l-2 4 2 4H4" />
+      </>
+    ),
+    sms: (
+      <>
+        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </>
+    ),
+    care: (
+      <>
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+      </>
+    ),
+    org: (
+      <>
+        <rect x="5" y="3" width="14" height="18" rx="1.5" />
+        <path d="M9 21v-4h6v4" />
+        <path d="M9 7h.01M12 7h.01M15 7h.01M9 11h.01M12 11h.01M15 11h.01" />
+      </>
+    ),
+    branches: (
+      <>
+        <circle cx="6" cy="6" r="2.5" />
+        <circle cx="6" cy="18" r="2.5" />
+        <circle cx="18" cy="8" r="2.5" />
+        <path d="M6 8.5v7" />
+        <path d="M18 10.5c0 4-4 5-4 5H9" />
+      </>
+    ),
+    audit: (
+      <>
+        <path d="M3 3v5h5" />
+        <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+        <path d="M12 7v5l4 2" />
+      </>
+    ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+      </>
+    ),
+  };
+  return (
+    <svg className="nav-ic" viewBox="0 0 24 24" aria-hidden="true">
+      {icons[seg] ?? <circle cx="12" cy="12" r="6" />}
     </svg>
   );
 }
