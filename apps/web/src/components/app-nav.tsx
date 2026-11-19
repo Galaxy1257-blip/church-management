@@ -38,6 +38,8 @@ export default function AppNav({
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Desktop: collapse the sidebar to an icon rail. Phones always use the drawer.
   const [collapsed, setCollapsed] = useState(false);
+  // Search is hidden for short menus; ⌘K or the header icon opens it on demand.
+  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLElement>(null);
@@ -48,8 +50,29 @@ export default function AppNav({
   // Navigation closes the drawer and clears the filter.
   useEffect(() => {
     setDrawerOpen(false);
+    setSearchOpen(false);
     setQuery('');
   }, [pathname]);
+
+  // Focus the filter when it is opened by ⌘K or the header icon.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const t = window.setTimeout(() => searchRef.current?.focus(), 40);
+    return () => window.clearTimeout(t);
+  }, [searchOpen]);
+
+  // Escape dismisses the on-demand filter (the drawer's own Escape stays too).
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !drawerOpen) {
+        setSearchOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [searchOpen, drawerOpen]);
 
   // Restore the desktop collapse preference, and keep --side-w in step so the
   // content margin follows. Narrow screens ignore it (the drawer takes over).
@@ -98,7 +121,8 @@ export default function AppNav({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         if (window.matchMedia('(max-width: 900px)').matches) setDrawerOpen(true);
-        window.setTimeout(() => searchRef.current?.focus(), 40);
+        setCollapsed(false);
+        setSearchOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -126,6 +150,13 @@ export default function AppNav({
       ? 'My class'
       : SCOPE_LABEL[me.scope ?? 'ALL'];
   const roleLabel = `${describeRoles(me.roles)} · ${scopeLabel}`;
+  // Short, role-filtered menus don't need a visible search box; keep it for long
+  // ones (a super admin) and open it on demand everywhere via ⌘K or the icon.
+  const navCount =
+    (hasPermission(me.permissions, 'church:read') ? 1 : 0) +
+    groups.reduce((n, g) => n + g.items.length, 0) +
+    (hasPermission(me.permissions, 'settings:write') ? 1 : 0);
+  const showSearch = searchOpen || navCount > 8;
   const logo = me.church.branding?.logoDataUrl;
 
   return (
@@ -197,17 +228,19 @@ export default function AppNav({
           </nav>
         ) : (
           <>
-            <div className="side-search">
-              <input
-                ref={searchRef}
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search pages…"
-                aria-label="Search pages"
-              />
-              <kbd>⌘K</kbd>
-            </div>
+            {showSearch ? (
+              <div className="side-search">
+                <input
+                  ref={searchRef}
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search pages…"
+                  aria-label="Search pages"
+                />
+                <kbd>⌘K</kbd>
+              </div>
+            ) : null}
 
             <nav className="side-groups" aria-label="Sections">
               {hasPermission(me.permissions, 'church:read') ? (
