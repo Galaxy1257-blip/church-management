@@ -29,6 +29,7 @@ import {
 import { BillingService } from '../billing/billing.service';
 import { deriveBilling } from '../billing/billing.logic';
 import { ChurchesService } from '../churches/churches.service';
+import { sectionsNeededForRoles } from './role-sections';
 import { buildImportPreview, insertImportRows, type ImportPreview, type ImportRowInput } from '../members/members-import.service';
 import type { Env } from '../env';
 import type { PlatformActor } from './platform.guard';
@@ -528,7 +529,7 @@ export class PlatformService {
     },
     ip?: string,
   ) {
-    const church = await prisma.church.findUnique({ where: { id: input.churchId }, select: { id: true } });
+    const church = await prisma.church.findUnique({ where: { id: input.churchId }, select: { id: true, settings: true } });
     if (!church) throw new NotFoundException('church not found');
     if (input.password.length < 6) throw new BadRequestException('password must be at least 6 characters');
     const phone = normalizeGhPhone(input.phoneE164);
@@ -568,7 +569,15 @@ export class PlatformService {
       roles: roleKeys,
       ...careClass,
     }, undefined, ip);
-    return { id, name: input.name, phoneE164: phone, roles: roles.map((r) => r.key), ...careClass };
+    return {
+      id,
+      name: input.name,
+      phoneE164: phone,
+      roles: roles.map((r) => r.key),
+      ...careClass,
+      // Offer, never impose: the web console turns these on only if the office taps.
+      sectionsToEnable: sectionsNeededForRoles(roleKeys, church.settings),
+    };
   }
 
   async updateUser(
@@ -659,7 +668,13 @@ export class PlatformService {
       { roles: user.roles.map((r) => r.role.key) },
       ip,
     );
-    return { roles: roles.map((r) => r.key), permissions: permissionsForRoles(roles.map((r) => r.key)) };
+    const church = await prisma.church.findUnique({ where: { id: user.churchId }, select: { settings: true } });
+    return {
+      roles: roles.map((r) => r.key),
+      permissions: permissionsForRoles(roles.map((r) => r.key)),
+      // Offer, never impose — the console asks before switching a section on.
+      sectionsToEnable: sectionsNeededForRoles(roles.map((r) => r.key), church?.settings),
+    };
   }
 
   /** One-time link the office opens to work inside a church as this user. */

@@ -751,6 +751,8 @@ function UsersCard({
   const [addForm, setAddForm] = useState({ name: '', phoneE164: '', password: '' });
   const [addRoles, setAddRoles] = useState<string[]>(['MEMBER']);
   const [addClass, setAddClass] = useState('');
+  // Sections a just-added role needs but the church has switched off. We only ask.
+  const [enablePrompt, setEnablePrompt] = useState<{ key: string; label: string }[]>([]);
 
   // The teacher role only exists for a church that runs the Care section.
   const roleOptions = ROLE_OPTIONS.filter((role) => role.key !== 'SUNDAY_SCHOOL' || careOn);
@@ -761,11 +763,23 @@ function UsersCard({
     return list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
   }
 
+  async function enableSections(): Promise<void> {
+    if (!enablePrompt.length) return;
+    const modules = Object.fromEntries(enablePrompt.map((s) => [s.key, true]));
+    await run(
+      () => platformApi(`/platform/churches/${churchId}`, { method: 'PATCH', body: { modules } }),
+      'App sections updated for this church.',
+    );
+    setEnablePrompt([]);
+  }
+
   async function createUser(e: FormEvent): Promise<void> {
     e.preventDefault();
-    await run(
-      () =>
-        platformApi('/platform/users', {
+    let needed: { key: string; label: string }[] = [];
+    await run(async () => {
+      const created = await platformApi<{ sectionsToEnable?: { key: string; label: string }[] }>(
+        '/platform/users',
+        {
           method: 'POST',
           body: {
             churchId,
@@ -773,13 +787,15 @@ function UsersCard({
             roleKeys: addRoles.length ? addRoles : ['MEMBER'],
             ...(addWantsTeacher ? splitClass(addClass) : {}),
           },
-        }),
-      'User created. Give them the temporary password in person.',
-    );
+        },
+      );
+      needed = created.sectionsToEnable ?? [];
+    }, 'User created. Give them the temporary password in person.');
     setAddForm({ name: '', phoneE164: '', password: '' });
     setAddRoles(['MEMBER']);
     setAddClass('');
     setAdding(false);
+    setEnablePrompt(needed);
   }
 
   function assignedClass(user: PlatformChurchUser): string | null {
@@ -811,6 +827,23 @@ function UsersCard({
           {adding ? 'Close' : 'Add a user'}
         </button>
       </div>
+
+      {enablePrompt.length ? (
+        <div className="card" role="status" style={{ marginBottom: '0.9rem', borderColor: 'var(--accent, #b98421)' }}>
+          <p style={{ margin: '0 0 0.5rem' }}>
+            This role needs <b>{enablePrompt.map((s) => s.label).join(', ')}</b>, which is off for this church. Turn{' '}
+            {enablePrompt.length > 1 ? 'them' : 'it'} on so the person has somewhere to work?
+          </p>
+          <div className="row">
+            <button type="button" className="small" disabled={busy} onClick={() => void enableSections()}>
+              Turn on
+            </button>
+            <button type="button" className="small secondary" onClick={() => setEnablePrompt([])}>
+              Not now
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {adding ? (
         <form className="stack" onSubmit={createUser} style={{ marginBottom: '0.9rem' }}>
@@ -947,6 +980,7 @@ function UsersCard({
           careOn={careOn}
           busy={busy}
           run={run}
+          onEnableSections={setEnablePrompt}
           onClose={() => setSelected(null)}
         />
       ) : null}
@@ -960,6 +994,7 @@ function UserEditor({
   careOn,
   busy,
   run,
+  onEnableSections,
   onClose,
 }: {
   user: PlatformChurchUser;
@@ -967,6 +1002,7 @@ function UserEditor({
   careOn: boolean;
   busy: boolean;
   run: (fn: () => Promise<unknown>, message: string) => Promise<void>;
+  onEnableSections: (sections: { key: string; label: string }[]) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(user.name);
@@ -987,8 +1023,13 @@ function UserEditor({
   }
 
   async function saveRoles(): Promise<void> {
+    let needed: { key: string; label: string }[] = [];
     await run(async () => {
-      await platformApi(`/platform/users/${user.id}/roles`, { method: 'POST', body: { roleKeys: roles } });
+      const result = await platformApi<{ sectionsToEnable?: { key: string; label: string }[] }>(
+        `/platform/users/${user.id}/roles`,
+        { method: 'POST', body: { roleKeys: roles } },
+      );
+      needed = result.sectionsToEnable ?? [];
       if (!roles.includes('SUNDAY_SCHOOL')) {
         await platformApi(`/platform/users/${user.id}`, {
           method: 'PATCH',
@@ -996,6 +1037,7 @@ function UserEditor({
         });
       }
     }, 'Roles saved.');
+    onEnableSections(needed);
   }
 
   return (
