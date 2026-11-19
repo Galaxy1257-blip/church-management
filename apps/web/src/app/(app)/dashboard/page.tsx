@@ -202,7 +202,7 @@ export default function DashboardPage() {
         <>
           <div className="dash-grid">
             {needRows.length ? (
-              <section className="card">
+              <section className="card glass-hero">
                 <div className="spread">
                   <h2 style={{ margin: 0 }}>Needs you</h2>
                   <span className="badge ok">{needRows.length}</span>
