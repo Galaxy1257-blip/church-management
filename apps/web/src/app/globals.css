@@ -39,6 +39,20 @@
   --shadow-sm: 0 1px 2px rgba(48, 34, 18, 0.05), 0 3px 10px rgba(48, 34, 18, 0.04);
   --shadow-md: 0 10px 28px rgba(48, 34, 18, 0.14);
   --radius: 14px;
+  /* Modernisation tokens: one spacing rhythm, three surface radii, two shadows.
+     New rules should use these instead of one-off numbers. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --shadow-xs: 0 1px 2px rgba(34, 27, 21, 0.04);
+  --shadow-card: 0 1px 2px rgba(34, 27, 21, 0.04), 0 12px 32px -26px rgba(34, 27, 21, 0.4);
   --font-display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 }
 
@@ -488,8 +502,8 @@ body {
     radial-gradient(900px 480px at 108% -4%, var(--glow-brand), transparent 58%);
   background-attachment: fixed;
   color: var(--ink);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 15.5px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -504,8 +518,8 @@ h1, h2, h3, .brand {
   letter-spacing: -0.01em;
   color: var(--ink);
 }
-h1 { font-size: clamp(1.55rem, 2.4vw, 2rem); margin: 0 0 0.65rem; }
-h2 { font-size: 1.16rem; margin: 1.15rem 0 0.55rem; display: flex; align-items: center; gap: 0.5rem; }
+h1 { font-size: clamp(1.7rem, 2.6vw, 2.15rem); letter-spacing: -0.02em; margin: 0 0 0.7rem; }
+h2 { font-size: 1.18rem; letter-spacing: -0.01em; margin: 1.2rem 0 0.6rem; display: flex; align-items: center; gap: 0.5rem; }
 h2::before {
   content: '';
   width: 4px;
@@ -775,10 +789,10 @@ input[type='reset'] {
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 1.15rem 1.2rem;
-  margin-bottom: 1rem;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem 1.25rem;
+  margin-bottom: 1.1rem;
+  box-shadow: var(--shadow-card);
 }
 
 /* A <button> used as a card is a surface you can click, not a control — the
@@ -874,9 +888,9 @@ label {
 }
 input, select, textarea {
   font: inherit;
-  padding: 0.52rem 0.65rem;
+  padding: 0.58rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--input-bg);
   color: var(--ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -891,16 +905,16 @@ textarea { min-height: 90px; resize: vertical; }
 
 button {
   font: inherit;
-  padding: 0.52rem 1rem;
+  padding: 0.58rem 1.05rem;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background-color: var(--brand);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.12));
+  background-image: none;
   color: var(--brand-ink);
   cursor: pointer;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(34, 27, 21, 0.16);
-  transition: filter 0.15s ease, transform 0.06s ease, background 0.15s ease;
+  box-shadow: var(--shadow-xs);
+  transition: filter 0.15s ease, transform 0.06s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 button:hover { filter: brightness(1.07); }
 button:active { transform: translateY(1px); }
@@ -982,7 +996,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .badge {
   display: inline-block;
-  padding: 0.12rem 0.55rem;
+  padding: 0.14rem 0.6rem;
   border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 700;
@@ -1196,7 +1210,7 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0;
+  padding: 0.65rem 0;
   border-top: 1px solid var(--line);
   color: inherit;
 }
@@ -1217,15 +1231,15 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 .dash-dot.gold { background: var(--accent); }
 .dash-dot.terra { background: var(--terracotta); }
 .dash-dot.forest { background: var(--brand); }
-.dash-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; text-align: center; margin-top: 0.3rem; }
-.dash-num { font-size: 1.5rem; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
-.dash-lab { font-size: 0.72rem; color: var(--muted); }
+.dash-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; text-align: center; margin-top: 0.4rem; }
+.dash-num { font-size: 1.7rem; font-weight: 700; color: var(--brand); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.dash-lab { font-size: 0.75rem; color: var(--muted); }
 .dash-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.6rem;
-  border-radius: 0.6rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--ink);
@@ -1261,9 +1275,9 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   background: var(--card);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
-  border-radius: 0.7rem;
-  padding: 0.7rem 0.85rem;
-  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  padding: 0.8rem 0.95rem;
+  font-size: 0.88rem;
 }
 .dash-verse .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-read { color: var(--brand); font-weight: 650; white-space: nowrap; }
