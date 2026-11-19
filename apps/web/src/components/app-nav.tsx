@@ -150,13 +150,15 @@ export default function AppNav({
       ? 'My class'
       : SCOPE_LABEL[me.scope ?? 'ALL'];
   const roleLabel = `${describeRoles(me.roles)} · ${scopeLabel}`;
-  // Short, role-filtered menus don't need a visible search box; keep it for long
-  // ones (a super admin) and open it on demand everywhere via ⌘K or the icon.
+  // Short, role-filtered menus don't need a visible search box. Keep it for a
+  // superuser/dev (wildcard '*') and for any genuinely long menu; everyone else
+  // summons it on demand with ⌘K.
+  const isSuperUser = hasPermission(me.permissions, '*');
   const navCount =
     (hasPermission(me.permissions, 'church:read') ? 1 : 0) +
     groups.reduce((n, g) => n + g.items.length, 0) +
     (hasPermission(me.permissions, 'settings:write') ? 1 : 0);
-  const showSearch = searchOpen || navCount > 8;
+  const showSearch = searchOpen || isSuperUser || navCount > 8;
   const logo = me.church.branding?.logoDataUrl;
 
   return (
