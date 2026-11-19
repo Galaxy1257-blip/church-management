@@ -1,608 +1,334 @@
 'use client';
-// Dashboard: the numbers and lists each role may read, arranged the way that
-// person likes. Edit mode reorders and hides widgets; the layout is remembered
-// in this browser (localStorage), so every signed-in user keeps their own.
+// Dashboard: one calm screen that answers "what needs me now?". Three core cards
+// (Needs you · Today · This week) on top; three "only if it has something" cards
+// below (Coming up · Care queue · Giving trend). A card with nothing in it does
+// not render, and the two secondary cards drop off on phones.
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
-import { fmtDate, fmtDateTime, ghs } from '../../../lib/format';
 import { dashboardQuickLinks, hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import { doorView } from '../../../lib/door';
-import MemberDrawer from '../../../components/member-drawer';
 
-interface DashboardData {
-  wallet: { balanceUnits: number; reservedUnits: number } | null;
-  services: { id: string; name: string; startsAt: string; status: string }[];
-  totals: { totals: { segmentKey: string; label: string; net: number }[]; netTotal: number } | null;
-  byFund: { fund: string; totalMinor: number; count: number }[];
-  visitors: { id: string; firstName: string; createdAt: string }[];
-  bySunday: { date: string; totalMinor: number; count: number }[];
-  churn: { memberId: string; name: string; risk: string; lastCheckIn: string | null }[];
-  tasks: {
-    id: string;
-    type: string;
-    status: string;
-    dueAt: string;
-    note?: string | null;
-    memberId?: string | null;
-    member?: { id: string; firstName: string; lastName: string } | null;
-  }[];
-  events: { id: string; title: string; startsAt: string; venue?: string | null }[];
-  announcements: { id: string; title: string; body: string; category: string; publishAt: string; memberId?: string | null }[];
-  // null when the church switched the reading off; 'error' when it is on but
-  // the passage could not be loaded (usually a pinned verse the Bible lacks).
-  reading: TodayReading | null;
+interface BySunday { date: string; totalMinor: number; count: number }
+interface VisitorRow { id: string; firstName: string; createdAt: string }
+interface ChurnRow { memberId: string; name: string; risk: string; lastCheckIn: string | null }
+interface TaskRow {
+  id: string;
+  type: string;
+  status: string;
+  dueAt: string;
+  note?: string | null;
+  memberId?: string | null;
+  member?: { id: string; firstName: string; lastName: string } | null;
+}
+interface EventRow { id: string; title: string; startsAt: string; venue?: string | null }
+interface TransferRow { id: string; status: string }
+interface ReadingRow { ref: string; text: string; note?: string }
+
+interface Need {
+  key: string;
+  title: string;
+  sub: string;
+  href: string;
+  tone: 'gold' | 'terra' | 'forest';
 }
 
-type TodayReading =
-  | { state: 'ok'; ref: string; text: string; note: string; translation: string }
-  | { state: 'error' };
-
-type WidgetKey =
-  | 'stats'
-  | 'today'
-  | 'reading'
-  | 'attendance'
-  | 'latest-service'
-  | 'funds'
-  | 'trend'
-  | 'care'
-  | 'events'
-  | 'churn'
-  | 'news';
-
-const WIDGETS: { key: WidgetKey; label: string }[] = [
-  { key: 'stats', label: 'Key numbers' },
-  { key: 'today', label: 'Quick actions' },
-  { key: 'reading', label: "Today's reading" },
-  { key: 'attendance', label: 'Sunday attendance' },
-  { key: 'latest-service', label: 'Latest service' },
-  { key: 'funds', label: 'Offering by category' },
-  { key: 'trend', label: 'Offering trend' },
-  { key: 'care', label: 'Care queue' },
-  { key: 'events', label: 'Upcoming events' },
-  { key: 'churn', label: 'Members to check on' },
-  { key: 'news', label: 'Announcements' },
-];
-const DEFAULT_ORDER = WIDGETS.map((w) => w.key);
-const LAYOUT_KEY = 'chms.dashboard.layout';
-// The owner asked for a dashboard that answers "how are we doing" in one
-// glance, so everything past the fourth card starts folded away.
-const FOLD_AFTER = 4;
-
-interface Layout {
-  order: WidgetKey[];
-  hidden: WidgetKey[];
-  expanded: boolean;
-}
-
-function readLayout(): Layout {
-  if (typeof window === 'undefined') return { order: DEFAULT_ORDER, hidden: [], expanded: false };
-  try {
-    const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}') as Partial<Layout>;
-    const order = (raw.order ?? []).filter((k): k is WidgetKey => DEFAULT_ORDER.includes(k as WidgetKey));
-    const hidden = (raw.hidden ?? []).filter((k): k is WidgetKey => DEFAULT_ORDER.includes(k as WidgetKey));
-    return {
-      order: [...order, ...DEFAULT_ORDER.filter((k) => !order.includes(k))],
-      hidden,
-      expanded: raw.expanded === true,
-    };
-  } catch {
-    return { order: DEFAULT_ORDER, hidden: [], expanded: false };
-  }
-}
+const DAY_MS = 86_400_000;
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
   const [perms, setPerms] = useState<string[]>([]);
   const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
-  const [layout, setLayout] = useState<Layout>({ order: DEFAULT_ORDER, hidden: [], expanded: false });
-  const [editing, setEditing] = useState(false);
-  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [counted, setCounted] = useState<number | null>(null);
+  const [bySunday, setBySunday] = useState<BySunday[]>([]);
+  const [visitors, setVisitors] = useState<VisitorRow[]>([]);
+  const [churn, setChurn] = useState<ChurnRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [transfers, setTransfers] = useState<TransferRow[]>([]);
+  const [reading, setReading] = useState<ReadingRow | null>(null);
+  const [readingNote, setReadingNote] = useState('');
 
-  // Only ask for what this role may read: one 403 anywhere used to blank the
-  // whole dashboard because Promise.all rejects on the first failure.
   useEffect(() => {
-    setLayout(readLayout());
     (async () => {
       try {
-        // Shared, cached: the shell already fetched this on the same page load.
         const session = await getSession();
         const granted = session.permissions;
         setPerms(granted);
         setModules(session.modules);
-        const can = (perm: string) => hasPermission(granted, perm);
-        // The reading is free, so its only gate is the church's own switch;
-        // /churches/me/devotional/today honours it on the API path and answers
-        // `inApp: false` (a quiet no) rather than an error.
-        const reading = can('church:read')
-          ? api<{ inApp: boolean; reading: { ref: string; text: string; note: string; translation: string } | null }>(
-              '/churches/me/devotional/today',
-            )
-              .then((r): TodayReading | null =>
-                r.inApp ? (r.reading ? { state: 'ok', ...r.reading } : { state: 'error' }) : null,
-              )
-              .catch((): TodayReading => ({ state: 'error' }))
-          : Promise.resolve(null);
-        const [wallet, door, byFund, visitors, bySunday, churn, tasks, events, announcements, readingState] = await Promise.all([
-          can('sms:read') ? api<NonNullable<DashboardData['wallet']>>('/sms/wallet').catch(() => null) : Promise.resolve(null),
+        const can = (p: string) => hasPermission(granted, p);
+        const mod = (k: ModuleKey) => moduleEnabled(session.modules, k);
+
+        const readingP = can('church:read')
+          ? api<{ inApp: boolean; reading: ReadingRow | null }>('/churches/me/devotional/today')
+              .then((r) => {
+                if (!r.inApp) setReading(null);
+                else if (r.reading) setReading(r.reading);
+                else setReadingNote("Today's reading could not be loaded.");
+              })
+              .catch(() => setReadingNote("Today's reading could not be loaded."))
+          : Promise.resolve();
+        const doorP =
           can('services:read') || can('checkin:write')
             ? doorView(granted, session.roles, session.modules)
-            : Promise.resolve(null),
-          can('reports:read') ? api<DashboardData['byFund']>('/finance/reports/by-fund').catch(() => []) : Promise.resolve([]),
-          can('visitors:read') ? api<DashboardData['visitors']>('/visitors').catch(() => []) : Promise.resolve([]),
-          can('reports:read') ? api<DashboardData['bySunday']>('/finance/reports/by-sunday').catch(() => []) : Promise.resolve([]),
-          can('care:read') && can('members:read') ? api<DashboardData['churn']>('/members/meta/churn').catch(() => []) : Promise.resolve([]),
-          can('care:read') ? api<DashboardData['tasks']>('/tasks').catch(() => []) : Promise.resolve([]),
-          can('services:write') ? api<DashboardData['events']>('/events').catch(() => []) : Promise.resolve([]),
-          can('campaigns:read') ? api<DashboardData['announcements']>('/announcements').catch(() => []) : Promise.resolve([]),
-          reading,
-        ]);
-        const services = door?.services ?? [];
-        const totals = door
-          ? { totals: door.segments, netTotal: door.counted }
-          : null;
-        setData({ wallet, services, totals, byFund, visitors, bySunday, churn, tasks, events, announcements, reading: readingState });
+                .then((d) => setCounted(d.counted))
+                .catch(() => setCounted(null))
+            : Promise.resolve();
+        const bySundayP =
+          can('reports:read') && mod('money')
+            ? api<BySunday[]>('/finance/reports/by-sunday').then(setBySunday).catch(() => undefined)
+            : Promise.resolve();
+        const visitorsP =
+          can('visitors:read') && mod('people')
+            ? api<VisitorRow[]>('/visitors').then(setVisitors).catch(() => undefined)
+            : Promise.resolve();
+        const churnP =
+          can('care:read') && can('members:read') && mod('care')
+            ? api<ChurnRow[]>('/members/meta/churn').then(setChurn).catch(() => undefined)
+            : Promise.resolve();
+        const tasksP =
+          can('care:read') && mod('care')
+            ? api<TaskRow[]>('/tasks').then(setTasks).catch(() => undefined)
+            : Promise.resolve();
+        const eventsP =
+          can('services:write') && mod('events')
+            ? api<EventRow[]>('/events').then(setEvents).catch(() => undefined)
+            : Promise.resolve();
+        // /org (where transfers are approved) is gated on Departments, so only
+        // offer the transfer row when that page is actually reachable.
+        const transfersP =
+          mod('branches') && mod('departments') && can('members:read')
+            ? api<TransferRow[]>('/branches/transfers?status=PENDING').then(setTransfers).catch(() => undefined)
+            : Promise.resolve();
+
+        await Promise.all([readingP, doorP, bySundayP, visitorsP, churnP, tasksP, eventsP, transfersP]);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'failed to load');
+      } finally {
+        setLoaded(true);
       }
     })();
   }, []);
 
-  const has = (perm: string) => hasPermission(perms, perm);
-  const mod = (key: ModuleKey) => moduleEnabled(modules, key);
-  // One rule for the quick actions: a link only shows when its section is on,
-  // and the whole card disappears when no link survives (#78).
-  const quickLinks = dashboardQuickLinks(perms, modules);
-  const attendanceVisible = has('services:read') && (mod('worship') || has('headcount:write'));
-  // /events sits behind its own switch now, not the Services one — reading
-  // worship here used to offer a card the church had switched off.
-  const eventsVisible = has('services:write') && mod('events');
-  const careVisible = has('care:read') && mod('care');
-  // The member directory drives the churn list and the profile drawer; a
-  // class-scoped teacher gets the care queue but neither of those.
-  const canOpenProfile = has('members:read');
+  const can = (p: string) => hasPermission(perms, p);
+  const quick = dashboardQuickLinks(perms, modules);
 
-  const statCount = (attendanceVisible ? 1 : 0) + (has('reports:read') && mod('money') ? 1 : 0) + (careVisible ? 1 : 0);
+  const openTasks = tasks
+    .filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS')
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 
-  // A widget only exists for a role that can read it; the layout can never
-  // surface something the permission set excludes.
-  const allowed = new Set<WidgetKey>();
-  if (statCount > 0) allowed.add('stats');
-  if (quickLinks.length > 0) allowed.add('today');
-  if (attendanceVisible) {
-    allowed.add('attendance');
-    allowed.add('latest-service');
+  const needs: Need[] = [];
+  if (transfers.length) {
+    needs.push({
+      key: 'transfers',
+      title: `${transfers.length} branch transfer${transfers.length > 1 ? 's' : ''}`,
+      sub: 'Waiting for approval',
+      href: '/org',
+      tone: 'gold',
+    });
   }
-  if (has('reports:read') && mod('money')) {
-    allowed.add('funds');
-    allowed.add('trend');
+  if (openTasks[0]) {
+    const t = openTasks[0];
+    needs.push({
+      key: `task-${t.id}`,
+      title: t.member ? `${t.member.firstName} ${t.member.lastName}` : t.note ?? 'Care follow-up',
+      sub: t.type.replace(/_/g, ' ').toLowerCase(),
+      href: '/care',
+      tone: 'terra',
+    });
   }
-  if (careVisible) {
-    allowed.add('care');
-    if (canOpenProfile) allowed.add('churn');
+  if (churn[0]) {
+    needs.push({
+      key: `churn-${churn[0].memberId}`,
+      title: churn[0].name,
+      sub: 'Has missed Sundays — reach out',
+      href: '/care',
+      tone: 'forest',
+    });
   }
-  if (eventsVisible) allowed.add('events');
-  if (has('campaigns:read') && mod('reach')) allowed.add('news');
+  const needRows = needs.slice(0, 3);
 
-  function saveLayout(next: Layout): void {
-    setLayout(next);
-    try {
-      localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
-    } catch {
-      // Private mode / storage full: the dashboard still works, just not saved.
-    }
+  const latestGiving = bySunday.length
+    ? [...bySunday].sort((a, b) => b.date.localeCompare(a.date))[0]
+    : null;
+  const weekMetrics: { label: string; value: string }[] = [];
+  if (counted !== null) weekMetrics.push({ label: 'Attendance', value: String(counted) });
+  if (latestGiving) {
+    weekMetrics.push({
+      label: 'Giving · GH₵',
+      value: Math.floor(latestGiving.totalMinor / 100).toLocaleString('en-US'),
+    });
   }
+  if (visitors.length) weekMetrics.push({ label: 'New visitors', value: String(visitors.length) });
 
-  function move(key: WidgetKey, direction: -1 | 1): void {
-    const order = [...layout.order];
-    const i = order.indexOf(key);
-    const j = i + direction;
-    if (i < 0 || j < 0 || j >= order.length) return;
-    [order[i], order[j]] = [order[j], order[i]];
-    saveLayout({ ...layout, order });
-  }
+  const upcoming = events
+    .filter((e) => new Date(e.startsAt).getTime() >= Date.now() - DAY_MS)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+    .slice(0, 3);
 
-  function toggleHidden(key: WidgetKey): void {
-    const hidden = layout.hidden.includes(key)
-      ? layout.hidden.filter((k) => k !== key)
-      : [...layout.hidden, key];
-    saveLayout({ ...layout, hidden });
-  }
+  const trend = [...bySunday].sort((a, b) => a.date.localeCompare(b.date)).slice(-4);
+  const trendMax = Math.max(...trend.map((t) => t.totalMinor), 1);
+  const trendMin = Math.min(...trend.map((t) => t.totalMinor), 0);
+  const sparkPoints = trend
+    .map((t, i) => {
+      const x = 6 + (i * 188) / Math.max(trend.length - 1, 1);
+      const y = 48 - ((t.totalMinor - trendMin) / (trendMax - trendMin || 1)) * 40;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
 
-  if (error) return <div className="error">{error}</div>;
-  if (!data) return <div>Loading dashboard…</div>;
-
-  // The reading follows its own church switch (plus the Bible area switch, both
-  // folded into the API's rule). `null` means the church turned it off.
-  if (data.reading) allowed.add('reading');
-
-  const visibleKeys = layout.order.filter((k) => allowed.has(k) && !layout.hidden.includes(k));
-
-  // An arrow (not a hoisted function) so TypeScript keeps the non-null `data`
-  // it just checked for inside the widget bodies.
-  const widget = (key: WidgetKey) => {
-    switch (key) {
-      case 'stats':
-        return (
-          <div>
-            <div className="grid cols-3">
-              {attendanceVisible ? (
-                <div className="card stat">
-                  <div className="value">{data.totals?.netTotal ?? '-'}</div>
-                  <div className="label">Attendance (last service)</div>
-                </div>
-              ) : null}
-              {has('reports:read') && mod('money') ? (
-                <div className="card stat">
-                  {data.bySunday[0] ? (
-                    <>
-                      <div className="value">{ghs(data.bySunday[0].totalMinor)}</div>
-                      {/* The feed is grouped by the day money came in, not by
-                          Sunday: the newest row is the most recent giving day,
-                          which is often a midweek service or a deposit. The card
-                          says the date it is actually showing. */}
-                      <div className="label">
-                        Offering on {fmtDate(data.bySunday[0].date)} ({data.bySunday[0].count} entries)
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="value">—</div>
-                      <div className="label">No offering recorded yet</div>
-                    </>
-                  )}
-                </div>
-              ) : null}
-              {careVisible && canOpenProfile ? (
-                <div className="card stat">
-                  <div className="value">{data.churn.length}</div>
-                  <div className="label">Members to check on (60-day)</div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        );
-
-      case 'today':
-        return (
-          <div className="card dash-full">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Today</h2>
-              <span className="muted" style={{ fontSize: '0.85rem' }}>
-                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' })}
-              </span>
-            </div>
-            <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
-              {quickLinks.map((l) => (
-                <Link key={l.href} href={l.href}>{l.label}</Link>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'reading': {
-        const r = data.reading;
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Today&apos;s reading</h2>
-              <Link href="/bible">Bible →</Link>
-            </div>
-            {r?.state === 'ok' ? (
-              <div style={{ marginTop: '0.4rem' }}>
-                <strong>{r.ref}</strong>
-                <p style={{ margin: '0.3rem 0' }}>{r.text}</p>
-                {r.note ? <p className="muted" style={{ marginBottom: 0 }}>{r.note}</p> : null}
-              </div>
-            ) : (
-              <p className="muted">
-                Today&apos;s reading could not be loaded. Check the pinned verse in Settings → SMS → Daily Bible reading.
-              </p>
-            )}
-          </div>
-        );
-      }
-
-      case 'attendance':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Sunday attendance</h2>
-            </div>
-            {data.totals && data.totals.totals.filter((t) => t.segmentKey !== 'LIVESTREAM').length > 0 ? (
-              <>
-                <div className="demo-bar">
-                  {data.totals.totals
-                    .filter((t) => t.segmentKey !== 'LIVESTREAM' && t.net > 0)
-                    .map((t, i) => (
-                      <div
-                        key={t.segmentKey}
-                        style={{ flexGrow: Math.max(t.net, 1), background: ['#1f4d3a', '#c08a2e', '#b4513a', '#2f6b4f', '#8a6414', '#5b6f8a'][i % 6] }}
-                      >
-                        {t.net}
-                      </div>
-                    ))}
-                </div>
-                <div className="demo-legend">
-                  {data.totals.totals
-                    .filter((t) => t.segmentKey !== 'LIVESTREAM')
-                    .map((t) => (
-                      <span key={t.segmentKey}>{t.label}: {t.net}</span>
-                    ))}
-                </div>
-              </>
-            ) : (
-              <p className="muted">No group counts yet — check people in and the Men, Women and Children sections fill automatically.</p>
-            )}
-          </div>
-        );
-
-      case 'latest-service':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Latest service</h2>
-              {/* With Services switched off the screens it links to are not there;
-                  the count still shows, because the door keeps making it. */}
-              {mod('worship') ? <Link href="/services">All services →</Link> : null}
-            </div>
-            {data.services[0] ? (
-              <div style={{ marginTop: '0.5rem' }}>
-                <strong>{data.services[0].name}</strong>
-                <div className="muted">{fmtDateTime(data.services[0].startsAt)}</div>
-                <div className="row quick-links" style={{ marginTop: '0.5rem' }}>
-                  {mod('worship') ? <Link href={`/services/${data.services[0].id}`}>Attendance</Link> : null}
-                  <Link href="/checkin">Check-in</Link>
-                </div>
-              </div>
-            ) : (
-              <p className="muted">No services scheduled yet.</p>
-            )}
-          </div>
-        );
-
-      case 'funds':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Offering by category</h2>
-              <Link href="/finance">Offerings →</Link>
-            </div>
-            <table>
-              <tbody>
-                {data.byFund.map((f) => (
-                  <tr key={f.fund}>
-                    <td>{f.fund}</td>
-                    <td style={{ textAlign: 'right' }}>{ghs(f.totalMinor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-
-      case 'trend':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Offering trend (last 8 giving days)</h2>
-              <Link href="/finance">Offerings →</Link>
-            </div>
-            {data.bySunday.length ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: '0.5rem' }}>
-                {data.bySunday.slice(0, 8).map((s) => {
-                  const max = Math.max(...data.bySunday.map((x) => x.totalMinor), 1);
-                  return (
-                    <div key={s.date} className="row" style={{ gap: 8, flexWrap: 'nowrap' }}>
-                      <span className="muted" style={{ minWidth: '4.5rem', fontSize: '0.8rem' }}>
-                        {new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                      </span>
-                      <div style={{ flex: 1, background: 'var(--bg-soft)', borderRadius: 6, height: 16, overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.round((s.totalMinor / max) * 100)}%`, height: '100%', background: 'var(--brand)' }} />
-                      </div>
-                      <span style={{ minWidth: '5.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 600 }}>{ghs(s.totalMinor)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="muted">No offerings recorded yet.</p>
-            )}
-          </div>
-        );
-
-      case 'care':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Care queue</h2>
-              <Link href="/care">Care →</Link>
-            </div>
-            {data.tasks.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length ? (
-              <div style={{ marginTop: '0.4rem' }}>
-                {data.tasks
-                  .filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS')
-                  .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
-                  .slice(0, 5)
-                  .map((t) => (
-                    <div key={t.id} className="counter" style={{ paddingBottom: '0.3rem' }}>
-                      <span className={`badge ${t.type.startsWith('VISIT_HOSP') || t.type === 'VISIT_BEREAVEMENT' ? 'err' : t.type === 'MISSING_MEMBER' ? 'warn' : 'mute'}`}>
-                        {t.type.replace(/_/g, ' ').toLowerCase()}
-                      </span>
-                      {t.memberId ? (
-                        canOpenProfile ? (
-                          <button type="button" className="name link-button" style={{ fontWeight: 500, fontSize: '0.9rem', flex: 1 }} onClick={() => setOpenMemberId(t.memberId!)}>
-                            {t.member ? `${t.member.firstName} ${t.member.lastName}` : t.note ?? 'Open member'}
-                          </button>
-                        ) : (
-                          <span className="name" style={{ fontWeight: 500, fontSize: '0.9rem', flex: 1 }}>
-                            {t.member ? `${t.member.firstName} ${t.member.lastName}` : 'A child in your class'}
-                          </span>
-                        )
-                      ) : (
-                        <span className="name" style={{ fontWeight: 500, fontSize: '0.9rem' }}>{t.note ?? 'Task'}</span>
-                      )}
-                      <span className="muted" style={{ fontSize: '0.78rem' }}>{new Date(t.dueAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="muted">Queue empty — every task closed.</p>
-            )}
-          </div>
-        );
-
-      case 'events':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Upcoming events</h2>
-              <Link href="/events">Events →</Link>
-            </div>
-            {data.events.filter((e) => new Date(e.startsAt).getTime() >= Date.now() - 864e5).length ? (
-              <div style={{ marginTop: '0.4rem' }}>
-                {data.events
-                  .filter((e) => new Date(e.startsAt).getTime() >= Date.now() - 864e5)
-                  .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-                  .slice(0, 4)
-                  .map((e) => (
-                    <div key={e.id} className="counter" style={{ paddingBottom: '0.3rem' }}>
-                      <span className="name" style={{ fontWeight: 600, fontSize: '0.92rem' }}>{e.title}</span>
-                      <span className="muted" style={{ fontSize: '0.78rem' }}>
-                        {new Date(e.startsAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}{' '}
-                        {new Date(e.startsAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="muted">Nothing scheduled — create one on Events.</p>
-            )}
-          </div>
-        );
-
-      case 'churn':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Members to check on</h2>
-              {mod('people') ? <Link href="/members">Members →</Link> : null}
-            </div>
-            {data.churn.length ? (
-              <div style={{ marginTop: '0.4rem' }}>
-                {data.churn.slice(0, 5).map((m) => (
-                  <div key={m.memberId} className="counter" style={{ paddingBottom: '0.3rem' }}>
-                    <span className={`badge ${m.risk === 'NEVER_SEEN' ? 'err' : 'warn'}`}>
-                      {m.risk.replace(/_/g, ' ').toLowerCase()}
-                    </span>
-                    <button type="button" className="name link-button" style={{ fontWeight: 500, fontSize: '0.92rem', flex: 1 }} onClick={() => setOpenMemberId(m.memberId)}>
-                      {m.name}
-                    </button>
-                    <span className="muted" style={{ fontSize: '0.78rem' }}>
-                      last seen {m.lastCheckIn ? new Date(m.lastCheckIn).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'never'}
-                    </span>
-                  </div>
-                ))}
-                <p className="muted" style={{ marginBottom: 0 }}>
-                  {data.churn.length} member{data.churn.length === 1 ? '' : 's'} missed 3+ Sundays (60 days).
-                </p>
-              </div>
-            ) : (
-              <p className="muted">Everyone has checked in recently.</p>
-            )}
-          </div>
-        );
-
-      case 'news':
-        return (
-          <div className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Announcements</h2>
-              <Link href="/announcements">News →</Link>
-            </div>
-            {data.announcements.length ? (
-              <div style={{ marginTop: '0.4rem' }}>
-                {data.announcements
-                  .slice()
-                  .sort((a, b) => b.publishAt.localeCompare(a.publishAt))
-                  .slice(0, 3)
-                  .map((a) => (
-                    <Link key={a.id} href={`/announcements?open=${a.id}`} className="news-row" style={{ display: 'block', color: 'inherit' }}>
-                      <div className="row" style={{ gap: 6 }}>
-                        <span className={`badge ${a.category === 'FUNERAL' || a.category === 'ALERT' ? 'err' : a.category === 'OUTDOORING' ? 'ok' : 'mute'}`}>
-                          {a.category.toLowerCase()}
-                        </span>
-                        <strong style={{ fontSize: '0.92rem' }}>{a.title}</strong>
-                      </div>
-                      <div className="muted" style={{ fontSize: '0.82rem' }}>
-                        {a.body.length > 110 ? `${a.body.slice(0, 110)}…` : a.body}
-                      </div>
-                    </Link>
-                  ))}
-              </div>
-            ) : (
-              <p className="muted">No announcements yet.</p>
-            )}
-          </div>
-        );
-    }
-  };
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+  const statusLine = needRows.length
+    ? `${needRows.length} thing${needRows.length > 1 ? 's' : ''} need you`
+    : 'Nothing needs you right now';
 
   return (
     <div>
       <div className="page-head">
-        <h1>Dashboard</h1>
-        <div className="head-actions">
-          <button className="secondary" onClick={() => setEditing((v) => !v)}>{editing ? 'Done arranging' : 'Edit dashboard'}</button>
+        <div>
+          <h1>Dashboard</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            {today} · {statusLine}
+          </p>
         </div>
       </div>
 
-      {editing ? (
-        <div className="card stack">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Arrange your dashboard</h2>
-            <button className="small secondary" type="button" onClick={() => saveLayout({ order: DEFAULT_ORDER, hidden: [], expanded: false })}>Reset</button>
+      {error ? <p className="error">{error}</p> : null}
+      {!loaded ? <p className="muted">Loading…</p> : null}
+
+      {loaded ? (
+        <>
+          <div className="dash-grid">
+            {needRows.length ? (
+              <section className="card">
+                <div className="spread">
+                  <h2 style={{ margin: 0 }}>Needs you</h2>
+                  <span className="badge ok">{needRows.length}</span>
+                </div>
+                {needRows.map((n) => (
+                  <Link key={n.key} href={n.href} className="dash-row">
+                    <span className={`dash-dot ${n.tone}`} aria-hidden="true" />
+                    <span className="t">
+                      <b>{n.title}</b>
+                      <span>{n.sub}</span>
+                    </span>
+                    <span className="chev" aria-hidden="true">›</span>
+                  </Link>
+                ))}
+              </section>
+            ) : null}
+
+            {quick.length ? (
+              <section className="card">
+                <h2 style={{ marginTop: 0 }}>Today</h2>
+                <Link href={quick[0].href} className="dash-btn primary">
+                  {quick[0].label}
+                </Link>
+                {quick.length > 1 ? (
+                  <div className="dash-btnrow">
+                    {quick.slice(1, 5).map((l) => (
+                      <Link key={l.href} href={l.href} className="dash-btn">
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {weekMetrics.length ? (
+              <section className="card">
+                <h2 style={{ marginTop: 0 }}>This week</h2>
+                <div className="dash-metrics">
+                  {weekMetrics.map((m) => (
+                    <div key={m.label}>
+                      <div className="dash-num">{m.value}</div>
+                      <div className="dash-lab">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {upcoming.length ? (
+              <section className="card dash-extra">
+                <h2 style={{ marginTop: 0 }}>Coming up</h2>
+                {upcoming.map((e) => {
+                  const d = new Date(e.startsAt);
+                  return (
+                    <Link key={e.id} href="/events" className="dash-row">
+                      <span className="dash-chip">
+                        {d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase().slice(0, 3)}
+                        <b>{d.getDate()}</b>
+                      </span>
+                      <span className="t">
+                        <b>{e.title}</b>
+                        <span>
+                          {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          {e.venue ? ` · ${e.venue}` : ''}
+                        </span>
+                      </span>
+                      <span className="chev" aria-hidden="true">›</span>
+                    </Link>
+                  );
+                })}
+              </section>
+            ) : null}
+
+            {openTasks.length && can('care:read') ? (
+              <section className="card dash-extra">
+                <div className="spread">
+                  <h2 style={{ margin: 0 }}>Care queue</h2>
+                  <span className="badge ok">{openTasks.length}</span>
+                </div>
+                {openTasks.slice(0, 2).map((t) => (
+                  <Link key={t.id} href="/care" className="dash-row">
+                    <span className="dash-dot terra" aria-hidden="true" />
+                    <span className="t">
+                      <b>{t.member ? `${t.member.firstName} ${t.member.lastName}` : t.note ?? 'Care task'}</b>
+                      <span>{t.type.replace(/_/g, ' ').toLowerCase()}</span>
+                    </span>
+                    <span className="chev" aria-hidden="true">›</span>
+                  </Link>
+                ))}
+              </section>
+            ) : null}
+
+            {trend.length >= 2 ? (
+              <section className="card dash-extra">
+                <div className="spread">
+                  <h2 style={{ margin: 0 }}>Giving trend</h2>
+                  <Link href="/finance">Offerings →</Link>
+                </div>
+                <svg className="dash-spark" viewBox="0 0 200 56" preserveAspectRatio="none" aria-hidden="true">
+                  <polyline points={sparkPoints} />
+                </svg>
+                <div className="dash-trendline">
+                  <span className="dash-num">
+                    {latestGiving ? Math.floor(latestGiving.totalMinor / 100).toLocaleString('en-US') : '—'}
+                  </span>
+                  <span className="dash-lab">GH₵ · last {trend.length} giving days</span>
+                </div>
+              </section>
+            ) : null}
           </div>
-          <p className="muted" style={{ marginTop: '-0.3rem' }}>Move a card up or down, or hide the ones you do not need. This only changes what you see.</p>
-          {WIDGETS.filter((w) => allowed.has(w.key)).map((w) => (
-            <div key={w.key} className="row" style={{ justifyContent: 'space-between', borderBottom: '1px solid var(--line)', paddingBottom: '0.35rem' }}>
-              <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6, fontWeight: 600 }}>
-                <input type="checkbox" checked={!layout.hidden.includes(w.key)} onChange={() => toggleHidden(w.key)} />
-                {w.label}
-              </label>
-              <span className="row" style={{ gap: 4 }}>
-                <button className="small secondary" type="button" aria-label={`Move ${w.label} up`} onClick={() => move(w.key, -1)}>↑</button>
-                <button className="small secondary" type="button" aria-label={`Move ${w.label} down`} onClick={() => move(w.key, 1)}>↓</button>
+
+          {reading ? (
+            <div className="dash-verse">
+              <span className="grow">
+                <b>{reading.ref}</b> · {reading.text}
               </span>
+              <Link href="/bible" className="dash-read">
+                Read →
+              </Link>
             </div>
-          ))}
-        </div>
+          ) : readingNote ? (
+            <p className="muted" style={{ marginTop: '0.9rem' }}>{readingNote}</p>
+          ) : null}
+        </>
       ) : null}
-
-      <div className="dash-grid">
-        {(editing || layout.expanded ? visibleKeys : visibleKeys.slice(0, FOLD_AFTER)).map((key) => (
-          <div key={key} className={key === 'stats' || key === 'today' ? 'dash-full' : undefined}>
-            {widget(key)}
-          </div>
-        ))}
-      </div>
-      {editing || visibleKeys.length <= FOLD_AFTER ? null : (
-        <div className="row" style={{ justifyContent: 'center', marginTop: '0.85rem' }}>
-          <button
-            className="small secondary"
-            type="button"
-            onClick={() => saveLayout({ ...layout, expanded: !layout.expanded })}
-          >
-            {layout.expanded
-              ? 'Show fewer cards'
-              : `Show ${visibleKeys.length - FOLD_AFTER} more card${visibleKeys.length - FOLD_AFTER === 1 ? '' : 's'}`}
-          </button>
-        </div>
-      )}
-      {canOpenProfile && openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>
   );
 }
