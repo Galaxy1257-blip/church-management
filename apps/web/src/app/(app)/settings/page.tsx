@@ -67,26 +67,26 @@ const SPECIAL_EVENT_PRESETS: { name: string; type: string }[] = [
 // Colour schemes. Each one is a [data-theme] block in globals.css; "night" is
 // the dark mode. The choice is remembered in this browser only.
 const THEMES: { key: string; name: string; hint: string; colors: string[] }[] = [
-  { key: 'sanctuary', name: 'Sanctuary', hint: 'Forest green & gold', colors: ['#1f4d3a', '#c08a2e', '#b4513a', '#f5efe4'] },
-  { key: 'harvest', name: 'Harvest', hint: 'Olive & wheat', colors: ['#4c5a20', '#c98a1f', '#a35427', '#f7f1df'] },
-  { key: 'ocean', name: 'Ocean', hint: 'Deep blue & teal', colors: ['#114b5f', '#1f7a8c', '#c96a44', '#eaf2f4'] },
-  { key: 'navy', name: 'Navy', hint: 'Royal blue & brass', colors: ['#1e3a5f', '#c9973f', '#9c3f2f', '#f2efe7'] },
-  { key: 'burgundy', name: 'Burgundy', hint: 'Wine red & gold', colors: ['#6b1f2e', '#c19a4b', '#a4472f', '#f7efe9'] },
-  { key: 'plum', name: 'Plum', hint: 'Aubergine & rose', colors: ['#5a2e4d', '#a8578a', '#b34a5c', '#f4ecf2'] },
-  { key: 'dawn', name: 'Dawn', hint: 'Rosewood & peach', colors: ['#7a3b3b', '#d78f5c', '#a8524f', '#fbf0eb'] },
-  { key: 'rosewood', name: 'Rosewood', hint: 'Dusty rose & gold', colors: ['#7a3545', '#c9a24a', '#9c5a3c', '#f7efec'] },
-  { key: 'meadow', name: 'Meadow', hint: 'Leafy green & lime', colors: ['#1e5c3a', '#7fae4f', '#a8622f', '#edf4ec'] },
-  { key: 'sage', name: 'Sage', hint: 'Soft green & clay', colors: ['#3f6256', '#b9793f', '#a8503e', '#f0f4ef'] },
-  { key: 'sand', name: 'Sand', hint: 'Desert sand & bronze', colors: ['#6b4f2a', '#b8802f', '#a8563a', '#f7f1e3'] },
-  // Cool, vivid and neutral families so the picker is not all warm earth tones.
-  { key: 'sky', name: 'Sky', hint: 'Bright blue & cloud', colors: ['#1e4f8a', '#2f8fd0', '#d9633f', '#eef5fc'] },
-  { key: 'mint', name: 'Mint', hint: 'Fresh teal & mint', colors: ['#0f6b5c', '#16a38c', '#d9633f', '#ecfaf5'] },
-  { key: 'indigo', name: 'Indigo', hint: 'Deep indigo & periwinkle', colors: ['#3730a3', '#6366f1', '#e0663f', '#eef1ff'] },
-  { key: 'violet', name: 'Violet', hint: 'Purple & lilac', colors: ['#6b21a8', '#a855f7', '#d9538a', '#f6f1fd'] },
-  { key: 'coral', name: 'Coral', hint: 'Coral red & peach', colors: ['#b03a2e', '#ee6c4d', '#c2410c', '#fff1ee'] },
-  { key: 'blossom', name: 'Blossom', hint: 'Pink & rose', colors: ['#9d174d', '#ec4899', '#c2410c', '#fdf1f6'] },
-  { key: 'slate', name: 'Slate', hint: 'Cool grey & steel', colors: ['#2c3a4b', '#5b7a99', '#c25a44', '#f3f5f8'] },
-  { key: 'night', name: 'Night', hint: 'Dark mode', colors: ['#12100d', '#2f6b52', '#e0ac52', '#f4ede1'] },
+  { key: 'sanctuary', name: 'Sanctuary', hint: 'Forest & gold', colors: ['#1f4d3a', '#c08a2e', '#b4513a', '#f5efe4'] },
+  { key: 'harvest', name: 'Harvest', hint: 'Olive & violet', colors: ['#4e5a1b', '#7a4bd0', '#c2811e', '#f6f3e9'] },
+  { key: 'ocean', name: 'Ocean', hint: 'Deep teal & coral', colors: ['#0f4c5c', '#e07a5f', '#2e8b9e', '#eaf3f5'] },
+  { key: 'navy', name: 'Navy', hint: 'Navy & amber', colors: ['#1b2a4a', '#e0a100', '#3f6fb0', '#eef2f8'] },
+  { key: 'burgundy', name: 'Burgundy', hint: 'Wine & emerald', colors: ['#6d1f3a', '#2fa37a', '#b05170', '#f7eef1'] },
+  { key: 'plum', name: 'Plum', hint: 'Aubergine & lime', colors: ['#4e2a6e', '#a6c43a', '#8a5bb5', '#f4eff8'] },
+  { key: 'dawn', name: 'Dawn', hint: 'Rust & sky', colors: ['#9c3d2e', '#2c7da0', '#d98e63', '#fbf0ea'] },
+  { key: 'rosewood', name: 'Rosewood', hint: 'Rose & teal', colors: ['#8a2f4a', '#1f8a70', '#c4667f', '#f9eef1'] },
+  { key: 'meadow', name: 'Meadow', hint: 'Green & magenta', colors: ['#2e6b3e', '#c24e8a', '#6fa34f', '#eef6ee'] },
+  { key: 'sage', name: 'Sage', hint: 'Sage & terracotta', colors: ['#3f6256', '#c26b3a', '#7fa394', '#f0f4f0'] },
+  { key: 'sand', name: 'Sand', hint: 'Ochre & indigo', colors: ['#7a5a1e', '#3457a6', '#b8863a', '#f7f1e3'] },
+  // Cool, vivid and neutral families — each brand paired with its complement.
+  { key: 'sky', name: 'Sky', hint: 'Blue & orange', colors: ['#1e4f8a', '#e07a2e', '#3e8ed0', '#eef4fb'] },
+  { key: 'mint', name: 'Mint', hint: 'Teal & rose', colors: ['#0f6b5c', '#c2506b', '#2fa38c', '#ecf8f4'] },
+  { key: 'indigo', name: 'Indigo', hint: 'Indigo & amber', colors: ['#3730a3', '#e0a100', '#6a5ae0', '#eef0fb'] },
+  { key: 'violet', name: 'Violet', hint: 'Violet & gold', colors: ['#6b21a8', '#c9b027', '#9b5bd6', '#f5f0fb'] },
+  { key: 'coral', name: 'Coral', hint: 'Red & teal', colors: ['#b03a2e', '#1f8a8a', '#e0663f', '#fdf0ec'] },
+  { key: 'blossom', name: 'Blossom', hint: 'Magenta & green', colors: ['#9d174d', '#2e8b57', '#e0559b', '#fcf0f5'] },
+  { key: 'slate', name: 'Slate', hint: 'Slate & amber', colors: ['#2c3a4b', '#c98a2e', '#5b7a99', '#f3f5f8'] },
+  { key: 'night', name: 'Night', hint: 'Charcoal & teal-gold (dark)', colors: ['#0e141b', '#256b5a', '#e6b450', '#e9eff6'] },
 ];
 
 const THEME_KEY = 'chms.theme';
