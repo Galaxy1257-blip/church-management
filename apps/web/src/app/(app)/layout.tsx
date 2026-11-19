@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { clearTokens, hasSession } from '../../lib/api';
+import { api, clearTokens, hasSession } from '../../lib/api';
 import AppNav from '../../components/app-nav';
 import BibleDock from '../../components/bible-dock';
 import LockScreen from '../../components/lock-screen';
+import { ErrorBoundary } from '../../components/error-boundary';
 import { clearSession, getSession } from '../../lib/session';
 import {
   areaForItem,
@@ -36,6 +37,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState<SessionUser | null>(null);
   const [usherMode, setUsherMode] = useState(false);
+  // Which off section this person has already asked a leader to turn on.
+  const [asked, setAsked] = useState('');
 
   useEffect(() => {
     if (!hasSession()) {
@@ -124,6 +127,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const section = moduleForPath(pathname);
   const areaOff = switchesForPath(pathname).some((key) => !moduleEnabled(me.modules, key));
   const sectionLabel = section ? MODULE_LABELS[section].label : (area?.label ?? 'This area');
+  // The specific switched-off section behind this URL, so "ask" names the right one.
+  const offSwitch = switchesForPath(pathname).find((key) => !moduleEnabled(me.modules, key));
+  const canSetSections = hasPermission(perms, 'settings:write');
+
+  async function askForSection(): Promise<void> {
+    if (!offSwitch) return;
+    try {
+      await api('/churches/me/section-request', { method: 'POST', body: { module: offSwitch } });
+      setAsked(offSwitch);
+    } catch {
+      /* leave the button in place so they can retry */
+    }
+  }
   // The brand mark always means the dashboard. Deriving it from the first menu
   // item made it point at /members for an admin, and then listed /members twice.
   const home = hasPermission(perms, 'church:read') ? '/dashboard' : (groups[0]?.items[0]?.href ?? '/about');
@@ -152,13 +168,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <h1>{areaOff ? 'Area switched off' : 'Not available for your role'}</h1>
               <p className="muted">
                 {areaOff
-                  ? `${sectionLabel} is switched off for ${me.church.name}. A church admin can turn it back on in Settings → App sections.`
+                  ? `${sectionLabel} is switched off for ${me.church.name}.`
                   : `${rule ? rule.label : 'This page'} needs a permission your role does not have. Ask a church admin if you should have it.`}
               </p>
+              {areaOff ? (
+                canSetSections ? (
+                  <p style={{ margin: '0 0 0.6rem' }}>
+                    <Link href="/settings">Turn it on in Settings → App sections</Link>
+                  </p>
+                ) : asked === offSwitch ? (
+                  <p className="muted" style={{ margin: '0 0 0.6rem' }}>
+                    Asked — your leaders will see the request.
+                  </p>
+                ) : (
+                  <p style={{ margin: '0 0 0.6rem' }}>
+                    <button type="button" onClick={() => void askForSection()}>
+                      Ask your leaders to turn on {sectionLabel}
+                    </button>
+                  </p>
+                )
+              ) : null}
               <Link href={home}>Go to an area you can use</Link>
             </div>
           ) : (
-            children
+            <ErrorBoundary>{children}</ErrorBoundary>
           )}
         </main>
       </div>

@@ -27,6 +27,7 @@ import { BibleService } from '../bible/bible.service';
 import { trialEndsAt } from '../billing/billing.logic';
 import { allocateMemberNo } from '../common/member-no';
 import { resolveMemberBracket } from '../members/members.service';
+import { addModuleRequest, asModuleRequests, clearEnabledRequests, removeModuleRequest } from './module-requests';
 import type { Env } from '../env';
 
 export interface SelfServeChurchInput {
@@ -206,6 +207,8 @@ export class ChurchesService {
       // The same resolveModules() the API guard uses, so the shell and the guard
       // can never disagree about what is on.
       modules: resolveModules(s),
+      /** Staff asking their leaders to switch a section on (Settings shows these). */
+      moduleRequests: asModuleRequests((s as { moduleRequests?: unknown }).moduleRequests),
       /** The answer Settings asked when Offerings was switched off: give link open or closed. */
       moneyOffStopsGiving: givingStopsWithBooks(s),
       // What a new church starts with, so Settings can label "part of every week"
@@ -305,6 +308,13 @@ export class ChurchesService {
             }
           : {}),
       } as Record<string, unknown>;
+      // A request for a section that is now on is satisfied — drop it.
+      if (patch.modules !== undefined) {
+        (nextSettings as Record<string, unknown>).moduleRequests = clearEnabledRequests(
+          asModuleRequests((prev as { moduleRequests?: unknown }).moduleRequests),
+          (nextSettings as Record<string, unknown>).modules,
+        );
+      }
       await tx.church.update({
         where: { id: user.churchId },
         data: {
@@ -331,6 +341,58 @@ export class ChurchesService {
       // re-populate the cache with the pre-save values.
       if (patch.modules !== undefined || patch.moneyOffStopsGiving !== undefined) this.moduleFlags.invalidate(user.churchId);
       return profile;
+    });
+  }
+
+  /**
+   * A staff member asks a leader to switch a section on. The request is stored on
+   * the church and shown in Settings; it NEVER changes the switch itself — the
+   * church still owns what is on for everyone.
+   */
+  async requestSection(user: { churchId: string; userId: string; name?: string }, module: string, ip?: string) {
+    if (!isModuleKey(module)) throw new BadRequestException('unknown section');
+    return withTenant(user.churchId, user.userId, async (tx) => {
+      const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId }, select: { settings: true } });
+      const s = (church.settings ?? {}) as Record<string, unknown>;
+      if (resolveModules(s)[module]) return { ok: true, alreadyOn: true };
+      const next = addModuleRequest(asModuleRequests(s.moduleRequests), {
+        module,
+        by: user.userId,
+        byName: user.name ?? 'Someone',
+        at: new Date().toISOString(),
+      });
+      await tx.church.update({ where: { id: user.churchId }, data: { settings: { ...s, moduleRequests: next } as any } });
+      await appendAudit(tx, {
+        churchId: user.churchId,
+        actorId: user.userId,
+        action: 'settings.section.request',
+        entity: 'Church',
+        entityId: user.churchId,
+        after: { module },
+        ip,
+      });
+      return { ok: true };
+    });
+  }
+
+  /** A leader dismisses a request (settings:write). The switch is left as it is. */
+  async dismissSectionRequest(user: { churchId: string; userId: string }, module: string, ip?: string) {
+    if (!isModuleKey(module)) throw new BadRequestException('unknown section');
+    return withTenant(user.churchId, user.userId, async (tx) => {
+      const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId }, select: { settings: true } });
+      const s = (church.settings ?? {}) as Record<string, unknown>;
+      const next = removeModuleRequest(asModuleRequests(s.moduleRequests), module);
+      await tx.church.update({ where: { id: user.churchId }, data: { settings: { ...s, moduleRequests: next } as any } });
+      await appendAudit(tx, {
+        churchId: user.churchId,
+        actorId: user.userId,
+        action: 'settings.section.dismiss',
+        entity: 'Church',
+        entityId: user.churchId,
+        after: { module },
+        ip,
+      });
+      return { ok: true };
     });
   }
 

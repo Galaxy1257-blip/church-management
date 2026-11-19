@@ -140,6 +140,8 @@ export default function SettingsPage() {
   // starting set come from the API (/churches/me/profile) — the one table lives
   // in packages/shared/src/modules.ts, and this page keeps no copy of it.
   const [modules, setModules] = useState<Record<string, boolean>>({});
+  // Staff requests "please turn this section on" (shown only to leaders here).
+  const [moduleRequests, setModuleRequests] = useState<{ module: string; byName?: string }[]>([]);
   /**
    * The answer the office gives when they switch Offerings off: keep the public
    * give link open, or close it with the books. Asked once, honoured by the API.
@@ -185,6 +187,7 @@ export default function SettingsPage() {
       if (p.smsLocales) setSmsLoc({ defaultLocale: p.smsLocales.defaultLocale ?? 'en', templates: p.smsLocales.templates ?? {} });
       if (p.denomination) { setDenomKey(p.denomination.key ?? 'DEFAULT'); setTerms(p.denomination.terms ?? null); }
       if (p.modules) setModules({ ...p.moduleDefaults, ...p.modules });
+      if (Array.isArray(p.moduleRequests)) setModuleRequests(p.moduleRequests);
       if (p.moduleDefaults) setStartModules(p.moduleDefaults);
       if (typeof p.memberPosts === 'boolean') setMemberPosts(p.memberPosts);
       if (p.smsQuietHours) setQuiet({ enabled: p.smsQuietHours.enabled !== false, start: p.smsQuietHours.start ?? 20, end: p.smsQuietHours.end ?? 8 });
@@ -250,6 +253,30 @@ export default function SettingsPage() {
       window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'module save failed');
+    }
+  }
+
+  /** A leader answers a staff request by turning that section on (then reloads). */
+  async function enableRequest(module: string): Promise<void> {
+    try {
+      const next = { ...modules, [module]: true };
+      await api('/churches/me/profile', {
+        method: 'POST',
+        body: { modules: next, memberPosts, moneyOffStopsGiving: modules.money ? false : stopGiving },
+      });
+      clearSession();
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not turn it on');
+    }
+  }
+
+  async function dismissRequest(module: string): Promise<void> {
+    try {
+      await api('/churches/me/section-request/dismiss', { method: 'POST', body: { module } });
+      setModuleRequests((list) => list.filter((r) => r.module !== module));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not dismiss');
     }
   }
 
@@ -1018,6 +1045,26 @@ export default function SettingsPage() {
           everyone here — nothing is deleted, and you can add it back any time from this page. Each line says what you will
           see when you tick it.
         </p>
+        {moduleRequests.length ? (
+          <div className="stack" style={{ marginTop: 8 }}>
+            {moduleRequests.map((r) => (
+              <div key={r.module} className="card" role="status">
+                <p style={{ margin: '0 0 0.5rem' }}>
+                  <b>{r.byName ?? 'Someone'}</b> asked to turn on{' '}
+                  <b>{MODULE_LABELS[r.module as keyof typeof MODULE_LABELS]?.label ?? r.module}</b>.
+                </p>
+                <div className="row">
+                  <button type="button" className="small" onClick={() => void enableRequest(r.module)}>
+                    Turn on
+                  </button>
+                  <button type="button" className="small secondary" onClick={() => void dismissRequest(r.module)}>
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {Object.keys(startModules).length === 0 ? (
           <p className="muted">Loading which sections a new church starts with…</p>
         ) : (

@@ -119,6 +119,19 @@ export class ChurchesController {
     return this.churches.saveProfile(req.user!, body, req.ip);
   }
 
+  /** Any staff member may ask a leader to switch a section on (never flips it). */
+  @RequirePermissions('church:read')
+  @Post('me/section-request')
+  requestSection(@Req() req: AuthedRequest, @Body() body: { module?: string }) {
+    return this.churches.requestSection(req.user!, String(body?.module ?? ''), req.ip);
+  }
+
+  @RequirePermissions('settings:write')
+  @Post('me/section-request/dismiss')
+  dismissSectionRequest(@Req() req: AuthedRequest, @Body() body: { module?: string }) {
+    return this.churches.dismissSectionRequest(req.user!, String(body?.module ?? ''), req.ip);
+  }
+
   @RequirePermissions('church:read')
   @Get('me/terminology')
   terminology(@Req() req: AuthedRequest) {
