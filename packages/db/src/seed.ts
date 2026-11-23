@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { platformPrisma as prisma } from './client';
 import { withTenant, withPlatform } from './tenant';
 import { seedChurchDefaults } from './seed-church';
+import { seedDemoData } from './seed-demo';
 
 async function main(): Promise<void> {
   const slug = process.argv[2] ?? 'demo';
@@ -54,6 +55,8 @@ async function main(): Promise<void> {
       }
     });
   }
+
+  await seedDemoData(church!.id, adminId);
 
   console.log('Seeded:', JSON.stringify(result, null, 2));
   await prisma.$disconnect();
