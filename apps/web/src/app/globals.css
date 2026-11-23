@@ -583,6 +583,50 @@ input[type='reset'] {
 .app-body { margin-left: var(--side-w); min-height: 100vh; }
 .app-shell.usher-shell .app-body { margin-left: var(--rail-w); }
 
+/* Desktop top bar: church on the left, the signed-in person on the right.
+   Phones keep the compact bar from the nav instead. Glass, like the sidebar. */
+.app-topbar { display: none; }
+@media (min-width: 901px) {
+  .app-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    padding: 0.65rem 1.15rem;
+    background: color-mix(in srgb, var(--card) 70%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    backdrop-filter: blur(18px) saturate(1.1);
+    border-bottom: 1px solid var(--line);
+  }
+  .app-topbar-church { font-weight: 650; font-size: 0.9rem; color: var(--muted); }
+  .app-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-topbar, .side-nav, .card, .drawer { background: var(--card); }
+  .card.glass-hero::before { display: none; }
+}
+.eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
 .nav-mobilebar { display: none; }
 
 .side-nav {
@@ -596,9 +640,9 @@ input[type='reset'] {
   flex-direction: column;
   /* Soft glass (B): the quiet mist behind shows through, the content stays on a
      near-opaque tint so text contrast does not depend on the backdrop. */
-  background: color-mix(in srgb, var(--card) 78%, transparent);
-  -webkit-backdrop-filter: blur(16px) saturate(1.05);
-  backdrop-filter: blur(16px) saturate(1.05);
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  backdrop-filter: blur(20px) saturate(1.1);
   border-right: 1px solid var(--line);
 }
 
@@ -792,7 +836,10 @@ input[type='reset'] {
 
 /* ---------------------------------------------------------- cards */
 .card {
-  background: var(--card);
+  position: relative;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.04);
+  backdrop-filter: blur(10px) saturate(1.04);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 1.2rem 1.25rem;
@@ -806,11 +853,11 @@ input[type='reset'] {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: color-mix(in srgb, var(--card) 64%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
-  backdrop-filter: blur(14px) saturate(1.08);
-  border-color: color-mix(in srgb, var(--card) 72%, white);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), var(--shadow-card);
+  background: color-mix(in srgb, var(--card) 62%, transparent);
+  -webkit-backdrop-filter: blur(17px) saturate(1.12);
+  backdrop-filter: blur(17px) saturate(1.12);
+  border-color: color-mix(in srgb, var(--card) 66%, white);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), var(--shadow-card);
 }
 .card.glass-hero::before {
   content: '';
@@ -818,7 +865,7 @@ input[type='reset'] {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(125deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.06) 26%, transparent 48%);
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.09) 26%, transparent 48%);
   mix-blend-mode: screen;
 }
 .card.glass-hero > * { position: relative; z-index: 1; }
@@ -1126,7 +1173,9 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
   width: min(420px, 94vw);
   display: flex;
   flex-direction: column;
-  background: var(--card);
+  background: color-mix(in srgb, var(--card) 66%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+  backdrop-filter: blur(22px) saturate(1.12);
   border-left: 1px solid var(--line);
   box-shadow: var(--shadow-md);
   animation: drawer-in 0.18s ease-out;

@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [modules, setModules] = useState<ModuleFlags | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [userName, setUserName] = useState('');
   const [counted, setCounted] = useState<number | null>(null);
   const [bySunday, setBySunday] = useState<BySunday[]>([]);
   const [visitors, setVisitors] = useState<VisitorRow[]>([]);
@@ -58,6 +59,7 @@ export default function DashboardPage() {
         const granted = session.permissions;
         setPerms(granted);
         setModules(session.modules);
+        setUserName(session.name);
         const can = (p: string) => hasPermission(granted, p);
         const mod = (k: ModuleKey) => moduleEnabled(session.modules, k);
 
@@ -183,12 +185,17 @@ export default function DashboardPage() {
   const statusLine = needRows.length
     ? `${needRows.length} thing${needRows.length > 1 ? 's' : ''} need you`
     : 'Nothing needs you right now';
+  const firstName = userName.trim().split(/\s+/)[0] ?? '';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const title = firstName ? `${greeting}, ${firstName}` : 'Dashboard';
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <h1>Dashboard</h1>
+          <div className="eyebrow">Overview</div>
+          <h1>{title}</h1>
           <p className="muted" style={{ margin: 0 }}>
             {today} · {statusLine}
           </p>

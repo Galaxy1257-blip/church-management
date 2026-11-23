@@ -143,6 +143,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // The brand mark always means the dashboard. Deriving it from the first menu
   // item made it point at /members for an admin, and then listed /members twice.
   const home = hasPermission(perms, 'church:read') ? '/dashboard' : (groups[0]?.items[0]?.href ?? '/about');
+  const initials = (me.name || '?')
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
 
   return (
     <div className={`app-shell${showUsher ? ' usher-shell' : ''}`}>
@@ -162,6 +167,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onLogout={logout}
       />
       <div className="app-body">
+        <header className="app-topbar">
+          <span className="app-topbar-church">{me.church.name}</span>
+          <span className="app-avatar" title={me.name} aria-label={me.name}>
+            {initials}
+          </span>
+        </header>
         <main id="main-content" tabIndex={-1} className={showUsher ? 'container usher' : 'container'}>
           {denied ? (
             <div className="card">
