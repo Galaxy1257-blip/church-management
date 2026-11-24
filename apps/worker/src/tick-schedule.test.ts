@@ -84,10 +84,26 @@ describe('the stuck-gift sweep', () => {
   });
 });
 
+describe('scheduled announcements on the free plan', () => {
+  it('checks for due announcements on every tick', () => {
+    expect(decision(at('2026-11-04T03:20:00Z'), 'notification-dispatch').lockKey).toBe(
+      'tick:notification-dispatch:2026-11-04:03:20',
+    );
+    expect(decision(at('2026-11-04T12:04:00Z'), 'notification-dispatch').lockKey).toBe(
+      'tick:notification-dispatch:2026-11-04:12:04',
+    );
+  });
+
+  it('does not run the same tick twice', () => {
+    const first = decision(at('2026-11-04T12:04:00Z'), 'notification-dispatch');
+    expect(first.lockKey).toBe(decision(at('2026-11-04T12:04:30Z'), 'notification-dispatch').lockKey);
+  });
+});
+
 describe('the job list', () => {
   it('matches the names main.ts schedules', () => {
     expect(JOBS.map((j) => j.name).sort()).toEqual(
-      ['age-promotion', 'followup-tick', 'missing-member-scan', 'reconcile', 'sweep-pending', 'verse-of-day'].sort(),
+      ['age-promotion', 'followup-tick', 'missing-member-scan', 'notification-dispatch', 'reconcile', 'sweep-pending', 'verse-of-day'].sort(),
     );
   });
 

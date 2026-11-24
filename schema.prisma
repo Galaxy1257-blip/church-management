@@ -264,6 +264,7 @@ model Church {
   id                 String   @id @default(uuid(7)) @db.Uuid
   name               String
   slug               String   @unique
+  memberIdPrefix     String?
   timezone           String   @default("Africa/Accra")
   currency           String   @default("GHS")
   pastorDisplayName  String?
@@ -507,6 +508,12 @@ model Member {
   @@unique([churchId, memberNo])
   @@index([churchId, phoneE164])
   @@index([churchId, branchId, lastName, firstName])
+}
+
+model MemberNumberCounter {
+  churchId   String @id @db.Uuid
+  prefix     String
+  nextNumber Int    @default(1)
 }
 
 model Household {
@@ -1343,6 +1350,29 @@ model Announcement {
   submittedByMemberId String? @db.Uuid
   /// PENDING|APPROVED|REJECTED — staff notices start APPROVED.
   moderation String   @default("APPROVED")
+  cancelledAt DateTime?
+  deliveries AnnouncementDelivery[]
+}
+
+model AnnouncementDelivery {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  churchId       String    @db.Uuid
+  announcementId String    @db.Uuid
+  channel        String
+  status         String    @default("PENDING")
+  dueAt          DateTime
+  attempts       Int       @default(0)
+  leaseUntil     DateTime?
+  nextAttemptAt  DateTime?
+  sentAt         DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, channel])
+  @@index([churchId, status, dueAt])
 }
 
 model PushSubscription {

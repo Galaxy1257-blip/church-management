@@ -22,14 +22,37 @@ export function toPesewas(input: string): number | null {
   return Number(whole) * 100 + Number((frac + '00').slice(0, 2));
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function dateOnly(iso: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return null;
+  return `${Number(match[3])} ${MONTHS[Number(match[2]) - 1]} ${match[1]}`;
+}
+
 export function fmtDate(iso: string | Date | null | undefined): string {
   if (!iso) return '—';
+  if (typeof iso === 'string') {
+    const calendarDate = dateOnly(iso);
+    if (calendarDate) return calendarDate;
+  }
   const d = typeof iso === 'string' ? new Date(iso) : iso;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+export function fmtTime(iso: string | Date | null | undefined): string {
+  if (!iso) return '—';
+  if (typeof iso === 'string' && dateOnly(iso)) return '—';
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function fmtDateTime(iso: string | Date | null | undefined): string {
   if (!iso) return '—';
+  if (typeof iso === 'string') {
+    const calendarDate = dateOnly(iso);
+    if (calendarDate) return calendarDate;
+  }
   const d = typeof iso === 'string' ? new Date(iso) : iso;
   return d.toLocaleString('en-GB', {
     day: 'numeric',

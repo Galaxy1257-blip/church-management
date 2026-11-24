@@ -15,7 +15,7 @@ Built from `BUILD_ORDER.md` + `schema.prisma` (source of truth) + `extras.sql` (
 | RBAC default-deny: every route needs `@RequirePermissions` or `@Public`; **boot check refuses to start otherwise** | done |
 | `normalizeGhPhone`, template engine, fee `quote`/`grossUp`, SMS segments, CSV — unit tested | done |
 | Church onboarding (platform-key) + seeds: roles, funds, segments, visitor workflow, service template | done |
-| Members CRUD + QR tokens (sha256-hashed) + CSV import (preview, dedupe, errors file) | done |
+| Members CRUD + QR tokens (sha256-hashed) + CSV import (preview, dedupe, errors file) + church-specific member IDs | done |
 | Services + worker-materialised weekly instances; open/close lifecycle | done |
 | **Offline-first headcount**: IndexedDB outbox → `POST /sync/batch` (client uuidv7 = idempotency) | done |
 | Check-in (phone lookup + QR token); visitor registration (idempotent by phone, drip enrolment) | done |
@@ -24,10 +24,12 @@ Built from `BUILD_ORDER.md` + `schema.prisma` (source of truth) + `extras.sql` (
 | Stuck-PENDING sweeper + failed/abandoned nudge; amount-mismatch hold in PROCESSING | done |
 | Finance: cash/cheque batches, **two counters + separate approver**, deposit, by-fund/by-day reports | done |
 | Campaigns: audience filter, cost preview, idempotent per-recipient logs; STOP/START handling | done |
-| Worker reconciler (rebuilds every job from DB rows) + nightly audit-chain verification | done |
+| Scheduled announcements: durable in-app, phone-notification and paid SMS delivery with cancellation, reauthorization and per-channel status | done |
+| Member data export + readable, date-safe PDF reports with real Lucide actions | done |
+| Worker reconciler (rebuilds stale queued SMS and pending giving jobs from DB rows) + nightly audit-chain verification | done |
 | Web PWA: login, dashboard, members+import, services, offline headcount, check-in, visitors, finance, SMS, public give page | done |
 
-**Deferred (Phase 2/3 per BUILD_ORDER):** drip builder UI, groups/rosters, branch transfer, pledges, member portal + statement PDF, prayer/counseling, events/RSVP, children's check-in, announcements + web push, WhatsApp, USSD, multi-currency, SSE screens.
+**Still incomplete:** WhatsApp, USSD, multi-currency and SSE screens. Real SMS delivery also needs a confirmed live gateway; the local mock records attempts only. See `OPEN_ITEMS.md` for the authoritative remaining-work list.
 
 ## Stack
 
@@ -77,7 +79,7 @@ The integration suite covers the Phase 1 release gates: tenant isolation, duplic
 1. **Money is integer pesewas** — validated at every boundary; the fund is credited `giftMinor`, the gateway charges `chargedMinor`.
 2. **Idempotency everywhere** — `SmsLog.idempotencyKey`, client-generated Headcount/Attendance ids, `ProcessedWebhookEvent`, compare-and-set status flips, append-only `SmsLedger.idempotencyKey` (trigger-enforced).
 3. **All tenant DB access goes through `withTenant`** — feature modules use `TenantService`; never the bare client.
-4. **One SMS dispatcher** — nothing else touches the gateway, and only the worker calls it.
+4. **Worker-only gateway calls** — API services reserve credits and enqueue log IDs; only the worker calls the SMS gateway.
 5. **Postgres is the source of truth** — the worker reconciler re-enqueues from DB rows at boot and nightly.
 6. **Verify-before-build** — the CSMS adapter refuses to run until `CSMS_VERIFIED=true` (no guessed API fields); Paystack stays in `mock` mode until sandbox keys are configured.
 
@@ -97,7 +99,7 @@ The integration suite covers the Phase 1 release gates: tenant isolation, duplic
 
 ## Operations notes
 
-- **Nightly reconciler (02:20):** requeues stuck SMS, verifies pending gifts, re-sends missing receipts, materialises next week's services from templates, and verifies each church's audit chain (breaks raise `audit.chain.broken`).
+- **Nightly reconciler (02:20):** requeues stale `QUEUED` SMS (not crashed `SENDING` rows), verifies pending gifts, re-sends missing receipts, materialises next week's services from templates, and verifies each church's audit chain (breaks raise `audit.chain.broken`).
 - **Hourly sweep (xx:15):** PENDING gifts older than 30 min are verified against the provider; mock mode abandons after 24 h and the giver is nudged exactly once.
 - Receipts and nudges flow: webhook/worker → `giving-settle` queue → dispatcher (unique `receipt:{txId}` / `nudge:{txId}` keys make replays no-ops).
 - Backups, restore drills and alert channels are operational tasks — see BUILD_ORDER Phase 1 hardening.

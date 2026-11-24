@@ -33,6 +33,7 @@ describe('parseCsv', () => {
     const parsed = parseCsv('phone,firstName\n0241234567,Kwame\n');
     expect(rowsToObjects(parsed)).toEqual([{ phone: '0241234567', firstName: 'Kwame' }]);
     const csv = toCsv(['phone', 'firstName'], [['0241234567', 'Kwame, Jr']]);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
     expect(parseCsv(csv).rows).toEqual([['0241234567', 'Kwame, Jr']]);
   });
 

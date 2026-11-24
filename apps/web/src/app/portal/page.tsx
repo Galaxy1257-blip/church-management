@@ -92,9 +92,9 @@ interface MyData {
  */
 const MY_DATA_LABELS: Record<string, string> = {
   firstName: 'First name', lastName: 'Last name', phoneE164: 'Phone', memberNo: 'Member number',
-  email: 'Email', birthDate: 'Date of birth', gender: 'Gender', address: 'Address',
-  occupation: 'Occupation', maritalStatus: 'Marital status', savedAt: 'Born again',
-  baptizedAt: 'Baptised', joinedAt: 'Joined', status: 'Status', note: 'Note',
+  email: 'Email', dob: 'Date of birth', gender: 'Gender', address: 'Address',
+  occupation: 'Occupation', maritalStatus: 'Marital status', salvationDate: 'Born again',
+  baptismDate: 'Baptised', marriageDate: 'Married', joinedAt: 'Joined', status: 'Status', note: 'Note',
 };
 
 /** One stored field as a label and a readable value, or nothing if it is internal. */
@@ -106,7 +106,7 @@ function myDataField(key: string, value: unknown): { label: string; value: strin
   const words = MY_DATA_LABELS[key] ?? key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
   const label = words[0].toUpperCase() + words.slice(1);
   if (typeof value === 'boolean') return { label, value: value ? 'Yes' : 'No' };
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return { label, value: fmtDate(value) };
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value)) return { label, value: fmtDate(value) };
   if (typeof value === 'string' && value.startsWith('data:image')) return null;
   return { label, value: String(value) };
 }
@@ -806,7 +806,7 @@ export default function PortalPage() {
             <tbody>
               {giving.map((g) => (
                 <tr key={g.reference}>
-                  <td>{g.date ? new Date(g.date).toLocaleDateString() : '—'}</td>
+                  <td>{fmtDate(g.date)}</td>
                   <td>{g.fund}</td>
                   <td>{ghs(g.amountMinor)}</td>
                   <td className="muted">{g.reference.slice(0, 14)}…</td>

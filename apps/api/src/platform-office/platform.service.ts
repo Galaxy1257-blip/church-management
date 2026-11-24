@@ -715,13 +715,13 @@ export class PlatformService {
       throw new BadRequestException(e instanceof Error ? e.message : 'invalid CSV');
     }
     const existing = await prisma.member.findMany({
-      where: { churchId, deletedAt: null },
-      select: { phoneE164: true, memberNo: true },
+      where: { churchId },
+      select: { phoneE164: true, memberNo: true, deletedAt: true },
     });
     const phones = new Set<string>();
     const nos = new Set<string>();
     for (const m of existing) {
-      if (m.phoneE164) phones.add(m.phoneE164);
+      if (m.phoneE164 && !m.deletedAt) phones.add(m.phoneE164);
       nos.add(m.memberNo);
     }
     return buildImportPreview(rowsToObjects(parsed), phones, nos);

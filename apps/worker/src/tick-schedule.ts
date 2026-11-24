@@ -50,6 +50,12 @@ const hhmm = (h: number, m: number) => h * 60 + m;
 // losing the whole day. Cadence lives in .github/workflows/jobs-tick.yml.
 export const JOBS: TickJob[] = [
   {
+    name: 'notification-dispatch',
+    slot: (t) => `${t.date}:${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`,
+    lockSeconds: 120,
+    why: 'announcements whose publishing time is due',
+  },
+  {
     name: 'followup-tick',
     slot: (t) => `${t.date}:${String(t.hour).padStart(2, '0')}:${String(Math.floor(t.minute / 5) * 5).padStart(2, '0')}`,
     lockSeconds: 3300,

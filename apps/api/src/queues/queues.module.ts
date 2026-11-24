@@ -52,6 +52,22 @@ export class QueuesService implements OnModuleDestroy {
     this.safeAdd(this.campaignSend, 'send', { logId }, { jobId: `camp:${logId}` });
   }
 
+  /** A campaign can be 100k logs: one addBulk per 1,000 instead of one add each. */
+  enqueueCampaignSendBulk(logIds: string[]): void {
+    for (let i = 0; i < logIds.length; i += 1_000) {
+      const jobs = logIds.slice(i, i + 1_000).map((logId) => ({
+        name: 'send',
+        data: { logId },
+        opts: { jobId: `camp:${logId}` },
+      }));
+      this.campaignSend.addBulk(jobs).catch((err: unknown) => {
+        this.logger.warn(
+          `bulk enqueue ${this.campaignSend.name} failed (reconciler will repair): ${String(err)}`,
+        );
+      });
+    }
+  }
+
   enqueueVerifyPending(txId: string): void {
     this.safeAdd(this.verifyPending, 'verify', { txId }, { jobId: `verify:${txId}` });
   }

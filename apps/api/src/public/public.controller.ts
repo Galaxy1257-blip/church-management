@@ -7,11 +7,18 @@ import { normalizeGhPhone } from '@chms/shared';
 import { Public } from '../common/decorators';
 import { resolveMemberBracket } from '../members/members.service';
 
+const MAX_HITS = 20_000;
 const hits = new Map<string, { count: number; at: number }>();
 function rateLimit(ip: string, max = 10, windowMs = 60_000): boolean {
   const now = Date.now();
   const h = hits.get(ip);
   if (!h || now - h.at > windowMs) {
+    // Bound the map like rate-limit.ts does: every distinct visitor IP would
+    // otherwise live in memory forever, and this endpoint is the one page with
+    // no login in front of it.
+    if (hits.size > MAX_HITS) {
+      for (const [key, entry] of hits) if (entry.at + windowMs <= now) hits.delete(key);
+    }
     hits.set(ip, { count: 1, at: now });
     return true;
   }

@@ -1,9 +1,9 @@
 // SMS admin: wallet, packages/purchase, bulk campaigns (audience filter,
-// segment counter, cost preview), opt-out management, logs. Actual sending
-// goes through the SmsDispatcher (single path) — campaigns materialise
-// SmsLog rows idempotently, then the worker drains the queue.
+// segment counter, cost preview), opt-out management, logs. Single sends go
+// through the SmsDispatcher; a campaign fans out in bulk with the same
+// SmsLog rows and reservation rules, then the worker drains the queue.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { appendAudit, Db, prisma } from '@chms/db';
+import { appendAudit, Db, prisma, Prisma } from '@chms/db';
 import {
   formatGhs,
   MemberStatus,
@@ -209,13 +209,16 @@ export class SmsService {
     );
   }
 
+  /** Recipients per fan-out chunk: one wallet update + one INSERT per chunk. */
+  private static readonly CAMPAIGN_CHUNK = 500;
+
   /**
    * Materialise one SmsLog per recipient (idempotency key campaign:{id}:{phone})
-   * and enqueue. Wallet reservation happens per-log in the dispatcher, so a
-   * short wallet suppresses the tail rather than failing the whole campaign.
+   * and enqueue. Wallet reservation is bulk per chunk, and a short wallet
+   * suppresses the tail rather than failing the whole campaign.
    */
   async sendCampaign(user: AuthUser, campaignId: string, ip?: string) {
-    const { logIds } = await this.tenant.run(user, async (tx) => {
+    const logIds = await this.tenant.run(user, async (tx) => {
       const campaign = await tx.smsCampaign.findFirst({
         where: { id: campaignId, churchId: user.churchId },
       });
@@ -243,23 +246,88 @@ export class SmsService {
       if (recipients.length === 0) throw new BadRequestException('audience resolved to zero recipients');
 
       const segments = smsSegments(campaign.body);
-      const logIds: string[] = [];
-      for (const r of recipients) {
-        const outcome = await this.dispatcher.dispatch(tx, {
-          churchId: user.churchId,
-          toE164: r.phoneE164,
-          body: campaign.body,
-          source: 'CAMPAIGN',
-          idempotencyKey: `campaign:${campaignId}:${r.phoneE164}`,
-          campaignId,
-        });
-        if (outcome.status === 'QUEUED') logIds.push(outcome.logId);
-      }
 
-      await tx.smsCampaign.update({
-        where: { id: campaignId },
+      // Claim the campaign row before materialising anything: two staff tapping
+      // "send" cannot fan out twice, and a rollback releases the claim.
+      const claim = await tx.smsCampaign.updateMany({
+        where: { id: campaignId, churchId: user.churchId, status: { in: ['DRAFT', 'SCHEDULED'] } },
         data: { status: 'SENDING', totalRecipients: recipients.length },
       });
+      if (claim.count === 0) throw new BadRequestException('campaign already sent');
+
+      const logIds: string[] = [];
+
+      // Bulk path: ~5 statements per 500 recipients, not ~8 per recipient.
+      for (let i = 0; i < recipients.length; i += SmsService.CAMPAIGN_CHUNK) {
+        const chunk = recipients.slice(i, i + SmsService.CAMPAIGN_CHUNK);
+        const already = await tx.smsLog.findMany({
+          where: { campaignId, toE164: { in: chunk.map((r) => r.phoneE164) } },
+          select: { toE164: true },
+        });
+        const seen = new Set(already.map((r) => r.toE164));
+        let fresh = chunk.filter((r) => !seen.has(r.phoneE164));
+        if (fresh.length === 0) continue;
+
+        let units = fresh.length * segments;
+        let reserved = await tx.smsWallet.updateMany({
+          where: { churchId: user.churchId, balanceUnits: { gte: units } },
+          data: { balanceUnits: { decrement: units }, reservedUnits: { increment: units } },
+        });
+        if (reserved.count === 0) {
+          // Wallet cannot fund the whole chunk: send exactly what it can.
+          const w = await tx.smsWallet.findUnique({ where: { churchId: user.churchId } });
+          const affordable = Math.min(fresh.length, Math.floor((w?.balanceUnits ?? 0) / segments));
+          if (affordable === 0) break;
+          fresh = fresh.slice(0, affordable);
+          units = fresh.length * segments;
+          reserved = await tx.smsWallet.updateMany({
+            where: { churchId: user.churchId, balanceUnits: { gte: units } },
+            data: { balanceUnits: { decrement: units }, reservedUnits: { increment: units } },
+          });
+          if (reserved.count === 0) break;
+        }
+
+        const logRows: Prisma.SmsLogCreateManyInput[] = fresh.map((r) => ({
+          churchId: user.churchId,
+          channel: 'SMS',
+          source: 'CAMPAIGN',
+          campaignId,
+          toE164: r.phoneE164,
+          body: campaign.body,
+          segments,
+          status: 'QUEUED',
+          idempotencyKey: `campaign:${campaignId}:${r.phoneE164}`,
+        }));
+        await tx.smsLog.createMany({ data: logRows, skipDuplicates: true });
+
+        const inserted = await tx.smsLog.findMany({
+          where: { campaignId, toE164: { in: fresh.map((r) => r.phoneE164) } },
+          select: { id: true, toE164: true },
+        });
+        const idByPhone = new Map(inserted.map((r) => [r.toE164, r.id]));
+
+        const walletAfterReservation = await tx.smsWallet.findUnique({ where: { churchId: user.churchId } });
+        if (!walletAfterReservation) throw new Error('SMS wallet disappeared during reservation.');
+        let balanceAfter = walletAfterReservation.balanceUnits + inserted.length * segments;
+        const ledgerRows: Prisma.SmsLedgerCreateManyInput[] = [];
+        for (const r of fresh) {
+          const logId = idByPhone.get(r.phoneE164);
+          if (!logId) continue;
+          balanceAfter -= segments;
+          ledgerRows.push({
+            churchId: user.churchId,
+            delta: -segments,
+            reason: 'RESERVE',
+            refType: 'SMS_LOG',
+            refId: logId,
+            balanceAfter,
+            idempotencyKey: `reserve:campaign:${campaignId}:${r.phoneE164}`,
+          });
+          logIds.push(logId);
+        }
+        await tx.smsLedger.createMany({ data: ledgerRows, skipDuplicates: true });
+      }
+
       await appendAudit(tx, {
         churchId: user.churchId,
         actorId: user.userId,
@@ -269,9 +337,10 @@ export class SmsService {
         after: { recipients: recipients.length, segments, queued: logIds.length },
         ip,
       });
-      return { logIds };
+      return logIds;
     });
-    for (const id of logIds) this.queues.enqueueCampaignSend(id);
+    // One Redis round trip per 1,000 logs instead of one per recipient.
+    this.queues.enqueueCampaignSendBulk(logIds);
     return { queued: logIds.length };
   }
 }

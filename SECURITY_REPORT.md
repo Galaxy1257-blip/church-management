@@ -24,6 +24,13 @@ that baseline.
 | 2 | F | HIGH | `apps/api/src/main.ts` | No `helmet()`; `x-powered-by` leaked the framework | `helmet({ contentSecurityPolicy:false, crossOriginResourcePolicy:{policy:'cross-origin'} })` + `disable('x-powered-by')` on every API response | verified live via `curl -D-` |
 | 3 | C | MEDIUM | `packages/shared/src/csv.ts` | CSV export had no spreadsheet formula-injection guard — a member named `=cmd\|…` executes in the treasurer's Excel | `toCsv()` prefixes a leading `'` on any cell starting `= + - @ \t \r` | `csv.test.ts` "neutralises spreadsheet formula injection" |
 | 4 | M | HIGH | `package-lock.json` | 10 advisories (9 high, 1 moderate) in production deps | `npm audit fix` (non-breaking) → 10 down to 3 | `npm audit --omit=dev` |
+| 5 | K | MEDIUM | `apps/worker/src/send.ts`, `sms-budget.ts` | No global SMS stop or hourly unit ceiling | Added `SMS_SENDING_ENABLED` kill switch and serialized `SMS_HOURLY_UNIT_CAP` (default 5,000 segments/hour); capped/disabled sends are deferred, not marked sent | 6 send-time tests + budget tests |
+| 6 | J/L | MEDIUM | `apps/worker/src/send.ts` | Final campaign log could leave its campaign `SENDING` forever; cancelled or later-opted-out announcement texts could still reach the gateway | Restored campaign completion on every terminal path; recheck announcement approval, cancellation, expiry, sender permission, News switch, billing and opt-out before gateway acceptance, with atomic refund on suppression | `send.test.ts` cancellation/opt-out/campaign cases |
+| 7 | K | MEDIUM | `apps/worker/src/announcements.ts`, `apps/api/src/sms/sms.service.ts` | Scheduled/manual SMS fan-out could race wallet-ledger balances | Re-read the locked wallet after atomic reservation and reconstruct per-log `balanceAfter`; stable idempotency keys, consent/opt-out filtering and honest partial outcomes | worker + API fan-out tests, including competing-reservation regressions |
+| 8 | N | LOW | `apps/web/src/app/robots.ts`, `.well-known/security.txt/route.ts` | No crawler policy or security contact | Added robots rules excluding private/mock routes and a dynamic security contact | source/typecheck; live route check pending |
+| 9 | O | MEDIUM | `apps/api/src/common/http-exception.filter.ts`, `log-redaction.ts` | HTTP exception logs could expose bearer tokens, JWTs, phone numbers, email addresses or control-byte log forging | Central HTTP error-log redaction, query stripping and control-byte removal; client still receives generic 5xx bodies | `log-redaction.spec.ts` |
+| 10 | O | LOW | `docs/incident-response.md` | No containment/reconciliation runbook | Added SMS/push containment, wallet/ledger reconciliation and legal-update duties | document review |
+| 11 | I | MEDIUM | `migrations/30_security_constraints/migration.sql` | Money columns accepted negative amounts | Idempotent nonnegative CHECK constraints; migration is part of the owner-approved hardening work and must be deployed before the matching release | migration applied to local main/test databases |
 
 ---
 
@@ -72,7 +79,9 @@ that baseline.
 ## Domain E — Next.js / Vercel — OPEN-3
 
 - No Server Actions of consequence; image optimizer unused; no debug routes.
-- **OPEN-3**: `next` 15.x carries 3 moderate advisories; fix is `next@16` (major).
+- **OPEN-3**: the 24 Nov 2026 audit reports high-severity PostCSS advisories in
+  the bundled Next dependency and a high-severity zod advisory; fixes require
+  `next@16` and `zod@4`, both breaking majors.
 
 ## Domain F — API hardening — FIXED-2
 
@@ -103,20 +112,26 @@ EXIF stripping would harden the image path further.
 - RLS FORCE on every tenant table; `PlatformUser` policy `USING(false)`.
 - `sslmode=require` on Neon; pooled connection in serverless.
 - Least-privilege app role (`app_user`, no DDL) separate from migrations.
-- **OPEN-6**: add `CHECK (amount >= 0)` constraints on money columns
-  (schema change — proposed, not applied).
+- **FIXED-11**: `migrations/30_security_constraints` adds idempotent
+  `CHECK (amount >= 0)` constraints to money and SMS-purchase columns.
 
 ## Domain J — Worker / Redis — no new findings
 
 Jobs enqueue **ids only** (`{ logId }`, `{ txId }`) with deterministic
 `jobId` (`sms:${logId}`), so a duplicate tick cannot double-send; SMS dispatch
-is idempotent on `idempotencyKey` with a ledger check.
+is idempotent on `idempotencyKey` with a ledger check. Disabled/capped sends
+receive delayed retries. **Residual:** recovery covers stale `QUEUED` SMS, but
+not a process crash after a row is claimed as `SENDING`; see OPEN-10.
 
-## Domain K — SMS / push abuse — no new findings
+## Domain K — SMS / push abuse — controls added
 
 Per-phone and per-IP rate limits on OTP/SMS; quiet hours gate marketing sends;
-opt-out (`STOP`) handled. **OPEN-7 (LOW)**: a global hourly spend cap + alerts
-(provider dashboard action).
+opt-out (`STOP`) is checked at fan-out and again at send time. **FIXED-5** adds a
+global kill switch and serialized hourly segment ceiling. Announcement SMS uses
+active-member consent, normalized/deduplicated phones, wallet reservation,
+stable idempotency keys and provider-outcome-based `SENT`/`PARTIAL`/`FAILED`
+results. Provider-dashboard spend alerts remain a manual action. A configured
+mock gateway records attempts only; it is not evidence of delivery to a phone.
 
 ## Domain L — Money & business logic — no new findings
 
@@ -127,20 +142,24 @@ server-side.
 ## Domain M — Supply chain — FIXED-4, OPEN-3
 
 - **FIXED-4**: `npm audit fix` removed 7 of 10 advisories.
-- **OPEN-1/OPEN-3**: `zod` <4.6.6 (ReDoS/memory, high) and `next` 15.x
-  (moderate) both need a breaking major bump. Deferred deliberately.
+- **OPEN-3**: the 24 Nov audit reports 10 advisories (8 moderate, 2 high):
+  Next's bundled PostCSS and zod need breaking major upgrades; the ESLint
+  minimatch chain is dev-only. Non-breaking `npm audit fix` has already been
+  applied; forced majors are deferred deliberately.
 - Secrets: `check:secrets` clean; `.env` gitignored and never in history.
 
 ## Domain N — Recon — no new findings
 
 `x-powered-by` off (FIXED-2). No exposed `/.env`, `/.git`, backup files or API
-docs. **OPEN-8 (LOW)**: no `robots.txt` / `security.txt`.
+docs. **FIXED-8**: `robots.txt` and `/.well-known/security.txt` are implemented.
 
 ## Domain O — Logging & monitoring — no new findings
 
 `appendAudit` is called across 20+ services (auth, billing, giving, finance,
-members, every ministry module). **OPEN-9**: PII redaction is per-call-site, not
-central; alerting/incident-response runbook not present.
+members, every ministry module). **FIXED-9/FIXED-10**: the central HTTP exception
+filter redacts tokens/contact data and strips query strings/control bytes, and an
+incident-response runbook is present. Other service and worker log callsites are
+not yet covered by that central helper.
 
 ## Domain P/Q/R — anti-fraud / DoS / privacy
 
@@ -157,21 +176,40 @@ central; alerting/incident-response runbook not present.
 1. **bcrypt cost 10 → 12** + rehash-on-login (`auth.service.ts`). Low risk, but
    touches the auth path — flagged per the operating rules.
 2. **CSP nonce middleware** to drop `'unsafe-inline'` from `script-src`.
-3. **`next` 15 → 16** and **`zod` → 4.6.7**: breaking majors; schedule with the
-   upgrade train.
+3. **`next` 15 → 16** and **`zod` → 4.6.7**: breaking majors; the 24 Nov audit
+   still reports two high-severity advisories (Next's bundled PostCSS and zod).
+   Schedule with the upgrade train; do not force-apply without regression tests.
 4. Paystack webhook timestamp-freshness (NOTE — provider signs no timestamp).
 5. Image magic-byte verification + EXIF stripping.
-6. `CHECK (amount >= 0)` constraints on money columns (schema migration).
-7. SMS global hourly spend cap + provider alerts.
-8. `robots.txt` + `/.well-known/security.txt`.
-9. Central log redaction + `docs/incident-response.md`.
+6. **FIXED-11:** nonnegative money constraints are in migration 30; deploy it.
+7. **FIXED-5:** global SMS kill switch + hourly unit cap. Provider-dashboard
+   spend alerts remain a manual operator action.
+8. **FIXED-8:** robots + security contact routes are implemented.
+9. **FIXED-9/FIXED-10:** central HTTP exception-log redaction and the incident
+   runbook are implemented; remaining service/worker log callsites are not yet
+   covered centrally.
+10. Stale `SENDING` SMS recovery after a worker crash; queued recovery exists,
+    but blindly resending a claimed message could duplicate a provider charge.
+11. Automatic dispatch of due `SmsCampaign.scheduledAt` rows. Scheduled
+    announcement SMS is implemented; the older campaign scheduler remains manual.
+12. Live provider acceptance/delivery and provider-dashboard spend alerts. The
+    local mock records attempts only and cannot prove delivery.
 
 ## Assumptions & what could not be verified
 
 - Render/Vercel/Neon/Redis dashboard settings (IP allowlists, PITR, spend caps,
   preview-deployment protection) are outside the repo — treat as MANUAL ACTIONS.
 - No production live-fire test was run; findings are from static analysis + the
-  running dev instance.
+  running dev instance. The configured mock SMS gateway records attempts only.
+- Verification on 24 Nov 2026: workspace typecheck and lint passed; shared 183,
+  API 273 and worker 46 tests passed (502 total); secrets scan and
+  `git diff --check` passed. The announcement SMS checkbox/hint was checked in
+  the live DOM at 1440px and true 390px mobile emulation without horizontal
+  overflow. Screenshot capture and a clean post-reload console pass were blocked
+  by browser-tool failures. No production web build was run while the shared dev
+  server was live.
+- `npm audit --audit-level=high` still fails with 10 advisories (8 moderate,
+  2 high); see OPEN-3.
 - `x-middleware-subrequest` stripping is moot here: auth is enforced in the API
   guard, not in Next middleware, so the Next auth-bypass class of CVE does not
   apply to this app.

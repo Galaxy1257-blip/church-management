@@ -20,6 +20,7 @@ const { queues, close } = startConsumers(env);
 
 async function main(): Promise<void> {
   // Repeatable schedules (idempotent via jobId + BullMQ dedupe).
+  await queues.maintenance.add('notification-dispatch', {}, { repeat: { pattern: '* * * * *' }, jobId: 'notification-dispatch' });
   await queues.maintenance.add('sweep-pending', {}, { repeat: { pattern: '15 * * * *' }, jobId: 'sweep-pending' });
   await queues.maintenance.add('reconcile', {}, { repeat: { pattern: '20 2 * * *' }, jobId: 'nightly-reconcile' });
   await queues.maintenance.add('age-promotion', {}, { repeat: { pattern: '35 2 * * *' }, jobId: 'nightly-age-promotion' });

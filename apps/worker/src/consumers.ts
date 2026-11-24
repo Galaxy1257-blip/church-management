@@ -5,7 +5,7 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import type { WorkerEnv } from './env';
 import { runMaintenance } from './maintenance';
-import { maybeCompleteCampaign, sendSmsLog } from './send';
+import { sendSmsLog } from './send';
 import { getSmsGateway } from './sms-gateway';
 import { settleGift } from './giving-settle';
 import { verifyPendingTx } from './verify-pending';
@@ -46,19 +46,25 @@ export function startConsumers(env: WorkerEnv): Consumers {
     }
   }
 
+  const budget = { enabled: env.SMS_SENDING_ENABLED, hourlyUnitCap: env.SMS_HOURLY_UNIT_CAP };
+  const runSms = async (logId: string) => {
+    const result = await sendSmsLog(logId, await getSmsGateway(), budget);
+    if (result.result === 'deferred_hourly_cap' || result.result === 'deferred_disabled') {
+      const delay = result.result === 'deferred_hourly_cap' ? 60_000 : 300_000;
+      await queues.smsSend.add('send', { logId }, { jobId: `sms:${logId}:retry:${Date.now()}`, delay });
+    }
+    return result;
+  };
+
   const workers = [
     new Worker(
       QUEUE_SMS_SEND,
-      async (job) => sendSmsLog(job.data.logId, await getSmsGateway()),
+      async (job) => runSms(job.data.logId),
       { connection, concurrency: 10 },
     ),
     new Worker(
       QUEUE_CAMPAIGN_SEND,
-      async (job) => {
-        const result = await sendSmsLog(job.data.logId, await getSmsGateway());
-        if (job.data.campaignId) await maybeCompleteCampaign(job.data.campaignId);
-        return result;
-      },
+      async (job) => runSms(job.data.logId),
       { connection, concurrency: 5 },
     ),
     new Worker(

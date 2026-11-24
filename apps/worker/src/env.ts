@@ -6,6 +6,8 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   JWT_SECRET: z.string().min(16),
   SMS_GATEWAY: z.enum(['mock', 'csms']).default('mock'),
+  SMS_SENDING_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  SMS_HOURLY_UNIT_CAP: z.coerce.number().int().positive().default(5_000),
   CSMS_BASE_URL: z.string().default(''),
   CSMS_USERNAME: z.string().default(''),
   CSMS_PASSWORD: z.string().default(''),

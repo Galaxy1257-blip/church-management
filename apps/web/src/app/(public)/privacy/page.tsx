@@ -57,8 +57,10 @@ export default function PrivacyPage() {
           requests are encrypted before they are written to the database.
         </li>
         <li>
-          <b>Messages:</b> a log of each text (recipient, content, delivery status), your consent or opt-out choice, and
-          any reply you send to the church&rsquo;s number.
+          <b>Messages:</b> scheduled announcements, the channels chosen, their due time and delivery status; a log of
+          each text (recipient, content, delivery status); your consent or opt-out choice; and any reply you send to
+          the church&rsquo;s number. A scheduled text uses your phone number only if you are an active member who agreed
+          to texts and have not opted out. Delivery details may show why a message was delayed or skipped.
         </li>
         <li>
           <b>Celebrations:</b> a leader may mark a birthday or anniversary on the Programs screen to share with the
@@ -119,7 +121,11 @@ export default function PrivacyPage() {
           church must be able to answer for its books. When a person is deleted, their name and phone are removed from
           these records but the amounts remain.
         </li>
-        <li>Message logs and the audit log: six years, for the same accounting and accountability reason.</li>
+        <li>
+          Scheduled announcements, their channel delivery records, text logs and the audit log: six years, for the
+          same accounting and accountability reason. Deleting your account anonymises your identifying details in
+          records the church must keep and stops future messages to you.
+        </li>
         <li>Sign-in tokens: until they expire or you sign out; refresh tokens are revoked on sign-out and on deletion.</li>
         <li>Backups: rolling copies kept by the database host for disaster recovery, overwritten on their schedule.</li>
       </ul>
@@ -142,7 +148,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>Stop texts:</b> reply STOP to any message, or turn off messages on your profile. We record the opt-out and
-          the church must not message you again until you opt back in.
+          check it again when a scheduled text becomes due, so a message already scheduled will not be sent after you
+          opt out. The church must not message you again until you opt back in.
         </li>
         <li>
           <b>Notifications:</b> turn them off in your browser or device settings at any time.

@@ -13,6 +13,12 @@ export interface MaintenanceQueues {
 
 export async function runMaintenance(name: string, queues: MaintenanceQueues): Promise<unknown> {
   switch (name) {
+    case 'notification-dispatch': {
+      const { processAnnouncementDeliveries } = await import('./announcements');
+      return processAnnouncementDeliveries(new Date(), (logId) =>
+        queues.smsSend.add('send', { logId }, { jobId: `sms:${logId}:announcement:${String(Date.now())}` }),
+      );
+    }
     case 'sweep-pending': {
       const { platformPrisma: prisma } = await import('@chms/db');
       const stale = await prisma.transaction.findMany({

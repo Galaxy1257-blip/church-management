@@ -5,7 +5,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { appendAudit, Db } from '@chms/db';
 import { normalizeGhPhone, parseCsv, PhoneError, rowsToObjects, toCsv } from '@chms/shared';
 import { TenantService } from '../common/tenant';
-import { allocateMemberNo } from '../common/member-no';
+import { allocateMemberNo, lockMemberNumbers, reserveMemberNo } from '../common/member-no';
 import { AuthUser } from '../common/guards';
 import { resolveMemberBracket } from './members.service';
 export interface ImportRowInput {
@@ -56,6 +56,8 @@ export function buildImportPreview(
   existingNos: Set<string>,
 ): ImportPreview {
   const seenPhones = new Set<string>();
+  const seenNos = new Set<string>();
+  const knownNos = new Set(Array.from(existingNos, (value) => value.toLowerCase()));
   const rows: ImportPreviewRow[] = objects.map((obj, idx) => {
     const input: ImportRowInput = {
       firstName: pick(obj, 'firstName', 'first', 'givenname'),
@@ -87,13 +89,21 @@ export function buildImportPreview(
       errors.push(`dob must be YYYY-MM-DD, got "${input.dob}"`);
     }
 
-    const duplicateOfExisting = normalizedPhone !== null && existingPhones.has(normalizedPhone);
-    const duplicateInFile = normalizedPhone !== null && seenPhones.has(normalizedPhone);
+    const phoneDuplicateOfExisting = normalizedPhone !== null && existingPhones.has(normalizedPhone);
+    const phoneDuplicateInFile = normalizedPhone !== null && seenPhones.has(normalizedPhone);
     if (normalizedPhone) seenPhones.add(normalizedPhone);
-    if (duplicateInFile) errors.push('duplicate phone within this file');
-    if (input.memberNo && existingNos.has(input.memberNo.trim())) {
-      errors.push(`memberNo "${input.memberNo}" already exists`);
-    }
+    if (phoneDuplicateInFile) errors.push('duplicate phone within this file');
+
+    const memberNo = input.memberNo?.trim();
+    const memberNoKey = memberNo?.toLowerCase();
+    const memberNoDuplicateOfExisting = memberNoKey ? knownNos.has(memberNoKey) : false;
+    const memberNoDuplicateInFile = memberNoKey ? seenNos.has(memberNoKey) : false;
+    if (memberNoKey) seenNos.add(memberNoKey);
+    if (memberNoDuplicateOfExisting) errors.push(`memberNo "${memberNo}" already exists`);
+    if (memberNoDuplicateInFile) errors.push(`memberNo "${memberNo}" is duplicated within this file`);
+
+    const duplicateOfExisting = phoneDuplicateOfExisting || memberNoDuplicateOfExisting;
+    const duplicateInFile = phoneDuplicateInFile || memberNoDuplicateInFile;
 
     return { rowNumber: idx + 2, input, normalizedPhone, errors, duplicateOfExisting, duplicateInFile };
   });
@@ -130,11 +140,21 @@ export async function insertImportRows(
   churchId: string,
   rows: ImportRowInput[],
 ): Promise<{ imported: number; failures: { index: number; reason: string }[] }> {
+  await lockMemberNumbers(tx, churchId);
+  const existingNos = new Set(
+    (await tx.member.findMany({ where: { churchId }, select: { memberNo: true } }))
+      .map((member) => member.memberNo.toLowerCase()),
+  );
+  const seenNos = new Set<string>();
   let imported = 0;
   const failures: { index: number; reason: string }[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
+      if (!row.firstName?.trim() || !row.lastName?.trim()) {
+        failures.push({ index: i, reason: 'firstName and lastName are required' });
+        continue;
+      }
       const phone = row.phoneE164 ? normalizeGhPhone(row.phoneE164) : null;
       if (phone) {
         const clash = await tx.member.findFirst({
@@ -146,12 +166,21 @@ export async function insertImportRows(
           continue;
         }
       }
+      const suppliedNo = row.memberNo?.trim();
+      const memberNoKey = suppliedNo?.toLowerCase();
+      if (memberNoKey && (existingNos.has(memberNoKey) || seenNos.has(memberNoKey))) {
+        failures.push({ index: i, reason: 'member number already exists' });
+        continue;
+      }
+      if (memberNoKey) seenNos.add(memberNoKey);
       const { ageBracketId } = await resolveMemberBracket(tx, churchId, { dob: row.dob ?? null });
       const g = row.gender?.trim().toUpperCase();
+      if (suppliedNo) await reserveMemberNo(tx, churchId, suppliedNo);
+      const memberNo = suppliedNo || (await allocateMemberNo(tx, churchId));
       await tx.member.create({
         data: {
           churchId,
-          memberNo: row.memberNo?.trim() || (await allocateMemberNo(tx, churchId)),
+          memberNo,
           firstName: row.firstName.trim(),
           lastName: row.lastName.trim(),
           phoneE164: phone,
@@ -193,11 +222,11 @@ export class MembersImportService {
     const existingNos = new Set<string>();
     await this.tenant.run(user, async (tx) => {
       const members = await tx.member.findMany({
-        where: { churchId: user.churchId, deletedAt: null },
-        select: { phoneE164: true, memberNo: true },
+        where: { churchId: user.churchId },
+        select: { phoneE164: true, memberNo: true, deletedAt: true },
       });
       for (const m of members) {
-        if (m.phoneE164) existingPhones.add(m.phoneE164);
+        if (m.phoneE164 && !m.deletedAt) existingPhones.add(m.phoneE164);
         existingNos.add(m.memberNo);
       }
     });

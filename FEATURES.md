@@ -69,6 +69,8 @@ A modern, full-stack, enterprise-grade Church Management System tailored for Afr
 * **Personalized SMS Templates**: Dynamic placeholder tags (`{{name}}`, `{{church}}`, `{{service_time}}`, `{{pledge_balance}}`).
 * **Opt-Out Compliance**: Automatic unsubscribe keyword (`STOP`) processing to respect recipient preferences.
 * **Delivery Reports (DLR)**: Live tracking of sent, delivered, undelivered, and failed SMS messages.
+* **Scheduled Announcement SMS**: Choose Text message under New announcement → Where it goes. Delivery uses active-member consent, opt-outs, quiet hours, prepaid wallet reservation, stable idempotency keys and send-time reauthorization. Per-channel status distinguishes sent, partial, failed and skipped outcomes; a mock gateway is never proof of handset delivery.
+* **Spend Controls**: A global sending kill switch and serialized hourly segment ceiling defer sends instead of marking them delivered. Provider-dashboard spend alerts remain an operator control.
 
 ---
 

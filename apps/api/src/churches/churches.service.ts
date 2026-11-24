@@ -25,7 +25,7 @@ import { timingSafeEqualStr } from '../common/crypto';
 import { ModuleFlagsService } from '../common/module-flags';
 import { BibleService } from '../bible/bible.service';
 import { trialEndsAt } from '../billing/billing.logic';
-import { allocateMemberNo } from '../common/member-no';
+import { allocateMemberNo, memberIdPrefix } from '../common/member-no';
 import { resolveMemberBracket } from '../members/members.service';
 import { addModuleRequest, asModuleRequests, clearEnabledRequests, removeModuleRequest } from './module-requests';
 import type { Env } from '../env';
@@ -113,6 +113,7 @@ export class ChurchesService {
             name,
             slug,
             pastorDisplayName: input.pastorDisplayName ?? null,
+            memberIdPrefix: memberIdPrefix(name),
             timezone: input.timezone ?? 'Africa/Accra',
             // Every new church starts with two weeks free; after that the
             // monthly subscription (plus grace) keeps the workspace open.

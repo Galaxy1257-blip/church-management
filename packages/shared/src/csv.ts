@@ -124,5 +124,5 @@ export function toCsv(headers: string[], rows: (string | number | null | undefin
   };
   const lines = [headers.map(esc).join(',')];
   for (const row of rows) lines.push(row.map(esc).join(','));
-  return lines.join('\r\n') + '\r\n';
+  return '\uFEFF' + lines.join('\r\n') + '\r\n';
 }

@@ -3,6 +3,55 @@
 **Read first in a new session.** Repo-level context lives in `../STATE.md` and
 `../LOGS.md`; this file is the ECC gate journal.
 
+## Session R — scheduled announcements + SMS hardening (24 Nov 2026, uncommitted)
+
+**Delivered:** church-name member IDs; durable scheduled in-app/push announcements; announcement SMS under
+New announcement → Where it goes; real Lucide member export/PDF actions in the requested order; readable
+date-only/PDF encoding. SMS uses active-member consent, opt-out checks at fan-out and send time, quiet hours,
+atomic wallet reservation, stable idempotency keys, send-time announcement reauthorization, and honest
+SENT/PARTIAL/FAILED outcomes. The wallet ledger now uses the post-reservation locked balance.
+
+**Security follow-through:** global SMS kill switch + serialized hourly unit cap; delayed retries while
+capped/disabled; campaign completion on terminal logs; central HTTP exception-log redaction; robots/security
+contact; nonnegative money constraints; incident runbook. Legal pages and `LEGAL_UPDATED` now cover scheduled
+SMS, credits, quiet hours, opt-outs and retention.
+
+**Gates:** typecheck + lint pass; shared 183 + API 273 + worker 46 = **502 tests pass**; secrets clean;
+`git diff --check` pass. Announcement SMS DOM verified at 1440px and true 390px with no overflow. Screenshots
+and a clean post-reload console pass were blocked by browser-tool failures. No production build while the dev
+server runs. `npm audit --audit-level=high` still reports 10 advisories (8 moderate, 2 high).
+
+**Still open:** breaking Next/PostCSS + zod upgrades (#119), stale SENDING crash recovery, due scheduled SMS
+campaign dispatch, nonce CSP, bcrypt rehash, image re-encoding, remaining log callsites, provider-dashboard
+alerts, Twi licensing (#49), and real SMS delivery (local gateway is mock). No commit or push was made.
+
+## Session Q — master switches per App-section group (15 Nov 2026, uncommitted)
+
+**Task (owner, plan `012`):** a church can now switch a whole **group** of sub-sections off
+at once while keeping the independent per-sub-section toggles. Example: turn off
+**Organisation** to hide departments/branches/activity-log together, or leave **Branches**
+on and switch only **Departments** off. Model is general (People, Services, Offerings,
+News & follow-up, Organisation).
+
+**Rule:** a child is *effectively on* only when its own switch AND its group's master are
+on. `effectiveModules()` derives it; the API guard and `/auth/me` return the effective set,
+so a hidden child 403s and vanishes from the nav. Raw stored values are never mutated, so
+Settings shows the true ticked state even under an off master.
+
+**Files:** `packages/shared/src/modules.ts` (new key `organization` default on,
+`MODULE_GROUPS`, `effectiveModules`) · `apps/api/src/common/module-flags.ts` + `auth.service.ts`
+(effective) · `apps/api/src/common/module-coverage.spec.ts` (masters exempt from `@ForModule`)
+· `apps/web/src/lib/access.ts` (mirror) · `settings/page.tsx` + platform `churches/[id]`
+(grouped master/child UI) · `org/page.tsx` (Households card now gates on `departments`).
+
+**Gates (artifacts `013`/`014`):** shared build 0 · shared 182 (+5) · api 236 · web access 8/8 ·
+api+web typecheck 0 · eslint 0. **No DB migration.**
+
+**Resume here:** not committed. Owner commits + pushes. Optional browser pass on Settings →
+App sections and `/org`. Known residual risk: a pre-existing church that had a child on while
+its new master is off (e.g. Events on, Services off) now sees that child hidden until the
+master is on — intended, but worth a release note.
+
 ## Session P — CLOSED (31 Oct 2026, `7105d44` + `d25d67e`)
 
 **Task:** class-scoped Sunday School care, and a weekly service that opens and closes check-in by

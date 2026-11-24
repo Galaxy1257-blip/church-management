@@ -233,6 +233,8 @@ export class PortalService {
         where: {
           churchId,
           moderation: 'APPROVED',
+          publishAt: { lte: new Date() },
+          cancelledAt: null,
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
         orderBy: { publishAt: 'desc' },
@@ -443,7 +445,7 @@ export class PortalService {
         where: { churchId, submittedByMemberId: member.id },
         orderBy: { publishAt: 'desc' },
         take: 20,
-        select: { id: true, title: true, body: true, moderation: true, publishAt: true, photoDataUrl: true },
+        select: { id: true, title: true, body: true, moderation: true, publishAt: true, cancelledAt: true, photoDataUrl: true },
       }),
     );
   }

@@ -45,6 +45,12 @@ export default function TermsPage() {
           congregation sees it, and anyone can ask the office not to share theirs.
         </li>
         <li>
+          <b>Scheduled messages.</b> A church may schedule an announcement for in-app, phone or text delivery. The
+          app checks consent, opt-outs and the sender&rsquo;s permission again when delivery is due. Texts wait through
+          the church&rsquo;s quiet hours, and cancelled or no-longer-approved announcements are not sent. A delivery
+          report shows what was sent, delayed or skipped; partial delivery does not mean everyone received it.
+        </li>
+        <li>
           <b>You are responsible for your sign-in.</b> Keep your password and one-time codes private. Tell the church
           office at once if you think someone else used your account.
         </li>
@@ -84,6 +90,11 @@ export default function TermsPage() {
           <b>Offerings recorded in the app.</b> Amounts entered by hand are the church&rsquo;s own record. Online gifts
           are settled by the payment provider; the app shows what the provider reports. We are not a party to the gift
           between a giver and the church.
+        </li>
+        <li>
+          <b>SMS credits.</b> Text messages use prepaid SMS credits. Credits are reserved when texts are queued and
+          settled when the provider accepts them or reports failure. Failed texts are refunded when the provider&rsquo;s
+          failure report is received. A short balance may send only part of an audience; the app reports that shortfall.
         </li>
         <li>
           <b>If payment fails.</b> After the grace period shown in the app, the church&rsquo;s workspace is locked until

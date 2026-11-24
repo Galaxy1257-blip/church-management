@@ -1,5 +1,5 @@
 'use client';
-// Announcements: post church-wide notices (in-app now; SMS via campaigns).
+// Announcements: publish now or schedule in-app and phone delivery.
 // Clicking a notice opens it in full — including the photo published with it
 // (e.g. a deceased parent) and the member it is about, with their contact card.
 import { FormEvent, useEffect, useRef, useState } from 'react';
@@ -20,6 +20,16 @@ interface MemberLite {
   photoDataUrl: string | null;
 }
 
+interface Delivery {
+  id: string;
+  channel: string;
+  status: string;
+  dueAt: string;
+  attempts: number;
+  sentAt: string | null;
+  lastError: string | null;
+}
+
 interface Announcement {
   id: string;
   title: string;
@@ -27,17 +37,64 @@ interface Announcement {
   category?: string;
   channels: string[];
   publishAt: string;
+  expiresAt?: string | null;
+  cancelledAt?: string | null;
+  deliveries?: Delivery[];
   memberId?: string | null;
   member?: MemberLite | null;
 }
 
 interface AnnouncementDetail extends Announcement {
   photoDataUrl: string | null;
+  deliveries: Delivery[];
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  INAPP: 'In-app',
+  PUSH: 'Phone notification',
+  SMS: 'Text message',
+};
+
+const DELIVERY_LABELS: Record<string, string> = {
+  PENDING: 'Waiting',
+  PROCESSING: 'Sending',
+  SENT: 'Sent',
+  PARTIAL: 'Partly sent',
+  FAILED: 'Needs attention',
+  SKIPPED: 'Not sent',
+  CANCELLED: 'Cancelled',
+};
+
+function localDateTime(iso: string): string {
+  const date = new Date(iso);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function announcementState(a: Announcement): string {
+  if (a.cancelledAt) return 'Cancelled';
+  if (new Date(a.publishAt).getTime() > Date.now()) return 'Scheduled';
+  const statuses = (a.deliveries ?? []).map((d) => d.status);
+  if (statuses.includes('FAILED')) return 'Needs attention';
+  if (statuses.includes('PARTIAL')) return 'Partly delivered';
+  if (statuses.includes('PROCESSING')) return 'Sending';
+  if (statuses.length && statuses.every((s) => s === 'SENT')) return 'Delivered';
+  if (statuses.some((s) => s === 'SKIPPED')) return 'Not fully sent';
+  return statuses.length ? 'Queued' : 'Published';
 }
 
 export default function AnnouncementsPage() {
   const [items, setItems] = useState<Announcement[]>([]);
-  const [form, setForm] = useState({ title: '', body: '', channel: 'INAPP', category: 'GENERAL', memberId: '', photoDataUrl: '' });
+  const [form, setForm] = useState({
+    title: '',
+    body: '',
+    channels: ['INAPP'],
+    publishAt: '',
+    category: 'GENERAL',
+    memberId: '',
+    photoDataUrl: '',
+  });
+  const [rescheduleAt, setRescheduleAt] = useState('');
+  const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('ALL');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -86,7 +143,9 @@ export default function AnnouncementsPage() {
     setOpenId(id);
     setDetail(null);
     try {
-      setDetail(await api<AnnouncementDetail>(`/announcements/${id}`));
+      const loaded = await api<AnnouncementDetail>(`/announcements/${id}`);
+      setDetail(loaded);
+      setRescheduleAt(localDateTime(loaded.publishAt));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not open this notice');
     }
@@ -94,28 +153,75 @@ export default function AnnouncementsPage() {
 
   async function post(e: FormEvent): Promise<void> {
     e.preventDefault();
+    setBusy(true);
+    setError('');
     try {
+      const publishAt = form.publishAt ? new Date(form.publishAt) : new Date();
       await api('/announcements', {
         method: 'POST',
         body: {
           title: form.title,
           body: form.body,
-          channels: [form.channel],
+          channels: form.channels,
+          publishAt: form.publishAt ? publishAt.toISOString() : undefined,
           category: form.category,
           memberId: form.memberId || undefined,
           photoDataUrl: form.photoDataUrl || undefined,
         },
       });
-      setForm({ title: '', body: '', channel: 'INAPP', category: 'GENERAL', memberId: '', photoDataUrl: '' });
-      setNotice('Announcement published');
+      setForm({ title: '', body: '', channels: ['INAPP'], publishAt: '', category: 'GENERAL', memberId: '', photoDataUrl: '' });
+      setNotice(publishAt.getTime() > Date.now() ? `Scheduled for ${fmtDateTime(publishAt)}.` : 'Saved — delivery is queued.');
       await load();
-    } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not save the announcement'); }
+    finally { setBusy(false); }
+  }
+
+  function toggleChannel(channel: string): void {
+    setForm((f) => {
+      if (f.channels.includes(channel) && f.channels.length === 1) return f;
+      return { ...f, channels: f.channels.includes(channel) ? f.channels.filter((c) => c !== channel) : [...f.channels, channel] };
+    });
+  }
+
+  async function reschedule(): Promise<void> {
+    if (!detail) return;
+    const next = new Date(rescheduleAt);
+    if (!rescheduleAt || Number.isNaN(next.getTime())) {
+      setError('Choose a valid publishing time.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await api<AnnouncementDetail>(`/announcements/${detail.id}/reschedule`, {
+        method: 'POST',
+        body: { publishAt: next.toISOString() },
+      });
+      setDetail(updated);
+      setRescheduleAt(localDateTime(updated.publishAt));
+      setNotice(`New publishing time saved: ${fmtDateTime(updated.publishAt)}.`);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not change the publishing time'); }
+    finally { setBusy(false); }
+  }
+
+  async function cancel(): Promise<void> {
+    if (!detail || !window.confirm('Cancel this scheduled announcement? It will not be sent.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await api<AnnouncementDetail>(`/announcements/${detail.id}/cancel`, { method: 'POST' });
+      setDetail(updated);
+      setNotice('Announcement cancelled. It will not be sent.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'could not cancel the announcement'); }
+    finally { setBusy(false); }
   }
 
   async function decide(id: string, approve: boolean): Promise<void> {
     try {
       await api(`/announcements/${id}/moderate`, { method: 'POST', body: { approve } });
-      setNotice(approve ? 'Approved — everybody can see it now.' : 'Not approved — the member sees that it was declined.');
+      setNotice(approve ? 'Approved — delivery is queued.' : 'Not approved — the member sees that it was declined.');
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : 'could not record the decision'); }
   }
@@ -170,11 +276,19 @@ export default function AnnouncementsPage() {
                 <option value="ALERT">Alert</option>
               </select>
             </label>
-            <label>Channel
-              <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
-                <option value="INAPP">In-app</option><option value="SMS">SMS (via campaign)</option><option value="PUSH">Push (needs VAPID)</option>
-              </select>
-            </label>
+            <fieldset>
+              <legend>Where it goes</legend>
+              <div className="row">
+                <label className="row"><input type="checkbox" checked={form.channels.includes('INAPP')} onChange={() => toggleChannel('INAPP')} /> In-app</label>
+                <label className="row"><input type="checkbox" checked={form.channels.includes('PUSH')} onChange={() => toggleChannel('PUSH')} /> Phone notification</label>
+                <label className="row"><input type="checkbox" checked={form.channels.includes('SMS')} onChange={() => toggleChannel('SMS')} /> SMS</label>
+              </div>
+              {form.channels.includes('SMS') ? (
+                <p className="muted" style={{ margin: '0.5rem 0 0', fontSize: '0.85rem' }}>
+                  Uses your SMS credits. Only active members who agreed to texts and have not opted out will receive it. Quiet hours still apply.
+                </p>
+              ) : null}
+            </fieldset>
             <label style={{ flex: 1 }}>
               About a member (optional)
               <select value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })}>
@@ -186,6 +300,11 @@ export default function AnnouncementsPage() {
             </label>
           </div>
           <label>
+            Publishing time (optional)
+            <input type="datetime-local" value={form.publishAt} onChange={(e) => setForm({ ...form, publishAt: e.target.value })} />
+            <span className="muted">Leave blank to queue it now. Phone delivery needs the church’s push keys switched on.</span>
+          </label>
+          <label>
             Photo (optional — for a funeral, you can add a picture of the person)
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
           </label>
@@ -195,12 +314,12 @@ export default function AnnouncementsPage() {
               <button type="button" className="small secondary" onClick={() => setForm({ ...form, photoDataUrl: '' })}>Remove photo</button>
             </div>
           ) : null}
-          <button>Publish</button>
+          <button disabled={busy}>{busy ? 'Saving…' : form.publishAt ? 'Schedule announcement' : 'Publish now'}</button>
         </form>
       </div>
       <div className="card">
         <div className="spread">
-          <h2>Published</h2>
+          <h2>Announcements</h2>
           <span className="chip-scroll">
             {['ALL', 'GENERAL', 'FUNERAL', 'OUTDOORING', 'EVENT', 'ALERT'].map((c) => (
               <button key={c} className={`small ${filter === c ? '' : 'secondary'}`} onClick={() => { setFilter(c); void load(c); }}>{c}</button>
@@ -218,9 +337,12 @@ export default function AnnouncementsPage() {
             <div className="spread"><strong>{a.title}</strong><span className="muted">{fmtDateTime(a.publishAt)}</span></div>
             <p style={{ margin: '4px 0 0' }}>{a.body}</p>
             <div className="row">
+              <span className={`badge ${announcementState(a) === 'Cancelled' || announcementState(a) === 'Needs attention' ? 'warn' : 'mute'}`}>
+                {announcementState(a)}
+              </span>
               {a.category && a.category !== 'GENERAL' ? <span className="badge warn">{a.category}</span> : null}
               {a.member ? <span className="badge ok">{a.member.firstName} {a.member.lastName}</span> : null}
-              {a.channels.map((c) => <span key={c} className="badge mute">{c}</span>)}
+              {a.channels.map((c) => <span key={c} className="badge mute">{CHANNEL_LABELS[c] ?? c}</span>)}
               <span className="muted" style={{ fontSize: '0.8rem' }}>Tap to read →</span>
             </div>
           </button>
@@ -249,6 +371,38 @@ export default function AnnouncementsPage() {
                     </figure>
                   ) : null}
                   <p style={{ whiteSpace: 'pre-wrap' }}>{detail.body}</p>
+
+                  <div className="drawer-section">
+                    <h3>Delivery</h3>
+                    {detail.deliveries.length ? detail.deliveries.map((delivery) => (
+                      <div key={delivery.id} className="spread" style={{ padding: '6px 0' }}>
+                        <span>{CHANNEL_LABELS[delivery.channel] ?? delivery.channel}</span>
+                        <span className="badge mute">{DELIVERY_LABELS[delivery.status] ?? delivery.status}</span>
+                      </div>
+                    )) : <p className="muted">No delivery record for this older announcement.</p>}
+                    {detail.deliveries.map((delivery) => delivery.lastError ? (
+                      <p key={`${delivery.id}-error`} className="muted" style={{ fontSize: '0.85rem' }}>{delivery.lastError}</p>
+                    ) : null)}
+                  </div>
+
+                  {!detail.cancelledAt && new Date(detail.publishAt).getTime() > Date.now() ? (
+                    <div className="drawer-section">
+                      <h3>Scheduled announcement</h3>
+                      <label>
+                        New publishing time
+                        <input
+                          type="datetime-local"
+                          value={rescheduleAt}
+                          min={localDateTime(new Date().toISOString())}
+                          onChange={(e) => setRescheduleAt(e.target.value)}
+                        />
+                      </label>
+                      <div className="row">
+                        <button type="button" className="small" disabled={busy} onClick={() => void reschedule()}>Save new time</button>
+                        <button type="button" className="small danger" disabled={busy} onClick={() => void cancel()}>Cancel announcement</button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {detail.member ? (
                     <div className="drawer-section">

@@ -11,7 +11,7 @@ import {
   resolveBracket,
 } from '@chms/shared';
 import { TenantService } from '../common/tenant';
-import { allocateMemberNo } from '../common/member-no';
+import { allocateMemberNo, reserveMemberNo } from '../common/member-no';
 import { normalizePhotoDataUrl } from '../common/photo';
 import { AuthUser } from '../common/guards';
 import { createHash, randomBytes } from 'node:crypto';
@@ -151,7 +151,13 @@ export class MembersService {
           take: 10,
         }),
         tx.announcement.findMany({
-          where: { churchId: user.churchId, memberId: id },
+          where: {
+            churchId: user.churchId,
+            memberId: id,
+            moderation: 'APPROVED',
+            publishAt: { lte: new Date() },
+            cancelledAt: null,
+          },
           orderBy: { publishAt: 'desc' },
           take: 5,
           select: { id: true, title: true, body: true, category: true, publishAt: true, photoDataUrl: true },
@@ -193,14 +199,15 @@ export class MembersService {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : null;
     const photo = normalizePhotoDataUrl(input.photoDataUrl);
     return this.tenant.run(user, async (tx) => {
-      // Staff-typed numbers are kept; otherwise allocate under the per-church
-      // lock (see common/member-no.ts for why count()+1 was wrong).
-      const memberNo = input.memberNo?.trim() || (await allocateMemberNo(tx, user.churchId));
+      // Staff-typed numbers are kept and reserved so generated IDs move past them.
+      const memberNo = input.memberNo?.trim();
+      if (memberNo) await reserveMemberNo(tx, user.churchId, memberNo);
+      const resolvedMemberNo = memberNo || (await allocateMemberNo(tx, user.churchId));
       const { ageBracketId } = await resolveMemberBracket(tx, user.churchId, input);
       const m = await tx.member.create({
         data: {
           churchId: user.churchId,
-          memberNo,
+          memberNo: resolvedMemberNo,
           firstName: input.firstName.trim(),
           lastName: input.lastName.trim(),
           phoneE164: phone,

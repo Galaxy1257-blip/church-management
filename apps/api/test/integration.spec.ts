@@ -288,7 +288,7 @@ d('integration', () => {
     );
     const numbers = created.map((m) => m.memberNo);
     expect(new Set(numbers).size).toBe(numbers.length); // no duplicates
-    for (const no of numbers) expect(no).toMatch(/^M\d{5}$/);
+    for (const no of numbers) expect(no).toMatch(/^[A-Z0-9]{2,4}-\d{5}$/);
 
     // Soft-delete lowers count() but must NOT hand the number out again.
     const victim = created[created.length - 1];

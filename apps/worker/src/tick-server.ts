@@ -9,9 +9,9 @@
 // the staff app too. Ten ticks a day (~80 hours) is the deal; jobs that are
 // late by an hour are still delivered, and none of them sends before 06:00.
 //
-// It is NOT a scheduler. It has no clock of its own: a tick asks "what is due
-// right now in Accra?" and runs exactly that, with a short-lived Redis lock per
-// job so a retried or delayed tick cannot send the same verse twice.
+// It has no clock of its own: a tick asks "what is due right now in Accra?" and
+// runs that, with a short-lived Redis lock per job. Scheduled announcements are
+// delivered on every tick, so the free plan can run late by the gap between ticks.
 //
 // main.ts is the always-on shape (paid worker). Only one of the two should be
 // deployed at a time — running both would double-register the repeatables.

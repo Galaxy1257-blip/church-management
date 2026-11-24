@@ -265,11 +265,23 @@ Open work:
 
 ## H. Security hardening (24 Nov 2026)
 
-- [x] Web/API security headers, Helmet, and CSV formula-injection protection are implemented and tested.
-      Workspace typecheck, lint, all 449 tests, live header checks, and Hallmark Floor lint pass.
-- [ ] Security follow-ups recorded in `SECURITY_REPORT.md`: Next/zod major upgrades, nonce-based CSP,
-      bcrypt cost/rehash, image re-encoding, money CHECK constraints, SMS spend caps, robots/security.txt,
-      and central log redaction/incident runbook. Provider-dashboard controls remain manual actions.
+- [x] Web/API security headers, Helmet, CSV formula-injection protection, robots/security contact routes,
+      central HTTP exception-log redaction, the incident runbook, and nonnegative money constraints are implemented.
+- [x] SMS global kill switch/hourly unit cap, send-time announcement reauthorization, campaign completion,
+      delayed capped/disabled retries, and the announcement/manual-campaign wallet-ledger race fixes are implemented.
+- [x] **Scheduled announcement SMS** is available under New announcement → Where it goes → Text message.
+      Active consented members only; opt-outs and quiet hours apply; credits are reserved atomically; the worker
+      reports SENT/PARTIAL/FAILED from real log outcomes. Legal pages/revision date updated 24 Nov 2026.
+- [x] 24 Nov gates: workspace typecheck + lint pass; shared 183 + API 273 + worker 46 = 502 tests pass;
+      secrets scan + `git diff --check` pass. Live DOM checked at 1440px and true 390px without overflow.
+      Browser screenshots and a clean post-reload console pass remain unavailable after tool failures.
+- [ ] `npm audit --audit-level=high` still reports 10 advisories (8 moderate, 2 high). Next/PostCSS and zod
+      need breaking major upgrades; keep #119 open until a separately tested upgrade lands.
+- [ ] Security follow-ups recorded in `SECURITY_REPORT.md`: nonce CSP, bcrypt cost/rehash, image re-encoding,
+      stale `SENDING` SMS crash recovery, due scheduled SMS campaign dispatch, and redaction beyond HTTP
+      exception logs. Provider-dashboard spend alerts remain manual actions.
+- [ ] Local SMS gateway is still **mock** until live provider configuration is confirmed; a mock acceptance is
+      not proof that a handset received a text. Real provider delivery remains unverified.
 
 ## Questions still owed by the owner
 

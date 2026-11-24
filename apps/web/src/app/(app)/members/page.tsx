@@ -1,9 +1,10 @@
 'use client';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Download, FileText } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { peekSession } from '../../../lib/session';
-import { fmtDate, ghs } from '../../../lib/format';
+import { fmtDate, fmtTime, ghs } from '../../../lib/format';
 import type { PdfBlock, PdfDoc } from '../../../lib/pdf';
 import { sharePdf } from '../../../lib/share';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
@@ -31,16 +32,18 @@ function directoryDoc(rows: Member[], total: number, filterLabel: string): PdfDo
           { label: 'Number', grow: 1.4 },
           { label: 'Phone', grow: 1.8 },
           { label: 'Group', grow: 1.4 },
-          { label: 'Status', grow: 1.3 },
           { label: 'Stage', grow: 1.4 },
+          { label: 'Status', grow: 1.3 },
+          { label: 'Joined', grow: 1.5 },
         ],
         rows: rows.map((m) => [
           `${m.firstName} ${m.lastName}`,
           m.memberNo,
           m.phoneE164 ?? '-',
           m.ageSegment,
-          m.status,
           m.discipleshipStage ? (STAGE_WORDS[m.discipleshipStage] ?? m.discipleshipStage) : '-',
+          m.status,
+          fmtDate(m.joinedAt),
         ]),
       },
     ],
@@ -76,9 +79,11 @@ function personalDataDoc(data: ExportPayload): PdfDoc {
         { label: 'Phone', value: m.phoneE164 ?? '-' },
         { label: 'Email', value: m.email ?? '-' },
         { label: 'Address', value: m.address ?? '-' },
-        { label: 'Status on the book', value: m.status },
-        { label: 'Joined', value: m.joinedAt ? fmtDate(m.joinedAt) : '-' },
+        { label: 'Gender', value: m.gender ?? '-' },
         { label: 'Stage', value: m.discipleshipStage ? (STAGE_WORDS[m.discipleshipStage] ?? m.discipleshipStage) : '-' },
+        { label: 'Status on the book', value: m.status },
+        { label: 'Date of birth', value: m.dob ? fmtDate(m.dob) : '-' },
+        { label: 'Joined', value: m.joinedAt ? fmtDate(m.joinedAt) : '-' },
         { label: 'Happy to receive texts', value: yesNo(m.smsConsent) },
       ],
     },
@@ -96,7 +101,7 @@ function personalDataDoc(data: ExportPayload): PdfDoc {
     {
       kind: 'table',
       columns: [{ label: 'Date', grow: 2 }, { label: 'Time', grow: 1.6 }, { label: 'Counted by', grow: 1.6 }],
-      rows: data.attendance.slice(0, 100).map((a) => [fmtDate(a.checkedInAt), new Date(a.checkedInAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), a.method]),
+      rows: data.attendance.slice(0, 100).map((a) => [fmtDate(a.checkedInAt), fmtTime(a.checkedInAt), a.method]),
     },
     { kind: 'heading', text: `Gifts recorded (${data.transactions.length})`, spaceBefore: 10 },
     {
@@ -545,9 +550,10 @@ export default function MembersPage() {
               <th>Name</th>
               <th>Phone</th>
               <th>Group</th>
-              <th>Joined</th>
               <th>Stage</th>
               <th>Status</th>
+              <th>Joined</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -557,13 +563,10 @@ export default function MembersPage() {
                 <td>
                   <button type="button" className="link-button" onClick={() => setOpenMemberId(m.id)}>
                     {m.firstName} {m.lastName}
-                  </button>{' '}
-                  <button className="small secondary" title="Export this member's data (Act 843)" onClick={() => void exportMember(m)}>⤓</button>
-                  <button className="small secondary" title="Readable PDF copy of this member's data (Act 843)" disabled={pdfBusy} onClick={() => void printMemberData(m)}>🖨</button>
+                  </button>
                 </td>
                 <td>{m.phoneE164 ?? '—'}</td>
                 <td>{m.ageSegment}</td>
-                <td>{fmtDate(m.joinedAt)}</td>
                 <td>
                   {canWrite ? (
                     <select aria-label="Discipleship stage" value={m.discipleshipStage ?? ''} onChange={(e) => void changeStage(m.id, e.target.value || 'VISITOR')} style={{ width: 130 }}>
@@ -576,6 +579,17 @@ export default function MembersPage() {
                 </td>
                 <td>
                   <span className={`badge ${m.status === 'ACTIVE' ? 'ok' : 'mute'}`}>{m.status}</span>
+                </td>
+                <td>{fmtDate(m.joinedAt)}</td>
+                <td>
+                  <div className="member-actions">
+                    <button type="button" className="small secondary" title="Readable PDF copy of this member's data (Act 843)" aria-label={`Download ${m.firstName} ${m.lastName}'s readable data PDF`} disabled={pdfBusy} onClick={() => void printMemberData(m)}>
+                      <FileText size={18} aria-hidden="true" />
+                    </button>
+                    <button type="button" className="small secondary" title="Export this member's data (Act 843)" aria-label={`Export ${m.firstName} ${m.lastName}'s data`} onClick={() => void exportMember(m)}>
+                      <Download size={18} aria-hidden="true" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

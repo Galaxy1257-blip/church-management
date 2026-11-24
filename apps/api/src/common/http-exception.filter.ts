@@ -9,6 +9,7 @@ import {
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { PhoneError } from '@chms/shared';
+import { loggableError, redactLogText, requestPath } from './log-redaction';
 
 /** HTTP status → stable machine code for the shared ApiErrorBody contract. */
 const STATUS_CODES: Record<number, string> = {
@@ -61,7 +62,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // 5xx detail is for the operator log, never for the client: exception
       // messages carry SQL, file paths and upstream responses.
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-        this.logger.error(`${req.method} ${req.url} -> ${status}: ${exception.stack ?? exception.message}`);
+        this.logger.error(
+          `${req.method} ${requestPath(req.originalUrl ?? req.url)} -> ${status}: ${redactLogText(exception.stack ?? exception.message)}`,
+        );
         message = 'internal server error';
         details = undefined;
       }
@@ -80,7 +83,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
             ? 'record not found'
             : 'database rejected the request';
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) message = 'internal server error';
-      this.logger.error(`${req.method} ${req.url} -> ${status} [${exception.code}]: ${exception.message}`);
+      this.logger.error(
+        `${req.method} ${requestPath(req.originalUrl ?? req.url)} -> ${status} [${exception.code}]: ${redactLogText(exception.message)}`,
+      );
     } else if (exception instanceof PhoneError) {
       // Bad phone input is the caller's mistake, not a server fault. Its message
       // is user-facing, so it can go back as-is.
@@ -91,7 +96,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // The old code echoed exception.message with a 500 status. Anything that
       // reaches here is unexpected, so the client gets the generic body and the
       // stack goes to the log.
-      this.logger.error(`${req.method} ${req.url} -> 500: ${exception.stack ?? exception.message}`);
+      this.logger.error(
+        `${req.method} ${requestPath(req.originalUrl ?? req.url)} -> 500: ${redactLogText(JSON.stringify(loggableError(exception)))}`,
+      );
     }
 
     res.status(status).json({ error: { code, message, details } });
