@@ -35,4 +35,15 @@ describe('parseCsv', () => {
     const csv = toCsv(['phone', 'firstName'], [['0241234567', 'Kwame, Jr']]);
     expect(parseCsv(csv).rows).toEqual([['0241234567', 'Kwame, Jr']]);
   });
+
+  it('neutralises spreadsheet formula injection', () => {
+    const csv = toCsv(['name'], [['=cmd|calc!A1'], ['+1'], ['-2'], ['@SUM(A1)']]);
+    // A leading ' makes the cell inert text in Excel/Sheets; the value is
+    // otherwise preserved (round-trip still yields the original characters).
+    expect(csv).toContain("'=cmd|calc!A1");
+    expect(csv).toContain("'+1");
+    expect(csv).toContain("'-2");
+    expect(csv).toContain("'@SUM(A1)");
+    expect(parseCsv(csv).rows[0][0]).toBe("'=cmd|calc!A1");
+  });
 });

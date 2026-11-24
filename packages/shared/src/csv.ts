@@ -114,7 +114,12 @@ export function rowsToObjects(parsed: CsvParseResult): Record<string, string>[] 
 /** Build a CSV string (with quoting) for downloads such as error files. */
 export function toCsv(headers: string[], rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined): string => {
-    const s = v === null || v === undefined ? '' : String(v);
+    let s = v === null || v === undefined ? '' : String(v);
+    // Spreadsheet formula injection: a cell starting with = + - @ (or a leading
+    // tab/CR) is executed as a formula by Excel/Sheets on open. A member named
+    // "=cmd|..." would run in the treasurer's spreadsheet. Prefix a single quote
+    // and force-quote — the character is visible but inert.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [headers.map(esc).join(',')];
