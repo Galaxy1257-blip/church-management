@@ -26,7 +26,7 @@ async function main(): Promise<void> {
             ? { name: 'Demo Church', slug, billingExempt: true }
             : { name: slug, slug, trialEndsAt: new Date(Date.now() + 14 * 86_400_000) },
       });
-      const hash = await bcrypt.hash('admin1234', 10);
+      const hash = await bcrypt.hash('admin1234', 12);
       const u = await tx.user.create({
         data: { churchId: c.id, name: 'Dev Admin', phoneE164: '+233240000000', passwordHash: hash },
       });

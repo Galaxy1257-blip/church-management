@@ -121,6 +121,9 @@ export class MembersService {
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * pageSize,
           take: pageSize,
+          // A profile photo is up to ~200 kB of base64. The drawer fetches the
+          // one photo it shows; a directory page must not carry fifty of them.
+          omit: { photoDataUrl: true },
         }),
       ]);
       return {
@@ -197,7 +200,7 @@ export class MembersService {
 
   async create(user: AuthUser, input: CreateMemberInput, ip?: string) {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : null;
-    const photo = normalizePhotoDataUrl(input.photoDataUrl);
+    const photo = await normalizePhotoDataUrl(input.photoDataUrl);
     return this.tenant.run(user, async (tx) => {
       // Staff-typed numbers are kept and reserved so generated IDs move past them.
       const memberNo = input.memberNo?.trim();
@@ -251,7 +254,7 @@ export class MembersService {
     ip?: string,
   ) {
     const phone = input.phoneE164 ? normalizeGhPhone(input.phoneE164) : undefined;
-    const photo = normalizePhotoDataUrl(input.photoDataUrl);
+    const photo = await normalizePhotoDataUrl(input.photoDataUrl);
     return this.tenant.run(user, async (tx) => {
       const existing = await tx.member.findFirst({ where: { id, churchId: user.churchId, deletedAt: null } });
       if (!existing) throw new NotFoundException('member not found');

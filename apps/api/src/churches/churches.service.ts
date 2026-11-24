@@ -1,7 +1,6 @@
 // Church onboarding: platform-key protected bootstrap that creates the church,
 // its first SUPER_ADMIN, and applies all Phase 0 seeds in one transaction.
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import bcrypt from 'bcryptjs';
 import { randomInt } from 'node:crypto';
 import { prisma, withTenant, withPlatform, appendAudit } from '@chms/db';
 import { seedChurchDefaults } from '@chms/db';
@@ -23,6 +22,8 @@ import {
 import { uuidv7 } from '@chms/shared';
 import { timingSafeEqualStr } from '../common/crypto';
 import { ModuleFlagsService } from '../common/module-flags';
+import { normalizePhotoDataUrl } from '../common/photo';
+import { hashPassword } from '../common/password';
 import { BibleService } from '../bible/bible.service';
 import { trialEndsAt } from '../billing/billing.logic';
 import { allocateMemberNo, memberIdPrefix } from '../common/member-no';
@@ -112,8 +113,8 @@ export class ChurchesService {
             id: churchId,
             name,
             slug,
-            pastorDisplayName: input.pastorDisplayName ?? null,
             memberIdPrefix: memberIdPrefix(name),
+            pastorDisplayName: input.pastorDisplayName ?? null,
             timezone: input.timezone ?? 'Africa/Accra',
             // Every new church starts with two weeks free; after that the
             // monthly subscription (plus grace) keeps the workspace open.
@@ -131,7 +132,7 @@ export class ChurchesService {
       // the tenant context BEFORE the first tenant-scoped write.
       await tx.$executeRaw`SELECT set_config('app.church_id', ${churchId}, true)`;
       await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
-      const passwordHash = await bcrypt.hash(input.admin.password, 10);
+      const passwordHash = await hashPassword(input.admin.password);
       await tx.user.create({
         data: { id: userId, churchId, name: input.admin.name, phoneE164: phone, passwordHash },
       });
@@ -267,17 +268,16 @@ export class ChurchesService {
     return withTenant(user.churchId, user.userId, async (tx) => {
       const church = await tx.church.findUniqueOrThrow({ where: { id: user.churchId } });
       const prev = (church.settings ?? {}) as any;
-      // 300 kB of image ≈ 400 kB once base64-encoded; the JSON body limit is 1 MB,
-      // so this is the constraint the user actually hits (with a 400, not a 500).
-      if (patch.branding?.logoDataUrl && patch.branding.logoDataUrl.length > 400_000) {
-        throw new BadRequestException('logo too large — upload an image under ~300KB (or link an image URL)');
+      const branding = patch.branding ? { ...patch.branding } : undefined;
+      if (branding?.logoDataUrl !== undefined) {
+        branding.logoDataUrl = (await normalizePhotoDataUrl(branding.logoDataUrl, 300 * 1024)) ?? null;
       }
       if (patch.branding?.primaryColor && !/^#[0-9a-fA-F]{3,8}$/.test(patch.branding.primaryColor)) {
         throw new BadRequestException('primaryColor must be a hex color like #1e3a5f');
       }
       const nextSettings = {
         ...prev,
-        branding: { ...(prev.branding ?? {}), ...(patch.branding ?? {}) },
+        branding: { ...(prev.branding ?? {}), ...(branding ?? {}) },
         contact: { ...(prev.contact ?? {}), ...(patch.contact ?? {}) },
         givingInstructions: { ...(prev.givingInstructions ?? {}), ...(patch.givingInstructions ?? {}) },
         care: { ...(prev.care ?? {}), ...(patch.care ?? {}) },

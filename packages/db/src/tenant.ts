@@ -19,9 +19,12 @@ export async function withTenant<T>(
   if (!churchId) throw new Error('withTenant: churchId is required');
   return prisma.$transaction(
     async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.church_id', ${churchId}, true)`;
-      await tx.$executeRaw`SELECT set_config('app.user_id', ${userId ?? ''}, true)`;
-      await tx.$executeRaw`SELECT set_config('app.branch_ids', ${(opts.branchIds ?? []).join(',')}, true)`;
+      // One statement, not three: each $executeRaw is its own round trip, and
+      // this runs before every tenant query in the app.
+      await tx.$executeRaw`SELECT
+        set_config('app.church_id', ${churchId}, true),
+        set_config('app.user_id', ${userId ?? ''}, true),
+        set_config('app.branch_ids', ${(opts.branchIds ?? []).join(',')}, true)`;
       return fn(tx);
     },
     { timeout: 60_000, maxWait: 10_000 },

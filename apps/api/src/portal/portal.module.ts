@@ -330,7 +330,7 @@ export class PortalService {
     const { member, churchId } = await this.portalUser(token);
     if (!body || body.trim().length < 3) throw new Error('prayer request too short');
     const church = await prisma.church.findUnique({ where: { id: churchId }, select: { settings: true } });
-    const photo = photoDataUrl ? normalizePhotoDataUrl(photoDataUrl) : null;
+    const photo = photoDataUrl ? await normalizePhotoDataUrl(photoDataUrl) : null;
     if (photo && !memberPostsOn(church?.settings)) {
       throw new ForbiddenException('Sending a photo with a prayer request has not been switched on by your church.');
     }
@@ -464,7 +464,7 @@ export class PortalService {
     const body = String(input.body ?? '').trim();
     if (title.length < 3 || title.length > 120) throw new Error('the title needs 3 to 120 characters');
     if (body.length < 3 || body.length > 2000) throw new Error('the notice needs 3 to 2000 characters');
-    const photo = input.photoDataUrl ? normalizePhotoDataUrl(String(input.photoDataUrl)) : null;
+    const photo = input.photoDataUrl ? await normalizePhotoDataUrl(String(input.photoDataUrl)) : null;
     const row = await withTenant(churchId, null, (tx) =>
       tx.announcement.create({
         data: {

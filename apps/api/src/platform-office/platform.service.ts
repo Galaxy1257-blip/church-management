@@ -30,6 +30,7 @@ import { BillingService } from '../billing/billing.service';
 import { deriveBilling } from '../billing/billing.logic';
 import { ChurchesService } from '../churches/churches.service';
 import { sectionsNeededForRoles } from './role-sections';
+import { hashPassword, passwordNeedsRehash } from '../common/password';
 import { buildImportPreview, insertImportRows, type ImportPreview, type ImportRowInput } from '../members/members-import.service';
 import type { Env } from '../env';
 import type { PlatformActor } from './platform.guard';
@@ -73,7 +74,11 @@ export class PlatformService {
     if (!staff || !staff.isActive || !(await bcrypt.compare(password, staff.passwordHash))) {
       throw new UnauthorizedException('wrong email or password');
     }
-    await prisma.platformUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
+    const passwordHash = passwordNeedsRehash(staff.passwordHash) ? await hashPassword(password) : undefined;
+    await prisma.platformUser.update({
+      where: { id: staff.id },
+      data: { lastLoginAt: new Date(), ...(passwordHash ? { passwordHash } : {}) },
+    });
     const accessToken = await this.jwt.signAsync(
       { sub: staff.id, name: staff.name, email: staff.email, role: staff.role, aud: 'platform' },
       { secret: this.env.JWT_SECRET, expiresIn: '12h' },
@@ -144,7 +149,7 @@ export class PlatformService {
     const role = this.staffRole(input.role);
     if (input.password.length < 10) throw new BadRequestException('password must be at least 10 characters');
     if (!input.name.trim()) throw new BadRequestException('name is required');
-    const passwordHash = await bcrypt.hash(input.password, 12);
+    const passwordHash = await hashPassword(input.password);
     try {
       const created = await prisma.platformUser.create({
         data: { id: uuidv7(), name: input.name.trim(), email, passwordHash, role },
@@ -200,7 +205,7 @@ export class PlatformService {
     if (password.length < 10) throw new BadRequestException('password must be at least 10 characters');
     const staff = await prisma.platformUser.findUnique({ where: { id: staffId }, select: { id: true } });
     if (!staff) throw new NotFoundException('staff member not found');
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password);
     await prisma.platformUser.update({ where: { id: staffId }, data: { passwordHash } });
     return { ok: true };
   }
@@ -543,7 +548,7 @@ export class PlatformService {
       ? await this.careClassData(input.churchId, input.careClassBracketId, input.careClassSegment)
       : { careClassBracketId: null, careClassSegment: null };
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const passwordHash = await hashPassword(input.password);
     const id = uuidv7();
     try {
       await prisma.user.create({
@@ -631,7 +636,7 @@ export class PlatformService {
     if (password.length < 6) throw new BadRequestException('password must be at least 6 characters');
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, churchId: true } });
     if (!user) throw new NotFoundException('user not found');
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hashPassword(password);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     await prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ErrorBoundary } from '../../components/error-boundary';
 import './public.css';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </Link>
         </div>
       </header>
-      <main id="main-content" tabIndex={-1} className="pub-main">{children}</main>
+      <main id="main-content" tabIndex={-1} className="pub-main">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </main>
       <footer className="pub-foot">
         <div className="pub-foot-inner">
           <div>

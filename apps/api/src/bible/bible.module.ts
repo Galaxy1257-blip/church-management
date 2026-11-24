@@ -15,11 +15,19 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthedRequest } from '../common/guards';
 import { Authenticated, ForModule, Public } from '../common/decorators';
 import { BibleNotesService } from './bible-notes';
 import { BibleService } from './bible.service';
+
+// The bundles are static per deploy and a few MB each: letting the browser and
+// any proxy cache them is the cheapest bandwidth win in the app. The responses
+// are plain JSON, so caching them changes nothing about who can read them —
+// the reads below are @Public() either way.
+const BUNDLE_CACHE = 'public, max-age=3600, stale-while-revalidate=86400';
 
 @Controller('bible')
 export class BibleController {
@@ -27,23 +35,27 @@ export class BibleController {
 
   @Public()
   @Get()
-  index(@Query('translation') translation?: string) {
+  index(@Res({ passthrough: true }) res: Response, @Query('translation') translation?: string) {
+    res.setHeader('Cache-Control', BUNDLE_CACHE);
     return this.svc.index(translation);
   }
 
   @Public()
   @Get('chapter')
   chapter(
+    @Res({ passthrough: true }) res: Response,
     @Query('book') book: string,
     @Query('chapter') chapter: string,
     @Query('translation') translation?: string,
   ) {
+    res.setHeader('Cache-Control', BUNDLE_CACHE);
     return this.svc.chapter(book ?? 'John', Number(chapter ?? 1), translation);
   }
 
   @Public()
   @Get('verse')
-  verse(@Query('ref') ref: string, @Query('translation') translation?: string) {
+  verse(@Res({ passthrough: true }) res: Response, @Query('ref') ref: string, @Query('translation') translation?: string) {
+    res.setHeader('Cache-Control', BUNDLE_CACHE);
     return this.svc.verse(ref ?? 'John 3:16', translation);
   }
 

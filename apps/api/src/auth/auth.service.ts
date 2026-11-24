@@ -27,6 +27,7 @@ import { AuthUser } from '../common/guards';
 import { deriveBilling } from '../billing/billing.logic';
 import { timingSafeEqualStr } from '../common/crypto';
 import { allocateMemberNo } from '../common/member-no';
+import { hashPassword, passwordNeedsRehash } from '../common/password';
 import { ChurchesService } from '../churches/churches.service';
 import { SmsDispatcher } from '../sms/sms-dispatcher';
 
@@ -165,6 +166,11 @@ export class AuthService {
     if (!user || !user.isActive || !user.passwordHash) throw new UnauthorizedException('invalid credentials');
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('invalid credentials');
+    if (passwordNeedsRehash(user.passwordHash)) {
+      await withTenant(user.churchId, user.id, async (tx) =>
+        tx.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(input.password) } }),
+      );
+    }
 
     const authUser = await this.loadUser(user.churchId, user.id);
     await this.touchLogin(user.churchId, user.id);
@@ -194,7 +200,7 @@ export class AuthService {
     });
     if (existing) throw new ConflictException('an account already exists for this phone — sign in instead');
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const passwordHash = await hashPassword(input.password);
     const user = await withPlatform(async (tx) => {
       let role = await tx.role.findUnique({ where: { churchId_key: { churchId: church.id, key: 'MEMBER' } } });
       if (!role) {
@@ -382,7 +388,7 @@ export class AuthService {
     });
     if (!user || !user.isActive) throw new UnauthorizedException('invalid or expired code');
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const passwordHash = await hashPassword(input.password);
     await withTenant(church.id, user.id, async (tx) => {
       await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
       await tx.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });

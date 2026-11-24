@@ -1,5 +1,5 @@
 'use client';
-import { FormEvent, use, useEffect, useState } from 'react';
+import { FormEvent, use, useEffect, useRef, useState } from 'react';
 import { apiRaw } from '../../../lib/api';
 import { ghs, toPesewas } from '../../../lib/format';
 import Notice from '../../../components/notice';
@@ -51,7 +51,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
       .catch(() => setNotFound(true));
   }, [slug]);
 
-  async function refreshQuote(typed?: string): Promise<void> {
+  async function refreshQuote(typed?: string, seq?: number): Promise<void> {
     // The state has not landed yet when this is called from the keystroke, so the
     // value the user just typed is passed in — otherwise the first amount typed
     // shows no quote at all.
@@ -59,11 +59,28 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
     if (!pesewas || !fundId) return;
     try {
       const res = await apiRaw('/giving/quote', { churchSlug: slug, fundId, amountMinor: pesewas, feeChoice });
+      // A slow older response must not overwrite the quote for what the user
+      // just typed — only the newest request may land.
+      if (seq !== undefined && quoteSeq.current !== seq) return;
       if (res.ok) setQuote((await res.json()) as Quote);
     } catch {
       /* quote is advisory */
     }
   }
+
+  const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quoteSeq = useRef(0);
+
+  function onAmountChange(v: string): void {
+    setAmount(v);
+    if (quoteTimer.current) clearTimeout(quoteTimer.current);
+    quoteTimer.current = setTimeout(() => {
+      const seq = ++quoteSeq.current;
+      void refreshQuote(v, seq);
+    }, 350);
+  }
+
+  useEffect(() => () => { if (quoteTimer.current) clearTimeout(quoteTimer.current); }, []);
 
   async function give(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -130,10 +147,7 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
             Amount (GH₵)
             <input
               value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value);
-                void refreshQuote(e.target.value);
-              }}
+              onChange={(e) => onAmountChange(e.target.value)}
               inputMode="decimal"
               placeholder="50.00"
               required
@@ -146,7 +160,8 @@ export default function GivePage({ params }: { params: Promise<{ slug: string }>
                 checked={feeChoice}
                 onChange={(e) => {
                   setFeeChoice(e.target.checked);
-                  void refreshQuote();
+                  const seq = ++quoteSeq.current;
+                  void refreshQuote(undefined, seq);
                 }}
               />
               Add the processing fee so the church receives the full amount
