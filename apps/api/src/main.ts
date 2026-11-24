@@ -2,6 +2,7 @@ import './load-root-env'; // root .env first — cwd of npm -w is apps/api
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { loadEnv } from './env';
@@ -17,6 +18,18 @@ async function bootstrap(): Promise<void> {
   });
 
   app.setGlobalPrefix('api/v1');
+
+  // Helmet: sane security headers on every API response. The API serves JSON
+  // (never HTML with inline script), so the strict defaults are safe. CSP is
+  // left off here — this host returns no documents — and cross-origin resource
+  // policy is relaxed to cross-origin so the browser at WEB_URL can read it.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
 
   // Behind Render/Cloudflare, req.ip is the proxy unless we trust the nearest hop.
   // Without this every client shares one rate-limit bucket.
