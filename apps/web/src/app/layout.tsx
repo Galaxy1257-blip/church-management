@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { SwRegister } from './sw-register';
+
+// Prerendered HTML cannot receive the per-request CSP nonce from middleware.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'ChMS',
@@ -18,11 +22,13 @@ export const viewport: Viewport = {
 // default colours on the way in.
 const THEME_BOOTSTRAP = `try{var t=localStorage.getItem('chms.theme');if(t&&t!=='sanctuary')document.documentElement.dataset.theme=t;}catch(e){}`;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body>
         <SwRegister />
