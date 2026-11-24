@@ -263,6 +263,14 @@ Open work:
       wording (what the text proves); which edition is Akuapem vs Asante is
       still unverified.
 
+## H. Security hardening (24 Nov 2026)
+
+- [x] Web/API security headers, Helmet, and CSV formula-injection protection are implemented and tested.
+      Workspace typecheck, lint, all 449 tests, live header checks, and Hallmark Floor lint pass.
+- [ ] Security follow-ups recorded in `SECURITY_REPORT.md`: Next/zod major upgrades, nonce-based CSP,
+      bcrypt cost/rehash, image re-encoding, money CHECK constraints, SMS spend caps, robots/security.txt,
+      and central log redaction/incident runbook. Provider-dashboard controls remain manual actions.
+
 ## Questions still owed by the owner
 
 - None blocking right now (the parallel-session / auto-off and phone-verification

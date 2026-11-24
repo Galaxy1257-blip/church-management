@@ -101,3 +101,4 @@ The integration suite covers the Phase 1 release gates: tenant isolation, duplic
 - **Hourly sweep (xx:15):** PENDING gifts older than 30 min are verified against the provider; mock mode abandons after 24 h and the giver is nudged exactly once.
 - Receipts and nudges flow: webhook/worker → `giving-settle` queue → dispatcher (unique `receipt:{txId}` / `nudge:{txId}` keys make replays no-ops).
 - Backups, restore drills and alert channels are operational tasks — see BUILD_ORDER Phase 1 hardening.
+- Browser responses carry a CSP, HSTS, frame protection, and related security headers; API responses use Helmet and hide the framework header. CSV downloads neutralise spreadsheet formulas. See `SECURITY_REPORT.md` for verified controls, residual dependency risks, and provider-dashboard actions.
