@@ -224,7 +224,28 @@
 .pub-foot-inner b { color: var(--ink); }
 
 /* ------------------------------------------------------------------ auth */
+body:has(.pub-auth-photo) {
+  background-color: #183a2c;
+  background-image:
+    linear-gradient(90deg, rgba(13, 34, 26, 0.58), rgba(13, 34, 26, 0.2) 62%, rgba(13, 34, 26, 0.12)),
+    linear-gradient(180deg, rgba(13, 34, 26, 0.16), transparent 32%, rgba(13, 34, 26, 0.3)),
+    url('/images/church-login.webp');
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
+}
+body:has(.pub-auth-photo) .pub-foot {
+  background: color-mix(in srgb, var(--bg-soft) 90%, transparent);
+  backdrop-filter: blur(8px);
+}
 .pub-auth { padding: 1.9rem 0 2.6rem; }
+.pub-auth-photo { min-height: calc(100svh - 11rem); display: flex; align-items: center; }
+.pub-auth-photo .auth-card {
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  backdrop-filter: blur(16px) saturate(1.04);
+  box-shadow: 0 24px 70px rgba(10, 28, 21, 0.32);
+}
+.pub-auth-photo .pub-inner > .muted { color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.72); }
 .auth-card { max-width: 430px; margin: 0 auto; }
 .auth-card h2 { font-size: 1.4rem; margin: 0 0 0.3rem; display: block; }
 .auth-sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 1rem; }

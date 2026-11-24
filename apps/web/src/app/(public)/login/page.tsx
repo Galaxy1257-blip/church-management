@@ -94,7 +94,7 @@ function LoginInner() {
   }
 
   return (
-    <div className="pub-auth">
+    <div className="pub-auth pub-auth-photo">
       <div className="pub-inner">
         <div className="card auth-card">
           <h2>Welcome back</h2>
@@ -216,7 +216,7 @@ function LoginInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="pub-auth"><div className="card auth-card">Loading…</div></div>}>
+    <Suspense fallback={<div className="pub-auth pub-auth-photo"><div className="card auth-card">Loading…</div></div>}>
       <LoginInner />
     </Suspense>
   );
