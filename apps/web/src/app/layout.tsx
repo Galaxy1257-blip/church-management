@@ -6,14 +6,14 @@ import { SwRegister } from './sw-register';
 
 const bodyFont = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-body',
+  variable: '--font-sans',
   display: 'swap',
 });
 
 const displayFont = Newsreader({
   subsets: ['latin'],
   weight: ['500', '600', '700'],
-  variable: '--font-display',
+  variable: '--font-serif',
   display: 'swap',
 });
 
