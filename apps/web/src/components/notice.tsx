@@ -4,6 +4,7 @@
 // pushes the page down long after the action is done. Errors get longer, and a
 // close button, because a person may still be reading them.
 import { useEffect } from 'react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function Notice({
   text,
@@ -23,14 +24,16 @@ export default function Notice({
   if (!text) return null;
   if (kind === 'error') {
     return (
-      <div className="error notice-banner" role="alert" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <span>{text}</span>
+      <div className="error notice-banner" role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <AlertTriangle size={18} style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" />
+        <span style={{ flex: 1 }}>{text}</span>
         <button type="button" className="link-button" onClick={onDone} aria-label="Dismiss">×</button>
       </div>
     );
   }
   return (
-    <div className="card notice-banner" style={{ borderColor: 'var(--accent)' }} role="status">
+    <div className="card notice-banner" style={{ borderColor: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }} role="status">
+      <CheckCircle2 size={18} style={{ flex: 'none', color: 'var(--badge-ok-ink)' }} aria-hidden="true" />
       {text}
     </div>
   );

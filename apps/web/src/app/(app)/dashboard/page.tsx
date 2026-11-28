@@ -5,6 +5,7 @@
 // not render, and the two secondary cards drop off on phones.
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ClipboardCheck } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { dashboardQuickLinks, hasPermission, moduleEnabled, type ModuleFlags, type ModuleKey } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
@@ -191,7 +192,7 @@ export default function DashboardPage() {
   const title = firstName ? `${greeting}, ${firstName}` : 'Dashboard';
 
   return (
-    <div>
+    <div className="page-fade">
       <div className="page-head">
         <div>
           <div className="eyebrow">Overview</div>
@@ -203,7 +204,13 @@ export default function DashboardPage() {
       </div>
 
       {error ? <p className="error">{error}</p> : null}
-      {!loaded ? <p className="muted">Loading…</p> : null}
+      {!loaded ? (
+        <div className="dash-grid">
+          <div className="card skeleton" style={{ height: 140 }} />
+          <div className="card skeleton" style={{ height: 140 }} />
+          <div className="card skeleton" style={{ height: 120 }} />
+        </div>
+      ) : null}
 
       {loaded ? (
         <>
@@ -230,7 +237,8 @@ export default function DashboardPage() {
             {quick.length ? (
               <section className="card">
                 <h2 style={{ marginTop: 0 }}>Today</h2>
-                <Link href={quick[0].href} className="dash-btn primary">
+                <Link href={quick[0].href} className="dash-btn primary" style={{ gap: '0.4rem' }}>
+                  <ClipboardCheck size={18} aria-hidden="true" />
                   {quick[0].label}
                 </Link>
                 {quick.length > 1 ? (
@@ -310,6 +318,13 @@ export default function DashboardPage() {
                   <Link href="/finance">Offerings →</Link>
                 </div>
                 <svg className="dash-spark" viewBox="0 0 200 56" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.18" />
+                      <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <polygon points={`${sparkPoints} 194,52 6,52`} fill="url(#spark-fill)" />
                   <polyline points={sparkPoints} />
                 </svg>
                 <div className="dash-trendline">

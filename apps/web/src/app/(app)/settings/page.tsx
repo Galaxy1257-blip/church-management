@@ -2,6 +2,14 @@
 // Church settings: age brackets (demographics) + toggles + SMS gateway card,
 // R4 customisation: profile/branding, funds, fees, care alerts, SMS locales.
 import { FormEvent, useEffect, useState } from 'react';
+import {
+  Building2,
+  CreditCard,
+  MessageSquare,
+  Paintbrush,
+  Puzzle,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import { api } from '../../../lib/api';
 import { translationLabel } from '../../../lib/bible';
 import BillingPanel from '../../../components/billing-panel';
@@ -478,35 +486,41 @@ export default function SettingsPage() {
     setBrackets(brackets.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
   }
 
+  const TAB_META: { key: typeof tab; label: string; hint: string; icon: typeof SettingsIcon }[] = [
+    { key: 'church', label: 'Church setup', hint: 'Logo, church identity & tagline, denominations, church groups, offering details, retention and alerts', icon: Building2 },
+    { key: 'sms', label: 'SMS setup', hint: 'SMS gateway & sender ID, verse-of-the-day, and Twi/Ga/Ewe/Fante message templates', icon: MessageSquare },
+    { key: 'giving', label: 'Offering', hint: 'Money categories, special events (Harvest, Thanksgiving…) and online offering fees', icon: CreditCard },
+    { key: 'appearance', label: 'Appearance', hint: 'Colour themes and dark mode for this device', icon: Paintbrush },
+    { key: 'modules', label: 'App sections', hint: 'Turn whole areas of the app on or off for this church', icon: Puzzle },
+    { key: 'billing', label: 'Subscription', hint: 'Monthly fee, Paystack or cash, and the payment history', icon: CreditCard },
+  ];
+
   return (
-    <div>
+    <div className="page-fade">
       <h1>Settings</h1>
       {notice ? <Notice text={notice} onDone={() => setNotice('')} /> : null}
       {error ? <Notice kind="error" text={error} onDone={() => setError('')} /> : null}
 
-      <div className="seg-toggle" style={{ margin: '0.4rem 0 1rem', flexWrap: 'wrap' }} role="tablist" aria-label="Settings sections">
-        {([
-          ['church', 'Church setup', 'Logo, church identity & tagline, denominations, church groups, offering details, retention and alerts'],
-          ['sms', 'SMS setup', 'SMS gateway & sender ID, verse-of-the-day, and Twi/Ga/Ewe/Fante message templates'],
-          ['giving', 'Offering', 'Money categories, special events (Harvest, Thanksgiving…) and online offering fees'],
-          ['appearance', 'Appearance', 'Colour themes and dark mode for this device'],
-          ['modules', 'App sections', 'Turn whole areas of the app on or off for this church'],
-          ['billing', 'Subscription', 'Monthly fee, Paystack or cash, and the payment history'],
-        ] as const).map(([key, label, hint]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            title={hint}
-            className={tab === key ? 'on' : 'secondary'}
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="muted" style={{ marginTop: '-0.5rem' }}>
+      <div className="settings-layout">
+        <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+          {TAB_META.map(({ key, label, hint, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              title={hint}
+              className={tab === key ? 'on' : ''}
+              onClick={() => setTab(key)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+            >
+              <Icon size={16} aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="settings-body">
+      <p className="muted" style={{ marginTop: '-0.1rem' }}>
         {tab === 'church'
           ? 'Logo, church identity, denomination, church groups, offering details, retention & alerts.'
           : tab === 'sms'
@@ -1277,6 +1291,8 @@ export default function SettingsPage() {
       <div hidden={tab !== 'billing'} style={{ marginTop: '0.4rem' }}>
         <BillingPanel />
       </div>
+        </div>{/* end settings-body */}
+      </div>{/* end settings-layout */}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { fmtDate, fmtTime, ghs } from '../../../lib/format';
 import type { PdfBlock, PdfDoc } from '../../../lib/pdf';
 import { sharePdf } from '../../../lib/share';
 import { fileToPhotoDataUrl } from '../../../lib/photo';
+import { Users } from 'lucide-react';
 import MemberDrawer from '../../../components/member-drawer';
 import Notice from '../../../components/notice';
 
@@ -543,6 +544,8 @@ export default function MembersPage() {
           onChange={(e) => setQ(e.target.value)}
           style={{ width: '100%', marginBottom: '0.6rem' }}
         />
+        {/* Desktop table */}
+        <div className="member-table-desktop table-wrap">
         <table>
           <thead>
             <tr>
@@ -595,7 +598,25 @@ export default function MembersPage() {
             ))}
           </tbody>
         </table>
-        {members.length === 0 ? <p className="muted">No members found.</p> : null}
+        </div>
+        {/* C2: Mobile card list — replaces the wide table on small screens */}
+        <div className="member-cards-mobile">
+          {members.map((m) => (
+            <button key={m.id} type="button" className="member-card-m" onClick={() => setOpenMemberId(m.id)}>
+              <div className="avatar">{m.firstName[0]}{m.lastName[0]}</div>
+              <div className="mc-body">
+                <div className="mc-name">{m.firstName} {m.lastName}</div>
+                <div className="mc-sub">{m.phoneE164 ?? m.ageSegment} · <span className={`badge ${m.status === 'ACTIVE' ? 'ok' : 'mute'}`}>{m.status}</span></div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {members.length === 0 ? (
+          <div className="empty-state">
+            <Users size={36} className="empty-state-icon" aria-hidden="true" />
+            No members found.
+          </div>
+        ) : null}
       </div>
       {openMemberId ? <MemberDrawer memberId={openMemberId} onClose={() => setOpenMemberId(null)} /> : null}
     </div>

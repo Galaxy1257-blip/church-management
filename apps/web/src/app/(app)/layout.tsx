@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { api, clearTokens, hasSession } from '../../lib/api';
@@ -22,6 +22,7 @@ import {
   switchesForPath,
   visibleNavGroups,
   visibleUsherNav,
+  describeRoles,
   type SessionUser,
 } from '../../lib/access';
 
@@ -39,6 +40,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [usherMode, setUsherMode] = useState(false);
   // Which off section this person has already asked a leader to turn on.
   const [asked, setAsked] = useState('');
+  // B4: avatar dropdown state.
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!hasSession()) {
@@ -77,6 +81,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     clearSession();
     router.replace('/login');
   }
+
+  // Close the avatar dropdown on outside click.
+  useEffect(() => {
+    if (!avatarOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) setAvatarOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [avatarOpen]);
 
   if (!ready) return <div className="container">Loading…</div>;
   if (!me) return <div className="container">Loading…</div>;
@@ -169,9 +183,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="app-body">
         <header className="app-topbar">
           <span className="app-topbar-church">{me.church.name}</span>
-          <span className="app-avatar" title={me.name} aria-label={me.name}>
-            {initials}
-          </span>
+          <div ref={avatarRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="app-avatar"
+              title={me.name}
+              aria-label={me.name}
+              aria-expanded={avatarOpen}
+              onClick={() => setAvatarOpen((v) => !v)}
+              style={{ cursor: 'pointer', border: 0 }}
+            >
+              {initials}
+            </button>
+            {avatarOpen ? (
+              <div className="avatar-dropdown">
+                <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{me.name}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>{describeRoles(me.roles)}</div>
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <Link href="/settings" className="avatar-dd-link" onClick={() => setAvatarOpen(false)}>Settings</Link>
+                  <Link href="/about" className="avatar-dd-link" onClick={() => setAvatarOpen(false)}>About</Link>
+                  <button type="button" className="avatar-dd-link" style={{ textAlign: 'left', background: 'none', border: 0, padding: '0.35rem 0.5rem', boxShadow: 'none', backgroundImage: 'none' }} onClick={logout}>Log out</button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </header>
         <main id="main-content" tabIndex={-1} className={showUsher ? 'container usher' : 'container'}>
           {denied ? (
