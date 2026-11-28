@@ -34,7 +34,7 @@ export const viewport: Viewport = {
 
 // Runs before first paint so a saved theme (or dark mode) never flashes the
 // default colours on the way in.
-const THEME_BOOTSTRAP = `try{var t=localStorage.getItem('chms.theme');if(t&&t!=='sanctuary')document.documentElement.dataset.theme=t;}catch(e){}`;
+const THEME_BOOTSTRAP = `try{var d=document.documentElement.dataset,t=localStorage.getItem('chms.theme'),f=localStorage.getItem('chms.fontSize');if(t&&t!=='sanctuary')d.theme=t;if(f&&f!=='normal')d.fontSize=f;}catch(e){}`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;

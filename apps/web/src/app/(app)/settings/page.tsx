@@ -90,6 +90,12 @@ const THEMES: { key: string; name: string; hint: string; colors: string[] }[] = 
 ];
 
 const THEME_KEY = 'chms.theme';
+const FONT_SIZE_KEY = 'chms.fontSize';
+const FONT_SIZES: { key: 'normal' | 'large' | 'xlarge'; name: string; hint: string }[] = [
+  { key: 'normal', name: 'Standard', hint: 'Default (16px)' },
+  { key: 'large', name: 'Large', hint: 'Easier reading (17.5px)' },
+  { key: 'xlarge', name: 'Extra large', hint: 'Maximum legibility (19px)' },
+];
 
 function applyTheme(key: string): void {
   if (typeof document === 'undefined') return;
@@ -99,6 +105,17 @@ function applyTheme(key: string): void {
     localStorage.setItem(THEME_KEY, key);
   } catch {
     /* private mode — the theme still applies for this visit */
+  }
+}
+
+function applyFontSize(key: 'normal' | 'large' | 'xlarge'): void {
+  if (typeof document === 'undefined') return;
+  if (key === 'normal') delete document.documentElement.dataset.fontSize;
+  else document.documentElement.dataset.fontSize = key;
+  try {
+    localStorage.setItem(FONT_SIZE_KEY, key);
+  } catch {
+    /* private mode — the font size still applies for this visit */
   }
 }
 
@@ -136,6 +153,7 @@ export default function SettingsPage() {
   // grouped settings: church setup (identity/logo/policy) vs SMS vs giving vs modules
   const [tab, setTab] = useState<'church' | 'sms' | 'giving' | 'appearance' | 'modules' | 'billing'>('church');
   const [theme, setTheme] = useState('sanctuary');
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
   // Which areas of the app this church runs. Both the current set and the
   // starting set come from the API (/churches/me/profile) — the one table lives
   // in packages/shared/src/modules.ts, and this page keeps no copy of it.
@@ -164,6 +182,8 @@ export default function SettingsPage() {
     try {
       const saved = localStorage.getItem(THEME_KEY);
       if (saved && THEMES.some((t) => t.key === saved)) setTheme(saved);
+      const savedFont = localStorage.getItem(FONT_SIZE_KEY);
+      if (savedFont === 'normal' || savedFont === 'large' || savedFont === 'xlarge') setFontSize(savedFont);
     } catch {
       /* ignore */
     }
@@ -1001,6 +1021,28 @@ export default function SettingsPage() {
       </form>
 
       <div className="card stack" hidden={tab !== 'appearance'}>
+        <h2>Text size</h2>
+        <p className="muted">
+          Make text larger across all screens on this device. Saved locally on this phone or computer.
+        </p>
+        <div className="row" role="radiogroup" aria-label="Text size">
+          {FONT_SIZES.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              role="radio"
+              aria-checked={fontSize === f.key}
+              className={`secondary${fontSize === f.key ? ' chip-on' : ''}`}
+              onClick={() => {
+                setFontSize(f.key);
+                applyFontSize(f.key);
+              }}
+            >
+              {f.name} · <span className="muted">{f.hint}</span>
+            </button>
+          ))}
+        </div>
+
         <h2>Colour &amp; dark mode</h2>
         <p className="muted">
           Pick the look you like best. Night is dark mode for evening services and low light. Your choice is remembered on

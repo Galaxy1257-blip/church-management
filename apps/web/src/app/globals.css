@@ -111,7 +111,11 @@
   /* Print is always light, whatever the screen theme. */
   --print-bg: #fff;
   --print-line: #ccc;
+  font-size: 16px;
 }
+
+:root[data-font-size='large'] { font-size: 17.5px; }
+:root[data-font-size='xlarge'] { font-size: 19px; }
 
 /* ---------------------------------------------------------- theme presets
    Applied with <html data-theme="…">. "sanctuary" (the :root block above) is the
@@ -567,7 +571,7 @@ body {
   background-image: linear-gradient(160deg, var(--bg), var(--bg-soft));
   background-attachment: fixed;
   color: var(--ink);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
