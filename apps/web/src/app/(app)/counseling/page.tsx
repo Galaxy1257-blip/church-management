@@ -9,6 +9,7 @@ import { getSession } from '../../../lib/session';
 import Notice from '../../../components/notice';
 
 interface MemberLite { id: string; firstName: string; lastName: string; memberNo: string }
+interface Colleague { id: string; name: string }
 interface Note { id: string; authorId: string; createdAt: string; body: string }
 interface CareClass { className: string | null; members: MemberLite[] }
 
@@ -17,10 +18,11 @@ export default function CounselingPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MemberLite[]>([]);
   const [classMembers, setClassMembers] = useState<MemberLite[]>([]);
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [subject, setSubject] = useState<MemberLite | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [draft, setDraft] = useState('');
-  const [sharedWith, setSharedWith] = useState('');
+  const [sharedWithIds, setSharedWithIds] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
@@ -32,6 +34,9 @@ export default function CounselingPage() {
       if (!hasPermission(session.permissions, 'members:read')) {
         const c = await api<CareClass>('/care/class').catch(() => null);
         if (c) setClassMembers(c.members ?? []);
+      } else {
+        const cols = await api<Colleague[]>('/counseling/colleagues').catch(() => []);
+        setColleagues(cols);
       }
     })();
   }, []);
@@ -51,11 +56,15 @@ export default function CounselingPage() {
     setSubject(m);
     setNotes([]);
     setDraft('');
-    setSharedWith('');
+    setSharedWithIds([]);
     setError('');
     try {
       setNotes(await api<Note[]>(`/counseling/${m.id}`));
     } catch (err) { setError(err instanceof Error ? err.message : 'could not open these notes'); }
+  }
+
+  function toggleColleague(id: string): void {
+    setSharedWithIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   async function addNote(e: FormEvent): Promise<void> {
@@ -67,12 +76,12 @@ export default function CounselingPage() {
         body: {
           subjectId: subject.id,
           body: draft.trim(),
-          sharedWith: sharedWith.trim() || undefined,
+          sharedWith: sharedWithIds.length > 0 ? sharedWithIds.join(',') : undefined,
         },
       });
       setNotice(`Note saved for ${subject.firstName} — encrypted, only you and anyone you shared it with can read it.`);
       setDraft('');
-      setSharedWith('');
+      setSharedWithIds([]);
       setNotes(await api<Note[]>(`/counseling/${subject.id}`));
     } catch (err) { setError(err instanceof Error ? err.message : 'the note did not save'); }
   }
@@ -146,12 +155,22 @@ export default function CounselingPage() {
               rows={4}
               required
             />
-            <input
-              aria-label="Share this note with member IDs"
-              value={sharedWith}
-              onChange={(e) => setSharedWith(e.target.value)}
-              placeholder="Share with member IDs (comma-separated, optional)"
-            />
+            {colleagues.length > 0 ? (
+              <div className="stack" style={{ gap: '0.35rem' }}>
+                <span className="muted" style={{ fontSize: '0.85rem' }}>Share with staff colleagues (optional):</span>
+                <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {colleagues.map((c) => {
+                    const checked = sharedWithIds.includes(c.id);
+                    return (
+                      <label key={c.id} className="row" style={{ gap: '0.3rem', fontSize: '0.85rem', padding: '0.2rem 0.5rem', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleColleague(c.id)} />
+                        <span>{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
             <button disabled={draft.trim().length < 3}>Save note</button>
           </form>
         </div>

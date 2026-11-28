@@ -111,6 +111,17 @@ export class CareService {
     });
   }
 
+  counselingColleagues(user: AuthUser) {
+    return this.tenant.run(user, (tx) =>
+      tx.user.findMany({
+        where: { churchId: user.churchId, isActive: true, id: { not: user.userId } },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+        take: 200,
+      }),
+    );
+  }
+
   listCounseling(user: AuthUser, subjectId: string) {
     return this.tenant.run(user, async (tx) => {
       const rows = await tx.counselingNote.findMany({
@@ -357,6 +368,12 @@ export class CareController {
   @Post('counseling')
   addCounseling(@Req() req: AuthedRequest, @Body() dto: CounselingDto) {
     return this.svc.addCounseling(req.user!, dto, req.ip);
+  }
+
+  @RequirePermissions('care:write')
+  @Get('counseling/colleagues')
+  colleagues(@Req() req: AuthedRequest) {
+    return this.svc.counselingColleagues(req.user!);
   }
 
   @RequirePermissions('care:read')

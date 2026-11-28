@@ -3,7 +3,7 @@
 // wired until the church's WhatsApp Business provider is confirmed.
 import { Body, Controller, Get, Injectable, Module, Post, Req } from '@nestjs/common';
 
-import { RequirePermissions } from '../common/decorators';
+import { ForModule, RequirePermissions } from '../common/decorators';
 import { AuthedRequest, AuthUser } from '../common/guards';
 import { TenantService } from '../common/tenant';
 
@@ -27,6 +27,7 @@ export class WhatsAppService {
 }
 
 
+@ForModule('reach')
 @Controller('whatsapp')
 export class WhatsAppController {
   constructor(private readonly svc: WhatsAppService) {}

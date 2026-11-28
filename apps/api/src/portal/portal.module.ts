@@ -12,6 +12,8 @@ import { openNote } from '../ministry/crypto';
 import { BibleModule } from '../bible/bible.module';
 import { BibleNotesService } from '../bible/bible-notes';
 import { BibleService } from '../bible/bible.service';
+import { SmsDispatcher } from '../sms/sms-dispatcher';
+import { SmsModule } from '../sms/sms.module';
 
 const OTP_TTL = 10 * 60_000;
 
@@ -28,7 +30,11 @@ export function memberPostsOn(settings: unknown): boolean {
 
 @Injectable()
 export class PortalService {
-  constructor(private readonly jwt: JwtService, private readonly bible: BibleService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly bible: BibleService,
+    private readonly sms: SmsDispatcher,
+  ) {}
 
   private portalSecret(): string {
     return `${process.env.JWT_SECRET}:portal`;
@@ -43,7 +49,11 @@ export class PortalService {
     );
     if (!member) return;
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-    await withTenant(church.id, null, async (tx) => {
+    const body = localizedSmsBody('portalOtp', ((church.settings ?? {}) as any).smsLocales, {
+      code,
+      ttlMinutes: Math.round(OTP_TTL / 60_000),
+    });
+    const outcome = await withTenant(church.id, null, async (tx) => {
       await tx.otpChallenge.create({
         data: {
           churchId: church.id,
@@ -52,37 +62,15 @@ export class PortalService {
           expiresAt: new Date(Date.now() + OTP_TTL),
         },
       });
-      const wallet = await tx.smsWallet.findUnique({ where: { churchId: church.id } });
-      if ((wallet?.balanceUnits ?? 0) >= 1) {
-        await tx.smsWallet.update({
-          where: { churchId: church.id },
-          data: { balanceUnits: { decrement: 1 }, reservedUnits: { increment: 1 } },
-        });
-        await tx.smsLedger.create({
-          data: {
-            churchId: church.id,
-            delta: -1,
-            reason: 'RESERVE',
-            balanceAfter: (wallet?.balanceUnits ?? 1) - 1,
-            idempotencyKey: `reserve:portal:${member.id}:${Date.now()}`,
-          },
-        });
-        await tx.smsLog.create({
-          data: {
-            churchId: church.id,
-            source: 'OTP',
-            toE164: phone,
-            body: localizedSmsBody('portalOtp', ((church.settings ?? {}) as any).smsLocales, {
-              code,
-              ttlMinutes: Math.round(OTP_TTL / 60_000),
-            }),
-            segments: 1,
-            status: 'QUEUED',
-            idempotencyKey: `portal-otp:${member.id}:${Date.now()}`,
-          },
-        });
-      }
+      return this.sms.dispatch(tx, {
+        churchId: church.id,
+        toE164: phone,
+        body,
+        source: 'OTP',
+        idempotencyKey: `portal-otp:${member.id}:${Date.now()}`,
+      });
     });
+    this.sms.flush(outcome);
   }
 
   async verifyOtp(churchSlug: string, phoneE164: string, code: string): Promise<{ token: string }> {
@@ -681,7 +669,7 @@ export class PortalController {
 }
 
 @Module({
-  imports: [BibleModule],
+  imports: [BibleModule, SmsModule],
   providers: [PortalService],
   controllers: [PortalController],
 })

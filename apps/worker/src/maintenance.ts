@@ -19,6 +19,12 @@ export async function runMaintenance(name: string, queues: MaintenanceQueues): P
         queues.smsSend.add('send', { logId }, { jobId: `sms:${logId}:announcement:${String(Date.now())}` }),
       );
     }
+    case 'campaign-schedule': {
+      const { processScheduledSmsCampaigns } = await import('./sms-campaigns');
+      return processScheduledSmsCampaigns((logId) =>
+        queues.smsSend.add('send', { logId }, { jobId: `sms:${logId}:campaign` }),
+      );
+    }
     case 'sweep-pending': {
       const { platformPrisma: prisma } = await import('@chms/db');
       const stale = await prisma.transaction.findMany({

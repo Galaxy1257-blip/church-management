@@ -5,10 +5,12 @@ import { api } from '../../../lib/api';
 import type { PdfDoc } from '../../../lib/pdf';
 import { sharePdf } from '../../../lib/share';
 import { peekSession } from '../../../lib/session';
+import MemberPicker from '../../../components/member-picker';
 import Notice from '../../../components/notice';
 
 interface Shift { id: string; serviceId: string; memberId: string; duty: string; status: string; memberName?: string; memberNo?: string }
 interface Service { id: string; name: string; startsAt: string }
+interface Group { id: string; name: string; type: string }
 
 /** What a leader carries to rehearsal: who is standing where, and who has answered. */
 function rosterDoc(service: Service | undefined, shifts: Shift[]): PdfDoc {
@@ -46,9 +48,10 @@ function rosterDoc(service: Service | undefined, shifts: Shift[]): PdfDoc {
 
 export default function RosterPage() {
   const [services, setServices] = useState<Service[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [serviceId, setServiceId] = useState('');
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [form, setForm] = useState({ memberId: '', duty: '' });
+  const [form, setForm] = useState({ groupId: '', memberId: '', duty: '' });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,6 +61,10 @@ export default function RosterPage() {
       setServices(s);
       if (s[0]) setServiceId(s[0].id);
     });
+    void api<Group[]>('/groups').then((g) => {
+      setGroups(g);
+      if (g[0]) setForm((prev) => ({ ...prev, groupId: prev.groupId || g[0].id }));
+    }).catch(() => undefined);
   }, []);
   useEffect(() => {
     if (serviceId) void api<Shift[]>(`/roster?serviceId=${serviceId}`).then(setShifts).catch(() => undefined);
@@ -68,7 +75,7 @@ export default function RosterPage() {
     try {
       await api('/roster', { method: 'POST', body: { serviceId, ...form } });
       setNotice('Shift assigned');
-      setForm({ memberId: '', duty: '' });
+      setForm((prev) => ({ ...prev, memberId: '', duty: '' }));
       setShifts(await api<Shift[]>(`/roster?serviceId=${serviceId}`));
     } catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
@@ -108,9 +115,15 @@ export default function RosterPage() {
           </select>
         </label>
         <form className="row" onSubmit={assign}>
-          <input aria-label="Member ID" placeholder="Member ID" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} required style={{ flex: 1 }} />
+          <select aria-label="Group" value={form.groupId} onChange={(e) => setForm({ ...form, groupId: e.target.value })} required>
+            {groups.length === 0 ? <option value="">No groups yet</option> : null}
+            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <div style={{ flex: 1 }}>
+            <MemberPicker value={form.memberId} onChange={(id) => setForm({ ...form, memberId: id })} required />
+          </div>
           <input aria-label="Duty" placeholder="Duty (e.g. Ushering)" value={form.duty} onChange={(e) => setForm({ ...form, duty: e.target.value })} required style={{ flex: 1 }} />
-          <button>Assign</button>
+          <button disabled={!form.groupId || !form.memberId}>Assign</button>
         </form>
       </div>
       <div className="card">

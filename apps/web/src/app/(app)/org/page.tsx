@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { hasPermission, moduleEnabled, type ModuleFlags } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
+import MemberPicker from '../../../components/member-picker';
 import Notice from '../../../components/notice';
 
 interface Branch { id: string; name: string; code: string }
@@ -26,6 +27,7 @@ export default function OrgPage() {
   const [branchForm, setBranchForm] = useState({ name: '', code: '' });
   const [transfer, setTransfer] = useState({ memberId: '', toBranchId: '' });
   const [hhForm, setHhForm] = useState({ name: '', headMemberId: '' });
+  const [linkTarget, setLinkTarget] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   // Branches is its own App section, so this page must keep working — households —
@@ -84,6 +86,19 @@ export default function OrgPage() {
     catch (err) { setError(err instanceof Error ? err.message : 'failed'); }
   }
 
+  async function linkHouseholdMember(householdId: string): Promise<void> {
+    const memberId = linkTarget[householdId];
+    if (!memberId) return;
+    try {
+      await api(`/households/${householdId}/link`, { method: 'POST', body: { memberId } });
+      setLinkTarget((prev) => ({ ...prev, [householdId]: '' }));
+      setNotice('Member linked to household');
+      await load(moduleEnabled(modules, 'branches'), moduleEnabled(modules, 'departments'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'failed');
+    }
+  }
+
   return (
     <div>
       <h1>Organisation</h1>
@@ -103,7 +118,7 @@ export default function OrgPage() {
           <table><tbody>{branches.map((b) => <tr key={b.id}><td>{b.name}</td><td><span className="badge mute">{b.code}</span></td></tr>)}</tbody></table>
           <h2>Transfer member</h2>
           <form className="stack" onSubmit={requestTransfer}>
-            <input aria-label="Member ID to transfer" placeholder="Member ID" value={transfer.memberId} onChange={(e) => setTransfer({ ...transfer, memberId: e.target.value })} required />
+            <MemberPicker value={transfer.memberId} onChange={(id) => setTransfer({ ...transfer, memberId: id })} placeholder="Search member to transfer…" required />
             <select aria-label="Transfer to branch" value={transfer.toBranchId} onChange={(e) => setTransfer({ ...transfer, toBranchId: e.target.value })}>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
@@ -133,12 +148,29 @@ export default function OrgPage() {
           <h2>Households</h2>
           <form className="row" onSubmit={addHousehold}>
             <input aria-label="Household name" placeholder="Household name" value={hhForm.name} onChange={(e) => setHhForm({ ...hhForm, name: e.target.value })} required style={{ flex: 1 }} />
-            <input aria-label="Head of household member ID" placeholder="Head member ID" value={hhForm.headMemberId} onChange={(e) => setHhForm({ ...hhForm, headMemberId: e.target.value })} style={{ flex: 1 }} />
+            <div style={{ flex: 1 }}>
+              <MemberPicker value={hhForm.headMemberId} onChange={(id) => setHhForm({ ...hhForm, headMemberId: id })} placeholder="Head of household (optional)…" />
+            </div>
             <button>Create</button>
           </form>
-          <table><thead><tr><th>Household</th><th>Members</th></tr></thead><tbody>
+          <table><thead><tr><th>Household</th><th>Members</th><th>Add member</th></tr></thead><tbody>
             {households.map((h) => (
-              <tr key={h.id}><td>{h.name}</td><td>{h.members.map((m) => `${m.member.firstName} ${m.member.lastName}`).join(', ') || '—'}</td></tr>
+              <tr key={h.id}>
+                <td>{h.name}</td>
+                <td>{h.members.map((m) => `${m.member.firstName} ${m.member.lastName}`).join(', ') || '—'}</td>
+                <td>
+                  <div className="row" style={{ gap: '0.4rem', minWidth: 220 }}>
+                    <div style={{ flex: 1 }}>
+                      <MemberPicker
+                        value={linkTarget[h.id] ?? ''}
+                        onChange={(id) => setLinkTarget((prev) => ({ ...prev, [h.id]: id }))}
+                        placeholder="Link member…"
+                      />
+                    </div>
+                    <button type="button" className="small" disabled={!linkTarget[h.id]} onClick={() => void linkHouseholdMember(h.id)}>Link</button>
+                  </div>
+                </td>
+              </tr>
             ))}
           </tbody></table>
         </div>

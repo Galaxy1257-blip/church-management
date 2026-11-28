@@ -6,6 +6,7 @@ import { fmtDate, ghs } from '../../../lib/format';
 import type { PdfDoc } from '../../../lib/pdf';
 import { sharePdf } from '../../../lib/share';
 import { peekSession } from '../../../lib/session';
+import MemberPicker from '../../../components/member-picker';
 import Notice from '../../../components/notice';
 
 interface Campaign { id: string; name: string; goalMinor: number; raisedMinor: number; pledgedMinor: number; startsOn: string; endsOn: string | null }
@@ -194,7 +195,9 @@ export default function CampaignsPage() {
       <div className="card">
         <h2>Pledges</h2>
         <form className="row" onSubmit={addPledge}>
-          <input aria-label="Member ID" placeholder="Member ID" value={pledgeForm.memberId} onChange={(e) => setPledgeForm({ ...pledgeForm, memberId: e.target.value })} required style={{ flex: 1 }} />
+          <div style={{ flex: 1 }}>
+            <MemberPicker value={pledgeForm.memberId} onChange={(id) => setPledgeForm({ ...pledgeForm, memberId: id })} required />
+          </div>
           <select aria-label="Fund" value={pledgeForm.fundId} onChange={(e) => setPledgeForm({ ...pledgeForm, fundId: e.target.value })}>
             {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>

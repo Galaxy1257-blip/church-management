@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { getSession } from '../../../lib/session';
 import MemberDrawer from '../../../components/member-drawer';
+import MemberPicker from '../../../components/member-picker';
 import Notice from '../../../components/notice';
 
 interface Prayer { id: string; body: string; isAnonymous: boolean; moderation: string; status: string }
@@ -133,7 +134,9 @@ export default function CarePage() {
                   ))}
                 </select>
               ) : (
-                <input aria-label="Member ID (optional)" placeholder="Member ID (optional)" value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} />
+                <div style={{ flex: 1 }}>
+                  <MemberPicker value={taskForm.memberId} onChange={(id) => setTaskForm({ ...taskForm, memberId: id })} placeholder="Member (optional)…" />
+                </div>
               )}
               <input aria-label="Care note: who, where, when" style={{ flex: 2 }} placeholder="Note (who / where / when)" value={taskForm.note} onChange={(e) => setTaskForm({ ...taskForm, note: e.target.value })} />
               <button className="small" disabled={classScoped && !taskForm.memberId}>Add</button>

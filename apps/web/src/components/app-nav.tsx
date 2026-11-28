@@ -6,6 +6,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  ArrowDown,
+  ArrowUp,
+  HelpCircle,
+  Info,
+  LayoutGrid,
+  LogOut,
+  Share2,
+  UserCheck,
+} from 'lucide-react';
+import {
   SCOPE_LABEL,
   describeRoles,
   hasPermission,
@@ -38,6 +48,8 @@ export default function AppNav({
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Desktop: collapse the sidebar to an icon rail. Phones always use the drawer.
   const [collapsed, setCollapsed] = useState(false);
+  // Adjustable position for the utility bar ('bottom' default, or 'top').
+  const [footPos, setFootPos] = useState<'bottom' | 'top'>('bottom');
   // Search is hidden for short menus; ⌘K or the header icon opens it on demand.
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -79,10 +91,21 @@ export default function AppNav({
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem('chms.sideCollapsed') === '1');
+      const savedPos = localStorage.getItem('chms.sideFootPos');
+      if (savedPos === 'top' || savedPos === 'bottom') setFootPos(savedPos);
     } catch {
       /* private mode — default expanded */
     }
   }, []);
+  function toggleFootPos(): void {
+    const next = footPos === 'bottom' ? 'top' : 'bottom';
+    setFootPos(next);
+    try {
+      localStorage.setItem('chms.sideFootPos', next);
+    } catch {
+      /* ignore */
+    }
+  }
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const wide = window.matchMedia('(min-width: 901px)');
@@ -161,6 +184,73 @@ export default function AppNav({
   const showSearch = searchOpen || isSuperUser || navCount > 8;
   const logo = me.church.branding?.logoDataUrl;
 
+  const utilityBar = (
+    <div className={`side-foot${footPos === 'top' ? ' side-foot-top' : ''}`}>
+      <div className="side-foot-head">
+        <span className="side-role" title={roleLabel}>{roleLabel}</span>
+        {!usherMode ? (
+          <button
+            type="button"
+            className="side-icon-btn side-pos-btn"
+            onClick={toggleFootPos}
+            title={footPos === 'bottom' ? 'Move bar to top' : 'Move bar to bottom'}
+            aria-label={footPos === 'bottom' ? 'Move bar to top' : 'Move bar to bottom'}
+          >
+            {footPos === 'bottom' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />}
+          </button>
+        ) : null}
+      </div>
+      <div className="side-foot-icons">
+        {canUsherMode ? (
+          <button
+            type="button"
+            className="side-icon-btn"
+            onClick={onToggleUsher}
+            title={usherMode ? 'Full app' : 'Usher mode'}
+            aria-label={usherMode ? 'Full app' : 'Usher mode'}
+          >
+            {usherMode ? <LayoutGrid size={16} aria-hidden="true" /> : <UserCheck size={16} aria-hidden="true" />}
+          </button>
+        ) : null}
+        <Link
+          href="/about"
+          className={`side-icon-btn${isActive('/about') ? ' active' : ''}`}
+          title="About"
+          aria-label="About"
+        >
+          <Info size={16} aria-hidden="true" />
+        </Link>
+        {me.church.slug ? (
+          <Link
+            href={`/flyers/${me.church.slug}`}
+            className={`side-icon-btn${isActive(`/flyers/${me.church.slug}`) ? ' active' : ''}`}
+            title="Share links"
+            aria-label="Share links"
+          >
+            <Share2 size={16} aria-hidden="true" />
+          </Link>
+        ) : null}
+        <Link
+          href="/help"
+          className={`side-icon-btn${isActive('/help') ? ' active' : ''}`}
+          title="Help"
+          aria-label="Help"
+        >
+          <HelpCircle size={16} aria-hidden="true" />
+        </Link>
+        <button
+          type="button"
+          className="side-icon-btn"
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <LogOut size={16} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="nav-mobilebar">
@@ -213,6 +303,8 @@ export default function AppNav({
             ×
           </button>
         </div>
+
+        {footPos === 'top' && !usherMode ? utilityBar : null}
 
         {usherMode ? (
           <nav className="usher-rail" aria-label="Usher sections">
@@ -298,31 +390,7 @@ export default function AppNav({
           </>
         )}
 
-        <div className="side-foot">
-          <span className="side-role">{roleLabel}</span>
-          {canUsherMode ? (
-            <button type="button" className="side-action" onClick={onToggleUsher}>
-              {usherMode ? 'Full app' : 'Usher mode'}
-            </button>
-          ) : null}
-          <Link href="/about" className={`side-action${isActive('/about') ? ' active' : ''}`}>
-            About
-          </Link>
-          {me.church.slug ? (
-            <Link
-              href={`/flyers/${me.church.slug}`}
-              className={`side-action${isActive(`/flyers/${me.church.slug}`) ? ' active' : ''}`}
-            >
-              Share links
-            </Link>
-          ) : null}
-          <Link href="/help" className="side-action">
-            Help
-          </Link>
-          <button type="button" className="side-action" onClick={onLogout}>
-            Log out
-          </button>
-        </div>
+        {footPos === 'bottom' || usherMode ? utilityBar : null}
       </aside>
 
       {drawerOpen ? (

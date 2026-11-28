@@ -46,7 +46,7 @@ export default function SmsPage() {
   const [optOuts, setOptOuts] = useState<OptOut[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [form, setForm] = useState({ name: '', body: '', includeVisitors: false });
+  const [form, setForm] = useState({ name: '', body: '', includeVisitors: false, scheduledAt: '' });
   const [preview, setPreview] = useState<Preview | null>(null);
 
   const load = useCallback(async () => {
@@ -87,17 +87,23 @@ export default function SmsPage() {
 
   async function sendCampaign(): Promise<void> {
     try {
+      const scheduledIso = form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined;
       const campaign = await api<Campaign>('/sms/campaigns', {
         method: 'POST',
         body: {
           name: form.name || 'Broadcast',
           body: form.body,
           audience: { includeVisitors: form.includeVisitors },
+          scheduledAt: scheduledIso,
         },
       });
-      const res = await api<{ queued: number }>(`/sms/campaigns/${campaign.id}/send`, { method: 'POST' });
-      setNotice(`Queued ${res.queued} message(s)`);
-      setForm({ name: '', body: '', includeVisitors: false });
+      if (scheduledIso) {
+        setNotice(`Scheduled for ${new Date(form.scheduledAt).toLocaleString()}`);
+      } else {
+        const res = await api<{ queued: number }>(`/sms/campaigns/${campaign.id}/send`, { method: 'POST' });
+        setNotice(`Queued ${res.queued} message(s)`);
+      }
+      setForm({ name: '', body: '', includeVisitors: false, scheduledAt: '' });
       setPreview(null);
       await load();
     } catch (err) {
@@ -160,6 +166,14 @@ export default function SmsPage() {
             Message ({form.body.length} chars)
             <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} required />
           </label>
+          <label>
+            Schedule for (optional — leave blank to send immediately)
+            <input
+              type="datetime-local"
+              value={form.scheduledAt}
+              onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+            />
+          </label>
           <div className="row">
             <button className="secondary" type="submit">
               Preview cost
@@ -172,7 +186,7 @@ export default function SmsPage() {
           </div>
           {preview ? (
             <button type="button" onClick={() => void sendCampaign()} disabled={preview.totalUnits > (wallet?.balanceUnits ?? 0)}>
-              Send now ({preview.totalUnits} units)
+              {form.scheduledAt ? `Schedule (${preview.totalUnits} units)` : `Send now (${preview.totalUnits} units)`}
             </button>
           ) : null}
         </form>
