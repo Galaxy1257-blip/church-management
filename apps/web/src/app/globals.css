@@ -635,7 +635,7 @@ input[type='reset'] {
 :root { --side-w: 240px; --rail-w: 80px; }
 
 .app-shell { min-height: 100vh; }
-.app-body { margin-left: var(--side-w); min-height: 100vh; }
+.app-body { margin-left: var(--side-w); min-height: 100vh; transition: margin-left 0.16s ease-out; }
 .app-shell.usher-shell .app-body { margin-left: var(--rail-w); }
 
 /* Desktop top bar: church on the left, the signed-in person on the right.
@@ -699,6 +699,7 @@ input[type='reset'] {
   backdrop-filter: blur(20px) saturate(1.1);
   color: var(--ink);
   border-right: 1px solid var(--line);
+  transition: width 0.16s ease-out, transform 0.18s ease-out;
 }
 
 .side-head {
@@ -1639,6 +1640,24 @@ main.usher button { padding: 0.7rem 1.2rem; font-size: 1.05rem; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@keyframes notice-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.notice-banner { animation: notice-in 0.16s ease-out; }
+
+.side-icon-btn:active, .rail-item:active { transform: scale(0.96); }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+.skeleton {
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
 }
 
 /* ---------------------------------------------------------- bible dock */

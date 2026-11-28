@@ -23,14 +23,14 @@ export default function Notice({
   if (!text) return null;
   if (kind === 'error') {
     return (
-      <div className="error" role="alert" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+      <div className="error notice-banner" role="alert" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <span>{text}</span>
         <button type="button" className="link-button" onClick={onDone} aria-label="Dismiss">×</button>
       </div>
     );
   }
   return (
-    <div className="card" style={{ borderColor: 'var(--accent)' }} role="status">
+    <div className="card notice-banner" style={{ borderColor: 'var(--accent)' }} role="status">
       {text}
     </div>
   );
