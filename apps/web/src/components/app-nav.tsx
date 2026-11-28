@@ -4,16 +4,40 @@
 // component never decides who may see what — it only renders and searches.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  Baby,
+  Bell,
+  Building2,
+  Calendar,
+  CalendarCheck,
+  ChevronLeft,
+  ClipboardCheck,
+  DollarSign,
+  Flag,
+  GitBranch,
+  Heart,
   HelpCircle,
+  History,
   Info,
+  KeyRound,
   LayoutGrid,
+  ListChecks,
   LogOut,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Receipt,
+  Settings,
   Share2,
   UserCheck,
+  UserPlus,
+  Users,
+  UsersRound,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   SCOPE_LABEL,
@@ -261,7 +285,7 @@ export default function AppNav({
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(true)}
         >
-          ☰
+          <Menu size={20} aria-hidden="true" />
         </button>
         <Link href={home} className="brand">
           ChMS · {me.church.name}
@@ -289,9 +313,7 @@ export default function AppNav({
               aria-expanded={!collapsed}
               onClick={() => setCollapsed((v) => !v)}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
+              <ChevronLeft size={14} aria-hidden="true" />
             </button>
           ) : null}
           <button
@@ -300,7 +322,7 @@ export default function AppNav({
             aria-label="Close menu"
             onClick={() => setDrawerOpen(false)}
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -405,204 +427,39 @@ export default function AppNav({
   );
 }
 
+const NAV_ICONS: Record<string, LucideIcon> = {
+  dashboard: LayoutGrid,
+  members: Users,
+  visitors: UserPlus,
+  'join-card': KeyRound,
+  groups: UsersRound,
+  children: Baby,
+  checkin: ClipboardCheck,
+  services: CalendarCheck,
+  roster: ListChecks,
+  events: Calendar,
+  finance: DollarSign,
+  expenses: Receipt,
+  announcements: Megaphone,
+  reminders: Bell,
+  outreach: Flag,
+  sms: MessageSquare,
+  care: Heart,
+  org: Building2,
+  branches: GitBranch,
+  audit: History,
+  settings: Settings,
+};
+
 function RailIcon({ href }: { href: string }) {
-  const common = {
-    viewBox: '0 0 20 20',
-    'aria-hidden': true,
-  } as const;
-  if (href === '/dashboard') {
-    return (
-      <svg {...common}>
-        <rect x="3" y="3" width="6" height="6" rx="1.4" />
-        <rect x="11" y="3" width="6" height="6" rx="1.4" />
-        <rect x="3" y="11" width="6" height="6" rx="1.4" />
-        <rect x="11" y="11" width="6" height="6" rx="1.4" />
-      </svg>
-    );
-  }
-  if (href === '/checkin') {
-    return (
-      <svg {...common}>
-        <rect x="4.5" y="3.5" width="11" height="14" rx="2" />
-        <path d="M8 3.5h4" />
-        <path d="M7.5 11.2 9 12.7l3.4-3.4" />
-      </svg>
-    );
-  }
-  if (href === '/services') {
-    return (
-      <svg {...common}>
-        <circle cx="7.5" cy="7" r="2.8" />
-        <path d="M2.8 16.4c0-2.7 2.1-4.4 4.7-4.4s4.7 1.7 4.7 4.4" />
-        <circle cx="14.3" cy="7.8" r="2.1" />
-        <path d="M13.2 12.2c2.1.1 3.9 1.6 3.9 3.9" />
-      </svg>
-    );
-  }
-  if (href === '/visitors') {
-    return (
-      <svg {...common}>
-        <circle cx="8" cy="7" r="2.9" />
-        <path d="M3 16.4c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" />
-        <path d="M16 6v4M14 8h4" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <circle cx="10" cy="10" r="6" />
-    </svg>
-  );
+  const seg = href.replace(/^\//, '').split('/')[0];
+  const Icon = NAV_ICONS[seg] ?? LayoutGrid;
+  return <Icon size={20} strokeWidth={1.7} aria-hidden="true" />;
 }
 
-/** Outlined icon per destination (Lucide-style, one stroke weight). */
+/** Outlined Lucide icon per destination (one consistent stroke weight). */
 function NavIcon({ href }: { href: string }) {
   const seg = href.replace(/^\//, '').split('/')[0];
-  const icons: Record<string, ReactNode> = {
-    dashboard: (
-      <>
-        <rect x="3" y="3" width="7" height="7" rx="1.6" />
-        <rect x="14" y="3" width="7" height="7" rx="1.6" />
-        <rect x="14" y="14" width="7" height="7" rx="1.6" />
-        <rect x="3" y="14" width="7" height="7" rx="1.6" />
-      </>
-    ),
-    members: (
-      <>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </>
-    ),
-    visitors: (
-      <>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M19 8v6M22 11h-6" />
-      </>
-    ),
-    'join-card': (
-      <>
-        <circle cx="8" cy="15" r="4" />
-        <path d="M11 12l9-9M17 6l3 3M15 8l3 3" />
-      </>
-    ),
-    groups: (
-      <>
-        <circle cx="9" cy="8" r="3.2" />
-        <circle cx="17" cy="9" r="2.4" />
-        <path d="M3.5 19c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
-        <path d="M15.5 19c0-2 1.4-3.4 3.4-3.4S22 16.9 22 19" />
-      </>
-    ),
-    children: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M9 10h.01M15 10h.01" />
-        <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8" />
-      </>
-    ),
-    checkin: (
-      <>
-        <rect x="8" y="2" width="8" height="4" rx="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-        <path d="M9 14l2 2 4-4" />
-      </>
-    ),
-    services: (
-      <>
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M3 9h18M8 2v4M16 2v4" />
-        <path d="M9 15l2 2 4-4" />
-      </>
-    ),
-    roster: (
-      <>
-        <path d="M8 6h13M8 12h13M8 18h13" />
-        <path d="M3 6h.01M3 12h.01M3 18h.01" />
-      </>
-    ),
-    events: (
-      <>
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M3 9h18M8 2v4M16 2v4" />
-      </>
-    ),
-    finance: (
-      <>
-        <rect x="2" y="6" width="20" height="12" rx="2" />
-        <circle cx="12" cy="12" r="2.5" />
-        <path d="M6 12h.01M18 12h.01" />
-      </>
-    ),
-    expenses: (
-      <>
-        <path d="M6 2h12a1 1 0 0 1 1 1v19l-2.5-1.5L14 22l-2-1.5L10 22l-2.5-1.5L5 22V3a1 1 0 0 1 1-1z" />
-        <path d="M9 7h6M9 11h6M9 15h4" />
-      </>
-    ),
-    announcements: (
-      <>
-        <path d="M3 11l18-5v12L3 14v-3z" />
-        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
-      </>
-    ),
-    reminders: (
-      <>
-        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M10.3 21a2 2 0 0 0 3.4 0" />
-      </>
-    ),
-    outreach: (
-      <>
-        <path d="M4 22V4" />
-        <path d="M4 4h12l-2 4 2 4H4" />
-      </>
-    ),
-    sms: (
-      <>
-        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </>
-    ),
-    care: (
-      <>
-        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
-      </>
-    ),
-    org: (
-      <>
-        <rect x="5" y="3" width="14" height="18" rx="1.5" />
-        <path d="M9 21v-4h6v4" />
-        <path d="M9 7h.01M12 7h.01M15 7h.01M9 11h.01M12 11h.01M15 11h.01" />
-      </>
-    ),
-    branches: (
-      <>
-        <circle cx="6" cy="6" r="2.5" />
-        <circle cx="6" cy="18" r="2.5" />
-        <circle cx="18" cy="8" r="2.5" />
-        <path d="M6 8.5v7" />
-        <path d="M18 10.5c0 4-4 5-4 5H9" />
-      </>
-    ),
-    audit: (
-      <>
-        <path d="M3 3v5h5" />
-        <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
-        <path d="M12 7v5l4 2" />
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-      </>
-    ),
-  };
-  return (
-    <svg className="nav-ic" viewBox="0 0 24 24" aria-hidden="true">
-      {icons[seg] ?? <circle cx="12" cy="12" r="6" />}
-    </svg>
-  );
+  const Icon = NAV_ICONS[seg] ?? LayoutGrid;
+  return <Icon className="nav-ic" size={18} strokeWidth={1.7} aria-hidden="true" />;
 }

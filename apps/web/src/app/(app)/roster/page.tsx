@@ -133,6 +133,7 @@ export default function RosterPage() {
             {busy ? 'Preparing...' : 'Print the sheet'}
           </button>
         </div>
+        <div className="table-wrap">
         <table><thead><tr><th>Duty</th><th>Member</th><th>Status</th><th>Actions</th></tr></thead><tbody>
           {shifts.map((s) => (
             <tr key={s.id}>
@@ -146,6 +147,7 @@ export default function RosterPage() {
             </tr>
           ))}
         </tbody></table>
+        </div>
         {shifts.length === 0 ? <p className="muted">No shifts for this service.</p> : null}
       </div>
     </div>

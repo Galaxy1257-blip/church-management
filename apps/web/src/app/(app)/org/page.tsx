@@ -153,6 +153,7 @@ export default function OrgPage() {
             </div>
             <button>Create</button>
           </form>
+          <div className="table-wrap">
           <table><thead><tr><th>Household</th><th>Members</th><th>Add member</th></tr></thead><tbody>
             {households.map((h) => (
               <tr key={h.id}>
@@ -173,6 +174,7 @@ export default function OrgPage() {
               </tr>
             ))}
           </tbody></table>
+          </div>
         </div>
         ) : null}
       </div>

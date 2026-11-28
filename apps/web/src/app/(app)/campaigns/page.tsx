@@ -204,6 +204,7 @@ export default function CampaignsPage() {
           <input aria-label="Pledge amount in cedis" placeholder="Amount GH₵" value={pledgeForm.amount} onChange={(e) => setPledgeForm({ ...pledgeForm, amount: e.target.value })} inputMode="decimal" style={{ flex: 1 }} />
           <button>Add pledge</button>
         </form>
+        <div className="table-wrap">
         <table><thead><tr><th>Member</th><th>Fund</th><th>Amount</th><th>Frequency</th></tr></thead><tbody>
           {pledges.map((p) => (
             <tr key={p.id}>
@@ -212,6 +213,7 @@ export default function CampaignsPage() {
             </tr>
           ))}
         </tbody></table>
+        </div>
       </div>
     </div>
   );

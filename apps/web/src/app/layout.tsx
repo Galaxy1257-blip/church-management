@@ -1,7 +1,21 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
+import { Newsreader, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { SwRegister } from './sw-register';
+
+const bodyFont = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const displayFont = Newsreader({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
 // Prerendered HTML cannot receive the per-request CSP nonce from middleware.
 export const dynamic = 'force-dynamic';
@@ -26,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${bodyFont.variable} ${displayFont.variable}`} suppressHydrationWarning>
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

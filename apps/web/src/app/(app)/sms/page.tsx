@@ -121,10 +121,10 @@ export default function SmsPage() {
   }
   return (
     <div>
-      <div className="spread">
+      <div className="page-head">
         <h1>SMS</h1>
         {wallet ? (
-          <div className="row">
+          <div className="head-actions">
             <span className="badge ok">{wallet.balanceUnits} credits</span>
             <span className="badge mute">reserved {wallet.reservedUnits}</span>
           </div>
