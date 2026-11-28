@@ -1,6 +1,6 @@
 'use client';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileJson, FileText } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { hasPermission } from '../../../lib/access';
 import { peekSession } from '../../../lib/session';
@@ -586,11 +586,11 @@ export default function MembersPage() {
                 <td>{fmtDate(m.joinedAt)}</td>
                 <td>
                   <div className="member-actions">
+                    <button type="button" className="small secondary" title="Export this member's data as JSON (Act 843)" aria-label={`Export ${m.firstName} ${m.lastName}'s JSON data`} onClick={() => void exportMember(m)}>
+                      <FileJson size={18} aria-hidden="true" />
+                    </button>
                     <button type="button" className="small secondary" title="Readable PDF copy of this member's data (Act 843)" aria-label={`Download ${m.firstName} ${m.lastName}'s readable data PDF`} disabled={pdfBusy} onClick={() => void printMemberData(m)}>
                       <FileText size={18} aria-hidden="true" />
-                    </button>
-                    <button type="button" className="small secondary" title="Export this member's data (Act 843)" aria-label={`Export ${m.firstName} ${m.lastName}'s data`} onClick={() => void exportMember(m)}>
-                      <Download size={18} aria-hidden="true" />
                     </button>
                   </div>
                 </td>
